@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <rect width="800" height="450" fill="#1e293b"/>
+  <!-- Bombardier CRJ-700 silhouette -->
+  <g transform="translate(400,200)">
+    <!-- Fuselage (narrow regional jet body) -->
+    <path d="M-250,0 C-250,-6 -240,-10 -220,-10 L200,-10 C220,-10 240,-6 250,0 L250,0 C240,6 220,10 200,10 L-220,10 C-240,10 -250,6 -250,0 Z" fill="#3b82f6"/>
+    <!-- Nose cone -->
+    <path d="M-250,0 C-260,0 -270,-3 -270,0 C-270,3 -260,0 -250,0 Z" fill="#94a3b8"/>
+    <!-- T-tail vertical stabilizer -->
+    <path d="M210,-10 L230,-65 L250,-65 L248,-10" fill="#3b82f6"/>
+    <!-- T-tail horizontal stabilizer (at top of vertical) -->
+    <path d="M215,-65 L200,-90 L270,-90 L265,-65 Z" fill="#94a3b8"/>
+    <!-- Wings (swept, mid-mounted) -->
+    <path d="M-30,-8 L-120,-80 L-80,-80 L40,-8 Z" fill="#94a3b8"/>
+    <path d="M-30,8 L-120,80 L-80,80 L40,8 Z" fill="#94a3b8"/>
+    <!-- Rear-mounted engine (left) -->
+    <path d="M185,-12 L170,-28 L205,-28 L200,-12 Z" fill="#3b82f6"/>
+    <ellipse cx="187" cy="-28" rx="16" ry="5" fill="#94a3b8"/>
+    <!-- Rear-mounted engine (right) -->
+    <path d="M185,12 L170,28 L205,28 L200,12 Z" fill="#3b82f6"/>
+    <ellipse cx="187" cy="28" rx="16" ry="5" fill="#94a3b8"/>
+    <!-- Cockpit windows -->
+    <rect x="-248" y="-4" width="10" height="3" rx="1" fill="#94a3b8" opacity="0.5"/>
+    <rect x="-248" y="1" width="10" height="3" rx="1" fill="#94a3b8" opacity="0.5"/>
+  </g>
+  <!-- Aircraft name -->
+  <text x="400" y="380" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="#94a3b8">Bombardier CRJ-700</text>
+</svg>

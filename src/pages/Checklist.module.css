@@ -1,0 +1,502 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding-bottom: 4rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  transition: color 0.2s;
+  align-self: flex-start;
+}
+
+.backLink:hover {
+  color: var(--accent);
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.resetButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.resetButton:hover {
+  background-color: var(--bg-secondary);
+  border-color: var(--accent);
+}
+
+.resetIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Overall progress bar */
+
+.overallProgress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.overallProgressInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+
+.overallLabel {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.overallCount {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.overallBar {
+  flex: 1;
+  height: 10px;
+  background: var(--bg-tertiary);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.overallFill {
+  height: 100%;
+  background: var(--success);
+  transition: width 0.3s ease-out;
+  border-radius: 5px;
+}
+
+.overallPercent {
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 40px;
+  text-align: right;
+}
+
+.phases {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.phase {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.phaseComplete {
+  border-color: var(--success);
+  background-color: rgba(34, 197, 94, 0.05);
+}
+
+.phaseHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0;
+}
+
+.phaseHeader:hover {
+  opacity: 0.85;
+}
+
+.phaseHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.phaseTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.progressWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 150px;
+}
+
+.progressBar {
+  flex: 1;
+  height: 8px;
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: var(--success);
+  transition: width 0.3s ease-out;
+}
+
+.progressText {
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  width: 40px;
+  text-align: right;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Edit mode */
+
+.editButtonActive {
+  composes: resetButton;
+  background-color: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.editButtonActive:hover {
+  opacity: 0.9;
+}
+
+.editableRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editableRow > *:first-child {
+  flex: 1;
+}
+
+.deleteItemButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.deleteItemButton:hover {
+  background: #e74c3c;
+  color: #fff;
+  border-color: #e74c3c;
+}
+
+.insertButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 24px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0.4;
+  transition: all 0.2s;
+}
+
+.insertButton:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.insertForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  margin-top: 0.25rem;
+}
+
+.insertInput {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+}
+
+.insertInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.insertFormActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.insertSubmit {
+  padding: 0.4rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.insertSubmit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.insertCancel {
+  padding: 0.4rem 1rem;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+/* Phase management */
+
+.phaseHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.phaseHeaderRow > .phaseHeader {
+  flex: 1;
+}
+
+.phaseActions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.phaseActionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.phaseActionButton:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.phaseActionButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.deletePhaseButton {
+  composes: phaseActionButton;
+}
+
+.deletePhaseButton:hover:not(:disabled) {
+  background: #e74c3c;
+  color: #fff;
+  border-color: #e74c3c;
+}
+
+.addPhaseButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 1rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.addPhaseButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.addPhaseForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+/* Tablet responsive */
+@media (max-width: 768px) {
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .headerActions {
+    flex-wrap: wrap;
+  }
+
+  .phase {
+    padding: 1.25rem;
+  }
+
+  .overallProgress {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .overallProgressInfo {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    min-width: auto;
+  }
+
+  .overallPercent {
+    text-align: left;
+    min-width: auto;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .container {
+    gap: 1.25rem;
+    padding-bottom: 3rem;
+  }
+
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .headerContent {
+    flex-direction: column;
+  }
+
+  .headerActions {
+    width: 100%;
+  }
+
+  .resetButton,
+  .editButtonActive {
+    font-size: 0;
+    padding: 0.5rem;
+    gap: 0;
+  }
+
+  .resetButton svg,
+  .editButtonActive svg {
+    font-size: 1rem;
+  }
+
+  .phase {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .phaseTitle {
+    font-size: 1.1rem;
+  }
+
+  .progressWrapper {
+    min-width: 100px;
+  }
+
+  .phases {
+    gap: 1.25rem;
+  }
+
+  .items {
+    gap: 0.5rem;
+  }
+}

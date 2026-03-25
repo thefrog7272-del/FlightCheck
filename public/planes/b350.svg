@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <rect width="800" height="450" fill="#1e293b"/>
+  <!-- Beechcraft King Air 350 silhouette -->
+  <g transform="translate(400,200)">
+    <!-- Fuselage -->
+    <path d="M-200,0 C-200,-7 -190,-12 -170,-12 L180,-12 C200,-12 215,-7 220,0 C215,7 200,12 180,12 L-170,12 C-190,12 -200,7 -200,0 Z" fill="#3b82f6"/>
+    <!-- Nose -->
+    <path d="M-200,0 C-210,0 -225,-4 -230,0 C-225,4 -210,0 -200,0 Z" fill="#94a3b8"/>
+    <!-- T-tail vertical stabilizer -->
+    <path d="M185,-12 L200,-60 L220,-60 L218,-12" fill="#3b82f6"/>
+    <!-- T-tail horizontal stabilizer -->
+    <path d="M188,-60 L175,-82 L245,-82 L238,-60 Z" fill="#94a3b8"/>
+    <!-- Wings (straight, low mounted - turboprop style) -->
+    <path d="M-60,-10 L-130,-85 L-100,-85 L10,-10 Z" fill="#94a3b8"/>
+    <path d="M-60,10 L-130,85 L-100,85 L10,10 Z" fill="#94a3b8"/>
+    <!-- Left engine nacelle -->
+    <path d="M-100,-62 L-85,-62 L-85,-52 L-100,-52 Z" fill="#3b82f6"/>
+    <ellipse cx="-92" cy="-57" rx="12" ry="7" fill="#3b82f6"/>
+    <!-- Left propeller -->
+    <line x1="-105" y1="-57" x2="-105" y2="-72" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="-105" y1="-57" x2="-105" y2="-42" stroke="#94a3b8" stroke-width="2.5"/>
+    <!-- Right engine nacelle -->
+    <path d="M-100,52 L-85,52 L-85,62 L-100,62 Z" fill="#3b82f6"/>
+    <ellipse cx="-92" cy="57" rx="12" ry="7" fill="#3b82f6"/>
+    <!-- Right propeller -->
+    <line x1="-105" y1="57" x2="-105" y2="42" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="-105" y1="57" x2="-105" y2="72" stroke="#94a3b8" stroke-width="2.5"/>
+    <!-- Cockpit windows -->
+    <rect x="-198" y="-5" width="12" height="4" rx="1" fill="#94a3b8" opacity="0.5"/>
+    <rect x="-198" y="1" width="12" height="4" rx="1" fill="#94a3b8" opacity="0.5"/>
+  </g>
+  <!-- Aircraft name -->
+  <text x="400" y="380" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="#94a3b8">Beechcraft King Air 350</text>
+</svg>

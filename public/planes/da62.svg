@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <rect width="800" height="450" fill="#1e293b"/>
+  <!-- Diamond DA62 silhouette -->
+  <g transform="translate(400,200)">
+    <!-- Fuselage (distinctive DA62 shape with prominent nose) -->
+    <path d="M-170,0 C-170,-7 -160,-12 -140,-12 L160,-12 C175,-12 188,-7 192,0 C188,7 175,12 160,12 L-140,12 C-160,12 -170,7 -170,0 Z" fill="#3b82f6"/>
+    <!-- Distinctive nose (DA62 has a prominent elongated nose) -->
+    <path d="M-170,-5 C-180,-5 -210,-3 -220,0 C-210,3 -180,5 -170,5 Z" fill="#3b82f6"/>
+    <path d="M-190,-2 L-220,0 L-190,2 Z" fill="#94a3b8"/>
+    <!-- Wings (low mounted, moderate sweep) -->
+    <path d="M-40,-9 L-110,-95 L-75,-95 L40,-9 Z" fill="#94a3b8"/>
+    <path d="M-40,9 L-110,95 L-75,95 L40,9 Z" fill="#94a3b8"/>
+    <!-- Left engine nacelle on wing -->
+    <path d="M-82,-68 L-70,-68 L-70,-58 L-82,-58 Z" fill="#3b82f6"/>
+    <ellipse cx="-76" cy="-63" rx="10" ry="6" fill="#3b82f6"/>
+    <!-- Left propeller -->
+    <line x1="-86" y1="-63" x2="-86" y2="-78" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="-86" y1="-63" x2="-86" y2="-48" stroke="#94a3b8" stroke-width="2"/>
+    <!-- Right engine nacelle on wing -->
+    <path d="M-82,58 L-70,58 L-70,68 L-82,68 Z" fill="#3b82f6"/>
+    <ellipse cx="-76" cy="63" rx="10" ry="6" fill="#3b82f6"/>
+    <!-- Right propeller -->
+    <line x1="-86" y1="63" x2="-86" y2="48" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="-86" y1="63" x2="-86" y2="78" stroke="#94a3b8" stroke-width="2"/>
+    <!-- Tail (conventional with slight T) -->
+    <path d="M165,-12 L178,-52 L196,-52 L194,-12" fill="#3b82f6"/>
+    <!-- Horizontal stabilizer -->
+    <path d="M168,-50 L158,-72 L210,-72 L205,-50 Z" fill="#94a3b8"/>
+    <!-- Canopy -->
+    <path d="M-140,-12 C-135,-20 -115,-24 -85,-24 L-30,-24 C-10,-24 5,-19 10,-12" fill="#94a3b8" opacity="0.35"/>
+    <!-- Retractable gear fairings -->
+    <ellipse cx="-60" cy="15" rx="8" ry="4" fill="#94a3b8" opacity="0.5"/>
+    <ellipse cx="100" cy="15" rx="8" ry="4" fill="#94a3b8" opacity="0.5"/>
+  </g>
+  <!-- Aircraft name -->
+  <text x="400" y="380" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="#94a3b8">Diamond DA62</text>
+</svg>

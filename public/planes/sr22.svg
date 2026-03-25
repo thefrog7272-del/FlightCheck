@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <rect width="800" height="450" fill="#1e293b"/>
+  <!-- Cirrus SR22 silhouette -->
+  <g transform="translate(400,200)">
+    <!-- Fuselage (sleek GA shape) -->
+    <path d="M-160,0 C-160,-8 -150,-13 -130,-13 L150,-13 C170,-13 185,-8 190,0 C185,8 170,13 150,13 L-130,13 C-150,13 -160,8 -160,0 Z" fill="#3b82f6"/>
+    <!-- Nose / spinner -->
+    <path d="M-160,0 C-170,0 -190,-5 -200,0 C-190,5 -170,0 -160,0 Z" fill="#94a3b8"/>
+    <!-- Propeller disc -->
+    <line x1="-195" y1="0" x2="-195" y2="-22" stroke="#94a3b8" stroke-width="2.5"/>
+    <line x1="-195" y1="0" x2="-195" y2="22" stroke="#94a3b8" stroke-width="2.5"/>
+    <circle cx="-195" cy="0" r="3" fill="#94a3b8"/>
+    <!-- Low wing (left) -->
+    <path d="M-50,-10 L-100,-100 L-65,-100 L30,-10 Z" fill="#94a3b8"/>
+    <!-- Low wing (right) -->
+    <path d="M-50,10 L-100,100 L-65,100 L30,10 Z" fill="#94a3b8"/>
+    <!-- Conventional tail -->
+    <path d="M160,-13 L175,-50 L195,-50 L192,-13" fill="#3b82f6"/>
+    <!-- Horizontal stabilizer -->
+    <path d="M155,-11 L175,-38 L200,-38 L200,-8 L170,-8 Z" fill="#94a3b8"/>
+    <path d="M155,11 L175,38 L200,38 L200,8 L170,8 Z" fill="#94a3b8"/>
+    <!-- Cockpit canopy -->
+    <path d="M-130,-13 C-125,-22 -100,-25 -70,-25 L-20,-25 C0,-25 10,-20 15,-13" fill="#94a3b8" opacity="0.4"/>
+    <!-- Wheel fairings -->
+    <ellipse cx="-80" cy="16" rx="10" ry="5" fill="#94a3b8" opacity="0.6"/>
+    <ellipse cx="80" cy="16" rx="10" ry="5" fill="#94a3b8" opacity="0.6"/>
+  </g>
+  <!-- Aircraft name -->
+  <text x="400" y="380" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="#94a3b8">Cirrus SR22</text>
+</svg>

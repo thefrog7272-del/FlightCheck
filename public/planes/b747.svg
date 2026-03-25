@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <rect width="800" height="450" fill="#1e293b"/>
+  <!-- Boeing 747-400 silhouette -->
+  <g transform="translate(400,200)">
+    <!-- Fuselage -->
+    <path d="M-280,0 C-280,-8 -270,-14 -250,-14 L200,-14 C230,-14 260,-10 280,-2 L280,2 C260,10 230,14 200,14 L-250,14 C-270,14 -280,8 -280,0 Z" fill="#3b82f6"/>
+    <!-- Upper deck hump -->
+    <path d="M-250,-14 C-250,-14 -240,-38 -200,-38 L-20,-38 C10,-38 30,-30 40,-14" fill="#3b82f6"/>
+    <!-- Tail fin -->
+    <path d="M220,-14 L250,-70 L270,-70 L280,-14" fill="#3b82f6"/>
+    <!-- Horizontal stabilizer -->
+    <path d="M230,-12 L260,-35 L280,-35 L280,-10 L250,-10 Z" fill="#94a3b8"/>
+    <path d="M230,12 L260,35 L280,35 L280,10 L250,10 Z" fill="#94a3b8"/>
+    <!-- Left wing -->
+    <path d="M-60,-10 L-180,-90 L-140,-90 L20,-10 Z" fill="#94a3b8"/>
+    <path d="M-60,10 L-180,90 L-140,90 L20,10 Z" fill="#94a3b8"/>
+    <!-- Engine 1 (outer left) -->
+    <ellipse cx="-155" cy="-72" rx="18" ry="7" fill="#3b82f6"/>
+    <rect x="-160" y="-68" width="12" height="4" rx="2" fill="#94a3b8"/>
+    <!-- Engine 2 (inner left) -->
+    <ellipse cx="-105" cy="-48" rx="18" ry="7" fill="#3b82f6"/>
+    <rect x="-110" y="-44" width="12" height="4" rx="2" fill="#94a3b8"/>
+    <!-- Engine 3 (inner right) -->
+    <ellipse cx="-105" cy="48" rx="18" ry="7" fill="#3b82f6"/>
+    <rect x="-110" y="44" width="12" height="4" rx="2" fill="#94a3b8"/>
+    <!-- Engine 4 (outer right) -->
+    <ellipse cx="-155" cy="72" rx="18" ry="7" fill="#3b82f6"/>
+    <rect x="-160" y="68" width="12" height="4" rx="2" fill="#94a3b8"/>
+    <!-- Nose cone -->
+    <path d="M-280,0 L-300,0 C-300,-2 -290,-6 -280,-6 L-280,6 C-290,6 -300,2 -300,0 Z" fill="#94a3b8"/>
+  </g>
+  <!-- Aircraft name -->
+  <text x="400" y="380" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="#94a3b8">Boeing 747-400</text>
+</svg>

@@ -1,0 +1,230 @@
+import { useState, useMemo, useCallback } from 'react';
+import { PlaneCard } from '../components/PlaneCard';
+import styles from './Home.module.css';
+import { Search, Plus, RotateCcw, ChevronDown } from 'lucide-react';
+import { useFleet } from '../hooks/useFleet';
+import { useConfirm } from '../hooks/useConfirm';
+import { parsePlaneCsv } from '../utils/csvParser';
+
+type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
+
+export function Home() {
+  const { planes, addPlane, resetFleet, deletePlane } = useFleet();
+  const { confirm, ConfirmDialog } = useConfirm();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+  const [filterType, setFilterType] = useState('All');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [csvInput, setCsvInput] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const handleDeletePlane = useCallback(async (planeId: string) => {
+    const confirmed = await confirm(
+      'Delete Plane',
+      'Are you sure you want to delete this plane?',
+      { confirmLabel: 'Delete', destructive: true }
+    );
+    if (confirmed) {
+      deletePlane(planeId);
+    }
+  }, [confirm, deletePlane]);
+
+  const handleResetFleet = useCallback(async () => {
+    const confirmed = await confirm(
+      'Reset Fleet',
+      'Are you sure you want to reset the fleet to defaults? This will remove all imported planes and restore default ones.',
+      { confirmLabel: 'Reset', destructive: true }
+    );
+    if (confirmed) {
+      resetFleet();
+    }
+  }, [confirm, resetFleet]);
+
+  const typeOptions = useMemo(() => {
+    const types = Array.from(new Set(planes.map(p => p.type))).sort();
+    return ['All', ...types];
+  }, [planes]);
+
+  const filteredPlanes = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    let result = planes.filter(plane =>
+      (plane.name.toLowerCase().includes(query) ||
+       plane.manufacturer.toLowerCase().includes(query)) &&
+      (filterType === 'All' || plane.type === filterType)
+    );
+
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'manufacturer':
+          return a.manufacturer.localeCompare(b.manufacturer);
+        case 'type':
+          return a.type.localeCompare(b.type);
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [planes, searchQuery, filterType, sortBy]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImport = () => {
+    try {
+      const { plane, checklist } = parsePlaneCsv(csvInput);
+      
+      // Override image if a file was uploaded
+      if (imagePreview) {
+        plane.image = imagePreview;
+      }
+      
+      addPlane(plane, checklist);
+      setIsModalOpen(false);
+      setCsvInput('');
+      setImagePreview(null);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to parse CSV');
+    }
+  };
+
+  const sampleCsv = `name,manufacturer,type,image,phase,item,expectedState
+"Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Master Switch","ON"
+"Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Fuel Pump","ON"`;
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={styles.titleGroup}>
+          <h1 className={styles.title}>Select a Plane</h1>
+          <div className={styles.actions}>
+            <button className={styles.addButton} onClick={() => setIsModalOpen(true)}>
+              <Plus size={18} /> Add Plane
+            </button>
+            <button className={styles.resetButton} onClick={handleResetFleet}>
+              <RotateCcw size={18} /> Reset
+            </button>
+          </div>
+        </div>
+        <div className={styles.searchRow}>
+          <div className={styles.searchWrapper}>
+            <Search className={styles.searchIcon} />
+            <input
+              type="text"
+              placeholder="Search by model or manufacturer..."
+              className={styles.searchInput}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className={styles.sortWrapper}>
+            <select
+              className={styles.sortSelect}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+            >
+              <option value="name-asc">Name (A-Z)</option>
+              <option value="name-desc">Name (Z-A)</option>
+              <option value="manufacturer">Manufacturer (A-Z)</option>
+              <option value="type">Type</option>
+            </select>
+            <ChevronDown className={styles.sortIcon} size={16} />
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.filterBar}>
+        <div className={styles.filterChips}>
+          {typeOptions.map(type => (
+            <button
+              key={type}
+              className={`${styles.filterChip} ${filterType === type ? styles.filterChipActive : ''}`}
+              onClick={() => setFilterType(type)}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+        <span className={styles.resultCount}>
+          Showing {filteredPlanes.length} of {planes.length} planes
+        </span>
+      </div>
+
+      {filteredPlanes.length > 0 ? (
+        <div className={styles.grid}>
+          {filteredPlanes.map(plane => (
+            <PlaneCard 
+              key={plane.id} 
+              plane={plane} 
+              onDelete={handleDeletePlane}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className={styles.noResults}>
+          <p>No planes found matching "{searchQuery}"</p>
+          <button 
+            className={styles.clearButton}
+            onClick={() => setSearchQuery('')}
+          >
+            Clear Search
+          </button>
+        </div>
+      )}
+
+      {ConfirmDialog}
+
+      {isModalOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h2 className={styles.modalTitle}>Import Plane & Checklist</h2>
+            
+            <div className={styles.fileInputWrapper}>
+              <label className={styles.csvLabel}>Aircraft Image (Optional):</label>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleFileChange}
+                className={styles.fileInput}
+              />
+            </div>
+
+            <label className={styles.csvLabel}>Paste CSV Content:</label>
+            <textarea
+              className={styles.textarea}
+              placeholder={sampleCsv}
+              value={csvInput}
+              onChange={(e) => setCsvInput(e.target.value)}
+            />
+            <div className={styles.modalActions}>
+              <button 
+                className={styles.cancelButton} 
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setImagePreview(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button className={styles.submitButton} onClick={handleImport}>
+                Import Fleet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
+  <rect width="800" height="450" fill="#1e293b"/>
+  <!-- Airbus A330-300 silhouette -->
+  <g transform="translate(400,200)">
+    <!-- Fuselage (long widebody) -->
+    <path d="M-300,0 C-300,-9 -290,-15 -270,-15 L210,-15 C240,-15 270,-10 290,-2 L290,2 C270,10 240,15 210,15 L-270,15 C-290,15 -300,9 -300,0 Z" fill="#3b82f6"/>
+    <!-- Nose cone (Airbus rounded nose) -->
+    <path d="M-300,-8 C-310,-6 -325,-2 -328,0 C-325,2 -310,6 -300,8 Z" fill="#94a3b8"/>
+    <!-- Cockpit windows -->
+    <rect x="-300" y="-5" width="14" height="4" rx="1" fill="#94a3b8" opacity="0.5"/>
+    <rect x="-300" y="1" width="14" height="4" rx="1" fill="#94a3b8" opacity="0.5"/>
+    <!-- Tail fin (Airbus style) -->
+    <path d="M230,-15 L255,-72 L282,-72 L288,-15" fill="#3b82f6"/>
+    <!-- Horizontal stabilizer -->
+    <path d="M245,-13 L270,-42 L295,-42 L295,-10 L260,-10 Z" fill="#94a3b8"/>
+    <path d="M245,13 L270,42 L295,42 L295,10 L260,10 Z" fill="#94a3b8"/>
+    <!-- Wings (large swept wings) -->
+    <path d="M-50,-12 L-180,-100 L-130,-100 L50,-12 Z" fill="#94a3b8"/>
+    <path d="M-50,12 L-180,100 L-130,100 L50,12 Z" fill="#94a3b8"/>
+    <!-- Winglets (left) -->
+    <path d="M-175,-97 L-185,-108 L-178,-108 L-168,-97 Z" fill="#94a3b8"/>
+    <!-- Winglets (right) -->
+    <path d="M-175,97 L-185,108 L-178,108 L-168,97 Z" fill="#94a3b8"/>
+    <!-- Left engine (underwing) -->
+    <ellipse cx="-115" cy="-55" rx="20" ry="8" fill="#3b82f6"/>
+    <rect x="-122" y="-50" width="14" height="4" rx="2" fill="#94a3b8"/>
+    <!-- Engine pylon left -->
+    <line x1="-112" y1="-47" x2="-100" y2="-30" stroke="#3b82f6" stroke-width="3"/>
+    <!-- Right engine (underwing) -->
+    <ellipse cx="-115" cy="55" rx="20" ry="8" fill="#3b82f6"/>
+    <rect x="-122" y="46" width="14" height="4" rx="2" fill="#94a3b8"/>
+    <!-- Engine pylon right -->
+    <line x1="-112" y1="47" x2="-100" y2="30" stroke="#3b82f6" stroke-width="3"/>
+  </g>
+  <!-- Aircraft name -->
+  <text x="400" y="380" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="#94a3b8">Airbus A330-300</text>
+</svg>
