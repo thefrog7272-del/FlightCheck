@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
 import { PlaneCard } from '../components/PlaneCard';
+import { ImageEditModal } from '../components/ImageEditModal';
 import styles from './Home.module.css';
-import { Search, Plus, RotateCcw, ChevronDown } from 'lucide-react';
+import { Search, Plus, RotateCcw, Eye, ChevronDown } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { parsePlaneCsv } from '../utils/csvParser';
@@ -9,7 +10,7 @@ import { parsePlaneCsv } from '../utils/csvParser';
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
-  const { planes, addPlane, resetFleet, deletePlane } = useFleet();
+  const { planes, addPlane, resetFleet, deletePlane, updatePlaneImage } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
@@ -17,23 +18,40 @@ export function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [csvInput, setCsvInput] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [editingImagePlaneId, setEditingImagePlaneId] = useState<string | null>(null);
 
-  const handleDeletePlane = useCallback(async (planeId: string) => {
+  const editingPlane = useMemo(
+    () => editingImagePlaneId ? planes.find(p => p.id === editingImagePlaneId) ?? null : null,
+    [editingImagePlaneId, planes]
+  );
+
+  const handleEditImage = useCallback((planeId: string) => {
+    setEditingImagePlaneId(planeId);
+  }, []);
+
+  const handleSaveImage = useCallback((newImage: string) => {
+    if (editingImagePlaneId) {
+      updatePlaneImage(editingImagePlaneId, newImage);
+      setEditingImagePlaneId(null);
+    }
+  }, [editingImagePlaneId, updatePlaneImage]);
+
+  const handleHidePlane = useCallback(async (planeId: string) => {
     const confirmed = await confirm(
-      'Delete Plane',
-      'Are you sure you want to delete this plane?',
-      { confirmLabel: 'Delete', destructive: true }
+      'Hide Plane',
+      'Hide this plane from your fleet? You can restore it with "Show All".',
+      { confirmLabel: 'Hide', destructive: true }
     );
     if (confirmed) {
       deletePlane(planeId);
     }
   }, [confirm, deletePlane]);
 
-  const handleResetFleet = useCallback(async () => {
+  const handleShowAll = useCallback(async () => {
     const confirmed = await confirm(
-      'Reset Fleet',
-      'Are you sure you want to reset the fleet to defaults? This will remove all imported planes and restore default ones.',
-      { confirmLabel: 'Reset', destructive: true }
+      'Show All Planes',
+      'This will restore all hidden planes and remove imported ones. Continue?',
+      { confirmLabel: 'Show All' }
     );
     if (confirmed) {
       resetFleet();
@@ -113,8 +131,8 @@ export function Home() {
             <button className={styles.addButton} onClick={() => setIsModalOpen(true)}>
               <Plus size={18} /> Add Plane
             </button>
-            <button className={styles.resetButton} onClick={handleResetFleet}>
-              <RotateCcw size={18} /> Reset
+            <button className={styles.resetButton} onClick={handleShowAll}>
+              <Eye size={18} /> Show All
             </button>
           </div>
         </div>
@@ -165,10 +183,11 @@ export function Home() {
       {filteredPlanes.length > 0 ? (
         <div className={styles.grid}>
           {filteredPlanes.map(plane => (
-            <PlaneCard 
-              key={plane.id} 
-              plane={plane} 
-              onDelete={handleDeletePlane}
+            <PlaneCard
+              key={plane.id}
+              plane={plane}
+              onHide={handleHidePlane}
+              onEditImage={handleEditImage}
             />
           ))}
         </div>
@@ -185,6 +204,15 @@ export function Home() {
       )}
 
       {ConfirmDialog}
+
+      {editingPlane && (
+        <ImageEditModal
+          planeName={editingPlane.name}
+          currentImage={editingPlane.image}
+          onSave={handleSaveImage}
+          onCancel={() => setEditingImagePlaneId(null)}
+        />
+      )}
 
       {isModalOpen && (
         <div className={styles.modalOverlay}>

@@ -22,23 +22,29 @@ An interactive flight simulator checklist web app, built with React, TypeScript,
 
 ## Getting Started
 
-### With Docker (recommended)
+### With Docker Compose (recommended)
+
+```bash
+docker compose up -d --build
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+Your data (custom planes, progress, images) persists in a Docker volume across rebuilds.
+
+To stop: `docker compose down`
+
+To stop and delete all saved data: `docker compose down -v`
+
+### With Docker (manual)
 
 ```bash
 docker rm -f flightcheck
 docker build -t flightcheck .
-docker run -d --name flightcheck -p 5173:5173 flightcheck
+docker run -d --name flightcheck -p 5173:5173 -v flightcheck-data:/data flightcheck
 ```
 
 > The first command removes any previous container. You can ignore the error if no container exists yet.
-
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-To stop and clean up:
-
-```bash
-docker stop flightcheck && docker rm flightcheck
-```
 
 ### Without Docker
 

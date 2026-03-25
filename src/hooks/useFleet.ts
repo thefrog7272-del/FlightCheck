@@ -1,83 +1,107 @@
-import { useLocalStorage } from './useLocalStorage';
+import { useCallback, useMemo } from 'react';
+import { useDatabase } from './useDatabase';
 import { planes as staticPlanes } from '../data/planes';
 import { checklists as staticChecklists } from '../data/checklists';
 import type { Plane, PlaneChecklist } from '../data/types';
 
-/**
- * A hook to manage the aviation fleet, combining static and custom data.
- */
 export function useFleet() {
-  const [customPlanes, setCustomPlanes] = useLocalStorage<Plane[]>('custom_planes', []);
-  const [customChecklists, setCustomChecklists] = useLocalStorage<Record<string, PlaneChecklist>>('custom_checklists', {});
-  const [deletedStaticIds, setDeletedStaticIds] = useLocalStorage<string[]>('deleted_static_planes', []);
+  const { data, loading, updateKey, resetAll } = useDatabase();
 
-  // Filter out deleted static planes and combine with custom data
-  const activeStaticPlanes = staticPlanes.filter(p => !deletedStaticIds.includes(p.id));
-  const allPlanes = [...activeStaticPlanes, ...customPlanes];
-  
-  const allChecklists = { ...staticChecklists, ...customChecklists };
+  const customPlanes = data?.custom_planes ?? [];
+  const customChecklists = data?.custom_checklists ?? {};
+  const deletedStaticIds = data?.deleted_static_planes ?? [];
 
-  /**
-   * Adds a new plane and its checklist to the custom fleet.
-   */
-  const addPlaneToFleet = (newPlane: Plane, newChecklist: PlaneChecklist) => {
-    // If it was a deleted static plane, remove it from deleted list
+  const allPlanes = useMemo(() => {
+    const active = staticPlanes.filter(p => !deletedStaticIds.includes(p.id));
+    return [...active, ...customPlanes];
+  }, [customPlanes, deletedStaticIds]);
+
+  const allChecklists = useMemo(
+    () => ({ ...staticChecklists, ...customChecklists }),
+    [customChecklists],
+  );
+
+  const addPlane = useCallback((newPlane: Plane, newChecklist: PlaneChecklist) => {
+    // If it was a deleted static plane, restore it
     if (deletedStaticIds.includes(newPlane.id)) {
-      setDeletedStaticIds(prev => prev.filter(id => id !== newPlane.id));
+      updateKey('deleted_static_planes', deletedStaticIds.filter(id => id !== newPlane.id));
     }
 
-    const planeExistsInCustom = customPlanes.some(p => p.id === newPlane.id);
-    
-    if (planeExistsInCustom) {
-      setCustomPlanes(prev => prev.map(p => p.id === newPlane.id ? newPlane : p));
-      setCustomChecklists(prev => ({ ...prev, [newPlane.id]: newChecklist }));
+    const exists = customPlanes.some(p => p.id === newPlane.id);
+    if (exists) {
+      updateKey('custom_planes', customPlanes.map(p => p.id === newPlane.id ? newPlane : p));
     } else {
-      setCustomPlanes(prev => [...prev, newPlane]);
-      setCustomChecklists(prev => ({ ...prev, [newPlane.id]: newChecklist }));
+      updateKey('custom_planes', [...customPlanes, newPlane]);
     }
-  };
+    updateKey('custom_checklists', { ...customChecklists, [newPlane.id]: newChecklist });
+  }, [customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
-  /**
-   * Updates a checklist (saves to custom storage, even for static planes).
-   */
-  const updateChecklist = (planeId: string, checklist: PlaneChecklist) => {
-    setCustomChecklists(prev => ({ ...prev, [planeId]: checklist }));
-  };
+  const updateChecklist = useCallback((planeId: string, checklist: PlaneChecklist) => {
+    updateKey('custom_checklists', { ...customChecklists, [planeId]: checklist });
+  }, [customChecklists, updateKey]);
 
-  /**
-   * Removes a plane and its checklist.
-   */
-  const deletePlaneFromFleet = (planeId: string) => {
-    // Check if it's a static plane
+  const updatePlaneImage = useCallback((planeId: string, newImage: string) => {
     const isStatic = staticPlanes.some(p => p.id === planeId);
+    const existingPlane = allPlanes.find(p => p.id === planeId);
+    if (!existingPlane) return;
+
+    const updatedPlane = { ...existingPlane, image: newImage };
 
     if (isStatic) {
-      setDeletedStaticIds(prev => [...prev, planeId]);
+      // Move static plane to custom with new image
+      const inCustom = customPlanes.some(p => p.id === planeId);
+      if (inCustom) {
+        updateKey('custom_planes', customPlanes.map(p => p.id === planeId ? updatedPlane : p));
+      } else {
+        updateKey('deleted_static_planes', [...deletedStaticIds, planeId]);
+        updateKey('custom_planes', [...customPlanes, updatedPlane]);
+        // Copy the static checklist to custom so it's preserved
+        if (staticChecklists[planeId] && !customChecklists[planeId]) {
+          updateKey('custom_checklists', { ...customChecklists, [planeId]: staticChecklists[planeId] });
+        }
+      }
     } else {
-      setCustomPlanes(prev => prev.filter(p => p.id !== planeId));
-      setCustomChecklists(prev => {
-        const next = { ...prev };
-        delete next[planeId];
-        return next;
-      });
+      updateKey('custom_planes', customPlanes.map(p => p.id === planeId ? updatedPlane : p));
     }
-  };
+  }, [allPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
-  /**
-   * Resets the fleet to factory defaults.
-   */
-  const resetCustomFleet = () => {
-    setCustomPlanes([]);
-    setCustomChecklists({});
-    setDeletedStaticIds([]);
-  };
+  const deletePlane = useCallback((planeId: string) => {
+    const isStatic = staticPlanes.some(p => p.id === planeId);
+    if (isStatic) {
+      updateKey('deleted_static_planes', [...deletedStaticIds, planeId]);
+    } else {
+      updateKey('custom_planes', customPlanes.filter(p => p.id !== planeId));
+      const next = { ...customChecklists };
+      delete next[planeId];
+      updateKey('custom_checklists', next);
+    }
+  }, [customPlanes, customChecklists, deletedStaticIds, updateKey]);
+
+  const resetFleet = useCallback(() => {
+    resetAll();
+  }, [resetAll]);
+
+  // Checklist progress
+  const progressData = data?.checklist_progress ?? {};
+
+  const getProgress = useCallback((planeId: string): Record<string, boolean> => {
+    return progressData[planeId] ?? {};
+  }, [progressData]);
+
+  const setProgress = useCallback((planeId: string, progress: Record<string, boolean>) => {
+    updateKey('checklist_progress', { ...progressData, [planeId]: progress });
+  }, [progressData, updateKey]);
 
   return {
     planes: allPlanes,
     checklists: allChecklists,
-    addPlane: addPlaneToFleet,
+    loading,
+    addPlane,
     updateChecklist,
-    deletePlane: deletePlaneFromFleet,
-    resetFleet: resetCustomFleet
+    updatePlaneImage,
+    deletePlane,
+    resetFleet,
+    getProgress,
+    setProgress,
   };
 }

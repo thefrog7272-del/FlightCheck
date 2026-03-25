@@ -1,0 +1,10 @@
+services:
+  flightcheck:
+    build: .
+    ports:
+      - "5173:5173"
+    volumes:
+      - flightcheck-data:/data
+
+volumes:
+  flightcheck-data:

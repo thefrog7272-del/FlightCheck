@@ -4,7 +4,6 @@ import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
 import styles from './Checklist.module.css';
 import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown } from 'lucide-react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useConfirm } from '../hooks/useConfirm';
@@ -12,7 +11,7 @@ import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   const { planeId } = useParams();
-  const { planes, checklists, updateChecklist } = useFleet();
+  const { planes, checklists, updateChecklist, loading, getProgress, setProgress } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const [isEditing, setIsEditing] = useState(false);
   const [insertAt, setInsertAt] = useState<{ phaseId: string; index: number } | null>(null);
@@ -24,11 +23,12 @@ export function Checklist() {
 
   const plane = planes.find(p => p.id === planeId);
   const checklist = planeId ? checklists[planeId] : null;
-
-  const [checkedItems, setCheckedItems] = useLocalStorage<Record<string, boolean>>(
-    `checklist_progress_${planeId}`,
-    {}
-  );
+  const checkedItems = planeId ? getProgress(planeId) : {};
+  const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
+    if (!planeId) return;
+    const newValue = typeof updater === 'function' ? updater(checkedItems) : updater;
+    setProgress(planeId, newValue);
+  };
 
   const downloadCsv = () => {
     if (!plane || !checklist) return;

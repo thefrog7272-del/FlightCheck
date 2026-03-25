@@ -3,5 +3,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --legacy-peer-deps
 COPY . .
-EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host"]
+RUN mkdir -p /data
+EXPOSE 5173 3001
+CMD ["sh", "-c", "node server/index.cjs & npm run dev -- --host"]
