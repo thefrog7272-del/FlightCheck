@@ -25,13 +25,12 @@ An interactive flight simulator checklist web app, built with React, TypeScript,
 ### With Docker (recommended)
 
 ```bash
-# Remove any previous container (safe to run even if none exists)
-docker rm -f flightcheck 2>/dev/null
-
-# Build and run
+docker rm -f flightcheck
 docker build -t flightcheck .
 docker run -d --name flightcheck -p 5173:5173 flightcheck
 ```
+
+> The first command removes any previous container. You can ignore the error if no container exists yet.
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
