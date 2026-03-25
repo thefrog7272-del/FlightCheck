@@ -11,7 +11,7 @@ import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   const { planeId } = useParams();
-  const { planes, checklists, updateChecklist, loading, getProgress, setProgress } = useFleet();
+  const { planes, checklists, updateChecklist, getProgress, setProgress } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const [isEditing, setIsEditing] = useState(false);
   const [insertAt, setInsertAt] = useState<{ phaseId: string; index: number } | null>(null);

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { PlaneCard } from '../components/PlaneCard';
 import { ImageEditModal } from '../components/ImageEditModal';
 import styles from './Home.module.css';
-import { Search, Plus, RotateCcw, Eye, ChevronDown } from 'lucide-react';
+import { Search, Plus, Eye, ChevronDown } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { parsePlaneCsv } from '../utils/csvParser';

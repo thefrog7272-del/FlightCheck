@@ -18,6 +18,9 @@
     "express": "^5.1.0",
     "react-router-dom": "^7.13.2"
   },
+  "overrides": {
+    "serialize-javascript": "^7.0.3"
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@testing-library/jest-dom": "^6.9.1",
