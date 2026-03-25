@@ -1,9 +1,12 @@
+export type SimPlatform = 'msfs2020' | 'msfs2024' | 'both';
+
 export interface Plane {
   id: string;
   name: string;
   manufacturer: string;
   image: string;
   type: string;
+  sim?: SimPlatform;
 }
 
 export interface ChecklistItem {

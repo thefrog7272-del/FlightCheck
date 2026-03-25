@@ -143,6 +143,45 @@
   pointer-events: none;
 }
 
+.simTabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.simTab {
+  padding: 0.5rem 1.25rem;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  border-right: 1px solid var(--border);
+}
+
+.simTab:last-child {
+  border-right: none;
+}
+
+.simTab:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.simTabActive {
+  background: var(--accent);
+  color: #fff;
+}
+
+.simTabActive:hover {
+  background: var(--accent-hover);
+}
+
 .filterBar {
   display: flex;
   align-items: center;

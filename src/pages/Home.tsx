@@ -8,6 +8,13 @@ import { useConfirm } from '../hooks/useConfirm';
 import { parsePlaneCsv } from '../utils/csvParser';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
+type SimFilter = 'all' | 'msfs2020' | 'msfs2024';
+
+const SIM_LABELS: Record<SimFilter, string> = {
+  all: 'All Sims',
+  msfs2020: 'MSFS 2020',
+  msfs2024: 'MSFS 2024',
+};
 
 export function Home() {
   const { planes, addPlane, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet } = useFleet();
@@ -15,6 +22,7 @@ export function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [filterType, setFilterType] = useState('All');
+  const [filterSim, setFilterSim] = useState<SimFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [csvInput, setCsvInput] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -66,11 +74,16 @@ export function Home() {
 
   const filteredPlanes = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    let result = planes.filter(plane =>
-      (plane.name.toLowerCase().includes(query) ||
-       plane.manufacturer.toLowerCase().includes(query)) &&
-      (filterType === 'All' || plane.type === filterType)
-    );
+    let result = planes.filter(plane => {
+      const matchesSearch = plane.name.toLowerCase().includes(query) ||
+        plane.manufacturer.toLowerCase().includes(query);
+      const matchesType = filterType === 'All' || plane.type === filterType;
+      const matchesSim = filterSim === 'all' ||
+        plane.sim === filterSim ||
+        plane.sim === 'both' ||
+        !plane.sim; // custom planes without sim tag show in all
+      return matchesSearch && matchesType && matchesSim;
+    });
 
     result.sort((a, b) => {
       switch (sortBy) {
@@ -88,7 +101,7 @@ export function Home() {
     });
 
     return result;
-  }, [planes, searchQuery, filterType, sortBy]);
+  }, [planes, searchQuery, filterType, filterSim, sortBy]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,7 +150,7 @@ export function Home() {
     reader.readAsText(file);
   };
 
-  const sampleCsv =`name,manufacturer,type,image,phase,item,expectedState
+  const sampleCsv = `name,manufacturer,type,image,phase,item,expectedState
 "Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Master Switch","ON"
 "Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Fuel Pump","ON"`;
 
@@ -183,6 +196,18 @@ export function Home() {
             <ChevronDown className={styles.sortIcon} size={16} />
           </div>
         </div>
+      </div>
+
+      <div className={styles.simTabs}>
+        {(Object.keys(SIM_LABELS) as SimFilter[]).map(sim => (
+          <button
+            key={sim}
+            className={`${styles.simTab} ${filterSim === sim ? styles.simTabActive : ''}`}
+            onClick={() => setFilterSim(sim)}
+          >
+            {SIM_LABELS[sim]}
+          </button>
+        ))}
       </div>
 
       <div className={styles.filterBar}>
