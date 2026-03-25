@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { PlaneCard } from '../components/PlaneCard';
 import { ImageEditModal } from '../components/ImageEditModal';
 import styles from './Home.module.css';
-import { Search, Plus, Eye, ChevronDown } from 'lucide-react';
+import { Search, Plus, Eye, ChevronDown, Download, Upload } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { parsePlaneCsv } from '../utils/csvParser';
@@ -10,7 +10,7 @@ import { parsePlaneCsv } from '../utils/csvParser';
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
-  const { planes, addPlane, resetFleet, deletePlane, updatePlaneImage } = useFleet();
+  const { planes, addPlane, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
@@ -19,6 +19,7 @@ export function Home() {
   const [csvInput, setCsvInput] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editingImagePlaneId, setEditingImagePlaneId] = useState<string | null>(null);
+  const [importSummary, setImportSummary] = useState<string | null>(null);
 
   const editingPlane = useMemo(
     () => editingImagePlaneId ? planes.find(p => p.id === editingImagePlaneId) ?? null : null,
@@ -118,7 +119,25 @@ export function Home() {
     }
   };
 
-  const sampleCsv = `name,manufacturer,type,image,phase,item,expectedState
+  const handleJsonImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const json = JSON.parse(reader.result as string);
+        const result = importFleet(json);
+        setImportSummary(
+          `Imported ${result.planes} plane(s), ${result.checklists} checklist(s), ${result.progress} progress record(s).`
+        );
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'Failed to import backup');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const sampleCsv =`name,manufacturer,type,image,phase,item,expectedState
 "Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Master Switch","ON"
 "Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Fuel Pump","ON"`;
 
@@ -133,6 +152,9 @@ export function Home() {
             </button>
             <button className={styles.resetButton} onClick={handleShowAll}>
               <Eye size={18} /> Show All
+            </button>
+            <button className={styles.resetButton} onClick={exportFleet}>
+              <Download size={18} /> Export Fleet
             </button>
           </div>
         </div>
@@ -218,7 +240,27 @@ export function Home() {
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
             <h2 className={styles.modalTitle}>Import Plane & Checklist</h2>
-            
+
+            <div className={styles.fileInputWrapper}>
+              <label className={styles.csvLabel}>
+                <Upload size={14} style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} />
+                Import Fleet Backup (JSON):
+              </label>
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleJsonImport}
+                className={styles.fileInput}
+              />
+              {importSummary && (
+                <span className={styles.importSummary}>{importSummary}</span>
+              )}
+            </div>
+
+            <div className={styles.sectionDivider}>
+              <span>Or import a single plane via CSV</span>
+            </div>
+
             <div className={styles.fileInputWrapper}>
               <label className={styles.csvLabel}>Aircraft Image (Optional):</label>
               <input 
@@ -242,6 +284,7 @@ export function Home() {
                 onClick={() => {
                   setIsModalOpen(false);
                   setImagePreview(null);
+                  setImportSummary(null);
                 }}
               >
                 Cancel

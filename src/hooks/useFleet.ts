@@ -92,6 +92,72 @@ export function useFleet() {
     updateKey('checklist_progress', { ...progressData, [planeId]: progress });
   }, [progressData, updateKey]);
 
+  const exportFleet = useCallback(() => {
+    const backup = {
+      version: 1,
+      exported_at: new Date().toISOString(),
+      custom_planes: customPlanes,
+      custom_checklists: customChecklists,
+      checklist_progress: progressData,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const date = new Date().toISOString().slice(0, 10);
+    a.download = `flightcheck-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [customPlanes, customChecklists, progressData]);
+
+  const importFleet = useCallback((json: unknown): { planes: number; checklists: number; progress: number } => {
+    const backup = json as {
+      version?: number;
+      custom_planes?: Plane[];
+      custom_checklists?: Record<string, PlaneChecklist>;
+      checklist_progress?: Record<string, Record<string, boolean>>;
+    };
+
+    if (!backup || typeof backup !== 'object' || backup.version !== 1) {
+      throw new Error('Invalid backup file: missing or unsupported version');
+    }
+
+    let planesImported = 0;
+    let checklistsImported = 0;
+    let progressImported = 0;
+
+    // Merge planes (by ID, imported overwrites existing)
+    if (Array.isArray(backup.custom_planes) && backup.custom_planes.length > 0) {
+      const mergedPlanes = [...customPlanes];
+      for (const plane of backup.custom_planes) {
+        const idx = mergedPlanes.findIndex(p => p.id === plane.id);
+        if (idx >= 0) {
+          mergedPlanes[idx] = plane;
+        } else {
+          mergedPlanes.push(plane);
+        }
+        planesImported++;
+      }
+      updateKey('custom_planes', mergedPlanes);
+    }
+
+    // Merge checklists
+    if (backup.custom_checklists && typeof backup.custom_checklists === 'object') {
+      const mergedChecklists = { ...customChecklists, ...backup.custom_checklists };
+      checklistsImported = Object.keys(backup.custom_checklists).length;
+      updateKey('custom_checklists', mergedChecklists);
+    }
+
+    // Merge progress
+    if (backup.checklist_progress && typeof backup.checklist_progress === 'object') {
+      const mergedProgress = { ...progressData, ...backup.checklist_progress };
+      progressImported = Object.keys(backup.checklist_progress).length;
+      updateKey('checklist_progress', mergedProgress);
+    }
+
+    return { planes: planesImported, checklists: checklistsImported, progress: progressImported };
+  }, [customPlanes, customChecklists, progressData, updateKey]);
+
   return {
     planes: allPlanes,
     checklists: allChecklists,
@@ -103,5 +169,7 @@ export function useFleet() {
     resetFleet,
     getProgress,
     setProgress,
+    exportFleet,
+    importFleet,
   };
 }

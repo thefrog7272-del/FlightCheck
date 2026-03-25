@@ -338,6 +338,32 @@
   border: none;
 }
 
+.importSummary {
+  font-size: 0.8125rem;
+  color: var(--accent);
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: var(--radius);
+}
+
+.sectionDivider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.25rem 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.sectionDivider::before,
+.sectionDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--border);
+}
+
 /* Tablet responsive */
 @media (max-width: 768px) {
   .searchRow {

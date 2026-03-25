@@ -3,16 +3,18 @@ import { useParams, Navigate, Link } from 'react-router-dom';
 import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
 import styles from './Checklist.module.css';
-import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useConfirm } from '../hooks/useConfirm';
+import { useSound } from '../hooks/useSound';
 import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   const { planeId } = useParams();
   const { planes, checklists, updateChecklist, getProgress, setProgress } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
+  const { playCheck, isMuted, toggleMute } = useSound();
   const [isEditing, setIsEditing] = useState(false);
   const [insertAt, setInsertAt] = useState<{ phaseId: string; index: number } | null>(null);
   const [newLabel, setNewLabel] = useState('');
@@ -77,6 +79,8 @@ export function Checklist() {
   }
 
   const toggleItem = (itemId: string) => {
+    const wasChecked = checkedItems[itemId];
+    if (!wasChecked) playCheck();
     setCheckedItems(prev => ({
       ...prev,
       [itemId]: !prev[itemId]
@@ -182,6 +186,17 @@ export function Checklist() {
     updateChecklist(plane.id, updated);
   };
 
+  const toggleAllPhaseItems = (phaseItemIds: string[], checkAll: boolean) => {
+    setCheckedItems(prev => {
+      const updated = { ...prev };
+      for (const id of phaseItemIds) {
+        updated[id] = checkAll;
+      }
+      return updated;
+    });
+    if (checkAll) playCheck();
+  };
+
   const calculateProgress = (phaseItems: string[]) => {
     if (phaseItems.length === 0) return 0;
     const checkedCount = phaseItems.filter(id => checkedItems[id]).length;
@@ -267,6 +282,9 @@ export function Checklist() {
               <RotateCcw className={styles.resetIcon} />
               Reset
             </button>
+            <button onClick={toggleMute} className={styles.resetButton} title={isMuted ? 'Unmute sounds' : 'Mute sounds'}>
+              {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
+            </button>
           </div>
         </div>
 
@@ -320,6 +338,18 @@ export function Checklist() {
                     </span>
                   </div>
                 </div>
+                {!isEditing && phase.items.length > 0 && (
+                  <button
+                    className={styles.toggleAllButton}
+                    onClick={() => {
+                      const ids = phase.items.map(i => i.id);
+                      toggleAllPhaseItems(ids, !phaseComplete);
+                    }}
+                    title={phaseComplete ? 'Uncheck all items' : 'Check all items'}
+                  >
+                    {phaseComplete ? <RotateCcw size={16} /> : <CheckCheck size={16} />}
+                  </button>
+                )}
                 {isEditing && (
                   <div className={styles.phaseActions}>
                     <button
