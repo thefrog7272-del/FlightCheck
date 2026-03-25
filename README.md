@@ -25,13 +25,21 @@ An interactive flight simulator checklist web app, built with React, TypeScript,
 ### With Docker (recommended)
 
 ```bash
+# Remove any previous container (safe to run even if none exists)
+docker rm -f flightcheck 2>/dev/null
+
+# Build and run
 docker build -t flightcheck .
 docker run -d --name flightcheck -p 5173:5173 flightcheck
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-To stop: `docker stop flightcheck && docker rm flightcheck`
+To stop and clean up:
+
+```bash
+docker stop flightcheck && docker rm flightcheck
+```
 
 ### Without Docker
 
