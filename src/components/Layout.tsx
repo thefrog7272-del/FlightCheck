@@ -1,4 +1,4 @@
-import { Plane, ExternalLink } from 'lucide-react';
+import { Plane, ExternalLink, Coffee } from 'lucide-react';
 import { Link, Outlet } from 'react-router-dom';
 import styles from './Layout.module.css';
 
@@ -12,6 +12,16 @@ export function Layout() {
             <span>FlightCheck</span>
           </Link>
           <nav className={styles.nav}>
+            <a
+              href="https://buymeacoffee.com/samwmarsh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.coffeeLink}
+              title="Buy me a coffee"
+            >
+              <Coffee size={18} />
+              <span>Buy me a coffee</span>
+            </a>
             <a
               href="https://github.com/samwmarsh/flightcheck"
               target="_blank"
