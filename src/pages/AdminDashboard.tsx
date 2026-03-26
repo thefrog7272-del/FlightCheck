@@ -10,7 +10,9 @@ import {
   createSharedPlane, createSharedChecklist,
   updateSharedPlane, updateSharedChecklist,
   deleteSharedPlane, deleteSharedChecklist,
+  listPendingSubmissions, deletePendingSubmission,
   type SharedPlaneRecord, type SharedChecklistRecord,
+  type PendingSubmissionRecord,
 } from '../api/sharedPlanes';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Plane, PlaneChecklist } from '../data/types';
@@ -24,6 +26,7 @@ export function AdminDashboard() {
 
   const [planes, setPlanes] = useState<SharedPlaneRecord[]>([]);
   const [checklists, setChecklists] = useState<SharedChecklistRecord[]>([]);
+  const [pendingSubmissions, setPendingSubmissions] = useState<PendingSubmissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('list');
   const [editingPlane, setEditingPlane] = useState<SharedPlaneRecord | null>(null);
@@ -35,9 +38,10 @@ export function AdminDashboard() {
 
   const refreshData = useCallback(async () => {
     setLoading(true);
-    const [p, c] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
+    const [p, c, ps] = await Promise.all([listSharedPlanes(), listAllSharedChecklists(), listPendingSubmissions()]);
     setPlanes(p);
     setChecklists(c);
+    setPendingSubmissions(ps);
     setLoading(false);
   }, []);
 
@@ -175,6 +179,38 @@ export function AdminDashboard() {
     }
   };
 
+  const handleApproveSubmission = async (submission: PendingSubmissionRecord) => {
+    const planeId = submission.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const planeResult = await createSharedPlane({
+      planeId,
+      name: submission.name,
+      manufacturer: submission.manufacturer,
+      image: submission.image || '',
+      type: submission.type,
+      sim: submission.sim || null,
+      sortOrder: null,
+    });
+    if (planeResult) {
+      await createSharedChecklist({
+        planeId,
+        phases: submission.phases,
+      });
+    }
+    await deletePendingSubmission(submission.id);
+    await refreshData();
+  };
+
+  const handleRejectSubmission = async (submission: PendingSubmissionRecord) => {
+    const confirmed = await confirm(
+      'Reject Submission',
+      `Reject "${submission.name}" submitted by ${submission.submittedBy || 'anonymous'}?`,
+      { destructive: true, confirmLabel: 'Reject' }
+    );
+    if (!confirmed) return;
+    await deletePendingSubmission(submission.id);
+    await refreshData();
+  };
+
   const renderContent = () => {
     if (loading && view === 'list') {
       return (
@@ -239,6 +275,38 @@ export function AdminDashboard() {
       default:
         return (
           <>
+            {pendingSubmissions.length > 0 && (
+              <div className={styles.pendingSection}>
+                <h2 className={styles.pendingSectionTitle}>Pending Submissions ({pendingSubmissions.length})</h2>
+                <div className={styles.pendingList}>
+                  {pendingSubmissions.map(sub => {
+                    let phaseCount = 0;
+                    try { phaseCount = JSON.parse(sub.phases).length; } catch { /* */ }
+                    return (
+                      <div key={sub.id} className={styles.pendingCard}>
+                        <div className={styles.pendingInfo}>
+                          <span className={styles.pendingName}>{sub.name}</span>
+                          <span className={styles.pendingMeta}>
+                            {sub.manufacturer} &middot; {sub.type} &middot; {phaseCount} phase{phaseCount !== 1 ? 's' : ''}
+                          </span>
+                          {sub.submittedBy && (
+                            <span className={styles.pendingMeta}>by {sub.submittedBy}</span>
+                          )}
+                        </div>
+                        <div className={styles.pendingActions}>
+                          <button className={styles.approveBtn} onClick={() => handleApproveSubmission(sub)}>
+                            Approve
+                          </button>
+                          <button className={styles.rejectBtn} onClick={() => handleRejectSubmission(sub)}>
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className={styles.toolbar}>
               <button className={styles.addBtn} onClick={() => setView('add')}>
                 <Plus size={16} /> Add Plane

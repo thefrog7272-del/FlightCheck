@@ -8,7 +8,7 @@ import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { useAuth } from '../contexts/AuthContext';
 import { parsePlaneCsv } from '../utils/csvParser';
-import { createSharedPlane, createSharedChecklist } from '../api/sharedPlanes';
+import { createSharedPlane, createSharedChecklist, createPendingSubmission } from '../api/sharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
@@ -212,6 +212,22 @@ export function Home() {
       } else {
         await importPlane(plane, checklist);
         alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}`);
+        if (!isAdmin) {
+          const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
+          if (submitToAll) {
+            await createPendingSubmission({
+              name: plane.name,
+              manufacturer: plane.manufacturer,
+              image: plane.image || null,
+              type: plane.type,
+              sim: plane.sim || null,
+              phases: JSON.stringify(checklist.phases),
+              submittedBy: null,
+              status: 'pending',
+            });
+            alert('Submitted for review! An admin will approve it shortly.');
+          }
+        }
       }
       setIsModalOpen(false);
       setCsvInput('');
@@ -268,6 +284,22 @@ export function Home() {
           } else {
             await importPlane(plane, checklist);
             setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}`);
+            if (!isAdmin) {
+              const submitToAll = window.confirm(`Would you also like to submit "${name}" for all users? (Requires admin approval)`);
+              if (submitToAll) {
+                await createPendingSubmission({
+                  name,
+                  manufacturer: plane.manufacturer,
+                  image: plane.image || null,
+                  type: plane.type,
+                  sim: undefined,
+                  phases: JSON.stringify(phases),
+                  submittedBy: null,
+                  status: 'pending',
+                });
+                setImportSummary(prev => (prev || '') + ' Submitted for community review!');
+              }
+            }
           }
           setImportCategory('');
           return;
@@ -457,7 +489,26 @@ export function Home() {
 
       {showFileImport && (
         <FileImportModal
-          onImport={async (plane, checklist) => { await importPlane(plane, checklist); setShowFileImport(false); }}
+          onImport={async (plane, checklist) => {
+            await importPlane(plane, checklist);
+            setShowFileImport(false);
+            if (!isAdmin) {
+              const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
+              if (submitToAll) {
+                await createPendingSubmission({
+                  name: plane.name,
+                  manufacturer: plane.manufacturer,
+                  image: plane.image || null,
+                  type: plane.type,
+                  sim: plane.sim || null,
+                  phases: JSON.stringify(checklist.phases),
+                  submittedBy: null,
+                  status: 'pending',
+                });
+                alert('Submitted for review! An admin will approve it shortly.');
+              }
+            }
+          }}
           onClose={() => setShowFileImport(false)}
         />
       )}
