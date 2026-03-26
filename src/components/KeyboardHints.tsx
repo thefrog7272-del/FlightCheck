@@ -13,6 +13,7 @@ const shortcuts: Shortcut[] = [
   { keys: `${mod}+S`, label: 'Download' },
   { keys: `${mod}+P`, label: 'Print' },
   { keys: 'Esc', label: 'Close' },
+  { keys: '\u2191/\u2193 or j/k', label: 'Navigate items' },
 ];
 
 export function KeyboardHints() {

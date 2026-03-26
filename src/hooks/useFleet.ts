@@ -12,6 +12,21 @@ export function useFleet() {
   const deletedStaticIds = data?.deleted_static_planes ?? [];
   const favoriteIds = data?.favorite_planes ?? [];
   const recentlyUsed = data?.recently_used ?? [];
+  const itemNotes = data?.item_notes ?? {};
+
+  const getNote = useCallback((itemId: string): string => {
+    return itemNotes[itemId] ?? '';
+  }, [itemNotes]);
+
+  const setNote = useCallback((itemId: string, text: string) => {
+    const updated = { ...itemNotes };
+    if (text.trim()) {
+      updated[itemId] = text.trim();
+    } else {
+      delete updated[itemId];
+    }
+    updateKey('item_notes', updated);
+  }, [itemNotes, updateKey]);
 
   const trackRecentUse = useCallback((planeId: string) => {
     const current = data?.recently_used ?? [];
@@ -201,5 +216,7 @@ export function useFleet() {
     toggleFavorite,
     recentlyUsed,
     trackRecentUse,
+    getNote,
+    setNote,
   };
 }

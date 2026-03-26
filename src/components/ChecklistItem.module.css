@@ -1,3 +1,9 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
 .item {
   display: flex;
   align-items: center;
@@ -81,6 +87,50 @@
 .item.checked .state {
   color: var(--success);
   background-color: rgba(34, 197, 94, 0.1);
+}
+
+.noteButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0.4;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.item:hover .noteButton,
+.noteButton:hover {
+  opacity: 1;
+}
+
+.noteButtonActive {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.noteInput {
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  resize: vertical;
+  min-height: 2rem;
+  font-family: inherit;
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 /* Mobile responsive */
