@@ -75,6 +75,17 @@ export function Home() {
     }
   }, [confirm, deletePlane]);
 
+  const handleDeletePlane = useCallback(async (planeId: string) => {
+    const confirmed = await confirm(
+      'Delete Plane',
+      'Permanently delete this plane and its checklist data? This cannot be undone.',
+      { confirmLabel: 'Delete', destructive: true }
+    );
+    if (confirmed) {
+      deletePlane(planeId);
+    }
+  }, [confirm, deletePlane]);
+
   const handleShowAll = useCallback(async () => {
     const confirmed = await confirm(
       'Show All Planes',
@@ -165,12 +176,19 @@ export function Home() {
     reader.onload = () => {
       try {
         const json = JSON.parse(reader.result as string);
+        // Support single plane JSON format: { plane, checklist }
+        if (json.plane && json.checklist && !json.version) {
+          addPlane(json.plane, json.checklist);
+          setImportSummary(`Imported "${json.plane.name}" successfully.`);
+          return;
+        }
+        // Fleet backup format
         const result = importFleet(json);
         setImportSummary(
           `Imported ${result.planes} plane(s), ${result.checklists} checklist(s), ${result.progress} progress record(s).`
         );
       } catch (error) {
-        alert(error instanceof Error ? error.message : 'Failed to import backup');
+        alert(error instanceof Error ? error.message : 'Failed to import JSON. Expected fleet backup or single plane format.');
       }
     };
     reader.readAsText(file);
@@ -254,6 +272,7 @@ export function Home() {
                   isFavorite={favoriteIds.includes(plane.id)}
                   onToggleFavorite={toggleFavorite}
                   onHide={handleHidePlane}
+                  onDelete={handleDeletePlane}
                   onEditImage={handleEditImage}
                 />
               );
@@ -326,7 +345,7 @@ export function Home() {
             <div className={styles.fileInputWrapper}>
               <label className={styles.csvLabel}>
                 <Upload size={14} style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} />
-                Import Fleet Backup (JSON):
+                Import from JSON (fleet backup or single plane):
               </label>
               <input
                 type="file"
@@ -353,7 +372,23 @@ export function Home() {
               />
             </div>
 
-            <label className={styles.csvLabel}>Paste CSV Content:</label>
+            <div className={styles.fileInputWrapper}>
+              <label className={styles.csvLabel}>Upload CSV File:</label>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setCsvInput(reader.result as string);
+                  reader.readAsText(file);
+                }}
+                className={styles.fileInput}
+              />
+            </div>
+
+            <label className={styles.csvLabel}>Or paste CSV content:</label>
             <textarea
               className={styles.textarea}
               placeholder={sampleCsv}
@@ -372,7 +407,7 @@ export function Home() {
                 Cancel
               </button>
               <button className={styles.submitButton} onClick={handleImport}>
-                Import Fleet
+                Import Plane
               </button>
             </div>
           </div>
