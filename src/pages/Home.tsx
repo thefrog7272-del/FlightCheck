@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import { PlaneCard } from '../components/PlaneCard';
 import { ImageEditModal } from '../components/ImageEditModal';
+import { FileImportModal } from '../components/FileImportModal';
 import styles from './Home.module.css';
-import { Search, Plus, Eye, ChevronDown, Download, Upload } from 'lucide-react';
+import { Search, Plus, Eye, ChevronDown, Download, Upload, FileUp } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { parsePlaneCsv } from '../utils/csvParser';
@@ -28,6 +29,7 @@ export function Home() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editingImagePlaneId, setEditingImagePlaneId] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
+  const [showFileImport, setShowFileImport] = useState(false);
 
   const editingPlane = useMemo(
     () => editingImagePlaneId ? planes.find(p => p.id === editingImagePlaneId) ?? null : null,
@@ -207,6 +209,9 @@ export function Home() {
             <button className={styles.addButton} onClick={() => setIsModalOpen(true)}>
               <Plus size={18} /> Add Plane
             </button>
+            <button className={styles.resetButton} onClick={() => setShowFileImport(true)}>
+              <FileUp size={18} /> Import File
+            </button>
             <button className={styles.resetButton} onClick={handleShowAll}>
               <Eye size={18} /> Show All
             </button>
@@ -327,6 +332,13 @@ export function Home() {
       )}
 
       {ConfirmDialog}
+
+      {showFileImport && (
+        <FileImportModal
+          onImport={(plane, checklist) => { addPlane(plane, checklist); setShowFileImport(false); }}
+          onClose={() => setShowFileImport(false)}
+        />
+      )}
 
       {editingPlane && (
         <ImageEditModal
