@@ -36,17 +36,25 @@ docker build -t flightcheck .
 docker run -d --name flightcheck -p 5173:5173 -v flightcheck-data:/data flightcheck
 ```
 
+## Branching Strategy
+
+- **`main`** is the production branch — Amplify auto-deploys from it. Never commit directly to `main`.
+- All work goes on **feature branches** off `main`: `feature/<short-name>`, `fix/<short-name>`, etc.
+- When ready, open a **PR** from the feature branch into `main`.
+- After merge, delete the feature branch.
+
 ## Development Workflow (QA Loop)
 
 All non-trivial changes must follow this pipeline:
 
-1. **Research** — Understand the feature/fix context. Read relevant files, check types, review existing patterns.
-2. **Plan** — Define the implementation approach. List files to change, identify risks, align with conventions above.
-3. **Implement** — Make changes via agents in isolated worktrees where possible. One feature per agent to avoid conflicts.
-4. **Security Review** — Check for XSS, injection, unsafe `dangerouslySetInnerHTML`, unvalidated user input, exposed secrets. Review any new dependencies.
-5. **QA (Build + Lint + Test)** — Run `npm run build` (TypeScript + Vite). Run `npm run lint`. Run `npm test` if applicable. Fix all errors before proceeding.
-6. **UI Review** — Verify the change renders correctly: check dark/light themes, mobile/tablet/desktop breakpoints, keyboard accessibility, no console errors.
-7. **Commit to main** — Only after all above steps pass.
+1. **Branch** — Create a feature branch off `main`: `git checkout -b feature/<name> main`
+2. **Research** — Understand the feature/fix context. Read relevant files, check types, review existing patterns.
+3. **Plan** — Define the implementation approach. List files to change, identify risks, align with conventions above.
+4. **Implement** — Make changes via agents in isolated worktrees where possible. One feature per agent to avoid conflicts.
+5. **Security Review** — Check for XSS, injection, unsafe `dangerouslySetInnerHTML`, unvalidated user input, exposed secrets. Review any new dependencies.
+6. **QA (Build + Lint + Test)** — Run `npm run build` (TypeScript + Vite). Run `npm run lint`. Run `npm test` if applicable. Fix all errors before proceeding.
+7. **UI Review** — Verify the change renders correctly: check dark/light themes, mobile/tablet/desktop breakpoints, keyboard accessibility, no console errors.
+8. **PR to main** — Push the feature branch and open a PR. Only merge after all above steps pass.
 
 If any step fails, loop back to **Implement** and fix before re-running the pipeline.
 
