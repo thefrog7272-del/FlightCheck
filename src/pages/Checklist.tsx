@@ -14,12 +14,13 @@ import { useSound } from '../hooks/useSound';
 import { useToast } from '../hooks/useToast';
 import { useTimer } from '../hooks/useTimer';
 import { useDragReorder } from '../hooks/useDragReorder';
+import { VariantSelector } from '../components/VariantSelector';
 import { Toast } from '../components/Toast';
 import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   const { planeId } = useParams();
-  const { planes, checklists, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest } = useFleet();
+  const { planes, checklists, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getActiveVariant, setActiveVariant, getVariants, addVariant, deleteVariant } = useFleet();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -37,14 +38,27 @@ export function Checklist() {
   const [isAddingPhase, setIsAddingPhase] = useState(false);
   const [newPhaseTitle, setNewPhaseTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeVariantState, setActiveVariantState] = useState(() => planeId ? getActiveVariant(planeId) : 'Standard');
 
   const plane = planes.find(p => p.id === planeId);
-  const checklist = planeId ? checklists[planeId] : null;
-  const checkedItems = planeId ? getProgress(planeId) : {};
+  const variants = planeId ? getVariants(planeId) : ['Standard'];
+  const baseChecklist = planeId ? checklists[planeId] : null;
+  const variantKey = activeVariantState !== 'Standard' && planeId ? `${planeId}::${activeVariantState}` : null;
+  const checklist = (variantKey ? checklists[variantKey] : null) ?? baseChecklist;
+  const checkedItems = planeId ? getProgress(planeId, activeVariantState) : {};
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
     if (!planeId) return;
     const newValue = typeof updater === 'function' ? updater(checkedItems) : updater;
-    setProgress(planeId, newValue);
+    setProgress(planeId, newValue, activeVariantState);
+  };
+
+  const handleDuplicateVariant = () => {
+    if (!planeId || !checklist) return;
+    const name = prompt('Enter variant name:');
+    if (!name?.trim()) return;
+    addVariant(planeId, name.trim(), checklist);
+    setActiveVariantState(name.trim());
+    setActiveVariant(planeId, name.trim());
   };
 
   const prevCheckedRef = useRef<Record<string, boolean>>({});
@@ -376,6 +390,14 @@ export function Checklist() {
           <div>
             <h1 className={styles.title}>{plane.name} Checklist</h1>
             <span className={styles.subtitle}>{plane.manufacturer}</span>
+            <VariantSelector
+              variants={variants}
+              activeVariant={activeVariantState}
+              onSelect={(v) => { setActiveVariantState(v); if (planeId) setActiveVariant(planeId, v); }}
+              onDuplicate={handleDuplicateVariant}
+              onDelete={(v) => { if (planeId) deleteVariant(planeId, v); setActiveVariantState('Standard'); if (planeId) setActiveVariant(planeId, 'Standard'); }}
+              isEditing={isEditing}
+            />
           </div>
           <div className={styles.headerActions}>
             <button

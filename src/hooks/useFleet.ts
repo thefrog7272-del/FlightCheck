@@ -129,13 +129,54 @@ export function useFleet() {
   // Checklist progress
   const progressData = data?.checklist_progress ?? {};
 
-  const getProgress = useCallback((planeId: string): Record<string, boolean> => {
-    return progressData[planeId] ?? {};
+  const getProgress = useCallback((planeId: string, variant?: string): Record<string, boolean> => {
+    const key = variant && variant !== 'Standard' ? `${planeId}::${variant}` : planeId;
+    return progressData[key] ?? {};
   }, [progressData]);
 
-  const setProgress = useCallback((planeId: string, progress: Record<string, boolean>) => {
-    updateKey('checklist_progress', { ...progressData, [planeId]: progress });
+  const setProgress = useCallback((planeId: string, progress: Record<string, boolean>, variant?: string) => {
+    const key = variant && variant !== 'Standard' ? `${planeId}::${variant}` : planeId;
+    updateKey('checklist_progress', { ...progressData, [key]: progress });
   }, [progressData, updateKey]);
+
+  // Variant management
+  const getActiveVariant = useCallback((planeId: string): string => {
+    const key = `variant_active_${planeId}`;
+    try {
+      return localStorage.getItem(key) || 'Standard';
+    } catch { return 'Standard'; }
+  }, []);
+
+  const setActiveVariant = useCallback((planeId: string, variantName: string) => {
+    const key = `variant_active_${planeId}`;
+    try { localStorage.setItem(key, variantName); } catch { /* quota */ }
+  }, []);
+
+  const getVariants = useCallback((planeId: string): string[] => {
+    const variants = ['Standard'];
+    for (const key of Object.keys(customChecklists)) {
+      if (key.startsWith(`${planeId}::`)) {
+        variants.push(key.split('::')[1]);
+      }
+    }
+    return variants;
+  }, [customChecklists]);
+
+  const addVariant = useCallback((planeId: string, variantName: string, checklist: PlaneChecklist) => {
+    const variantKey = `${planeId}::${variantName}`;
+    updateKey('custom_checklists', { ...customChecklists, [variantKey]: { ...checklist, planeId: variantKey } });
+  }, [customChecklists, updateKey]);
+
+  const deleteVariant = useCallback((planeId: string, variantName: string) => {
+    if (variantName === 'Standard') return;
+    const variantKey = `${planeId}::${variantName}`;
+    const next = { ...customChecklists };
+    delete next[variantKey];
+    updateKey('custom_checklists', next);
+    const progress = { ...progressData };
+    delete progress[variantKey];
+    updateKey('checklist_progress', progress);
+  }, [customChecklists, progressData, updateKey]);
 
   const exportFleet = useCallback(() => {
     const backup = {
@@ -232,5 +273,10 @@ export function useFleet() {
     setNote,
     getTimerData,
     saveTimerBest,
+    getActiveVariant,
+    setActiveVariant,
+    getVariants,
+    addVariant,
+    deleteVariant,
   };
 }
