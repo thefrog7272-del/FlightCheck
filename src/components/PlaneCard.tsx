@@ -8,12 +8,13 @@ interface PlaneCardProps {
   plane: Plane;
   progress?: number;
   onHide?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onEditImage?: (id: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
 }
 
-export function PlaneCard({ plane, progress, onHide, onEditImage, isFavorite, onToggleFavorite }: PlaneCardProps) {
+export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, isFavorite, onToggleFavorite }: PlaneCardProps) {
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -48,6 +49,13 @@ export function PlaneCard({ plane, progress, onHide, onEditImage, isFavorite, on
     e.stopPropagation();
     setMenuPos(null);
     onEditImage?.(plane.id);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos(null);
+    onDelete?.(plane.id);
   };
 
   return (
@@ -107,8 +115,13 @@ export function PlaneCard({ plane, progress, onHide, onEditImage, isFavorite, on
             </button>
           )}
           {onHide && (
-            <button className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`} onClick={handleHide} role="menuitem">
+            <button className={styles.contextMenuItem} onClick={handleHide} role="menuitem">
               Hide Plane
+            </button>
+          )}
+          {onDelete && (
+            <button className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`} onClick={handleDelete} role="menuitem">
+              Delete Plane
             </button>
           )}
         </div>
