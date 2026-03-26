@@ -200,3 +200,94 @@ export async function deleteSharedChecklist(id: string): Promise<boolean> {
     return false;
   }
 }
+
+// Pending submissions
+
+export interface PendingSubmissionRecord {
+  id: string;
+  name: string;
+  manufacturer: string;
+  image?: string | null;
+  type: string;
+  sim?: string | null;
+  phases: string;
+  submittedBy?: string | null;
+  status: string;
+  createdAt?: string;
+}
+
+export async function createPendingSubmission(submission: {
+  name: string;
+  manufacturer: string;
+  image?: string | null;
+  type: string;
+  sim?: string | null;
+  phases: string;
+  submittedBy?: string | null;
+  status: string;
+}): Promise<boolean> {
+  try {
+    await client.graphql({
+      query: `mutation CreatePendingSubmission($input: CreatePendingSubmissionInput!) {
+        createPendingSubmission(input: $input) { id }
+      }`,
+      variables: { input: submission },
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to create submission:', err);
+    return false;
+  }
+}
+
+export async function listPendingSubmissions(): Promise<PendingSubmissionRecord[]> {
+  try {
+    const result = await client.graphql({
+      query: `query ListPendingSubmissions($filter: ModelPendingSubmissionFilterInput) {
+        listPendingSubmissions(filter: $filter, limit: 100) {
+          items {
+            id name manufacturer image type sim phases submittedBy status createdAt
+          }
+        }
+      }`,
+      variables: { filter: { status: { eq: 'pending' } } },
+      authMode: 'userPool',
+    });
+    return (result as GqlResult).data.listPendingSubmissions.items;
+  } catch (err) {
+    console.error('Failed to list submissions:', err);
+    return [];
+  }
+}
+
+export async function updatePendingSubmission(id: string, status: string): Promise<boolean> {
+  try {
+    await client.graphql({
+      query: `mutation UpdatePendingSubmission($input: UpdatePendingSubmissionInput!) {
+        updatePendingSubmission(input: $input) { id }
+      }`,
+      variables: { input: { id, status } },
+      authMode: 'userPool',
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to update submission:', err);
+    return false;
+  }
+}
+
+export async function deletePendingSubmission(id: string): Promise<boolean> {
+  try {
+    await client.graphql({
+      query: `mutation DeletePendingSubmission($input: DeletePendingSubmissionInput!) {
+        deletePendingSubmission(input: $input) { id }
+      }`,
+      variables: { input: { id } },
+      authMode: 'userPool',
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to delete submission:', err);
+    return false;
+  }
+}
