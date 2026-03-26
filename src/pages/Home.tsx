@@ -155,17 +155,28 @@ export function Home() {
 
   const handleImport = () => {
     try {
+      if (!csvInput.trim()) {
+        alert('Please paste or upload CSV content first.');
+        return;
+      }
       const { plane, checklist } = parsePlaneCsv(csvInput);
-      
+
+      if (checklist.phases.length === 0) {
+        alert('CSV was parsed but no checklist phases/items were found. Check your CSV format.');
+        return;
+      }
+
       // Override image if a file was uploaded
       if (imagePreview) {
         plane.image = imagePreview;
       }
-      
+
+      const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
       addPlane(plane, checklist);
       setIsModalOpen(false);
       setCsvInput('');
       setImagePreview(null);
+      alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).`);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to parse CSV');
     }
@@ -178,19 +189,36 @@ export function Home() {
     reader.onload = () => {
       try {
         const json = JSON.parse(reader.result as string);
-        // Support single plane JSON format: { plane, checklist }
-        if (json.plane && json.checklist && !json.version) {
+
+        // Format 1: Single plane { plane: {...}, checklist: {...} }
+        if (json.plane && json.checklist && json.checklist.phases) {
           addPlane(json.plane, json.checklist);
           setImportSummary(`Imported "${json.plane.name}" successfully.`);
           return;
         }
-        // Fleet backup format
-        const result = importFleet(json);
-        setImportSummary(
-          `Imported ${result.planes} plane(s), ${result.checklists} checklist(s), ${result.progress} progress record(s).`
-        );
+
+        // Format 2: Just a checklist with plane info embedded { planeId, name, manufacturer, phases }
+        if (json.phases && Array.isArray(json.phases) && json.name) {
+          const planeId = (json.planeId || json.name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const plane = { id: planeId, name: json.name, manufacturer: json.manufacturer || '', image: json.image || '', type: json.type || 'GA' };
+          const checklist = { planeId, phases: json.phases };
+          addPlane(plane, checklist);
+          setImportSummary(`Imported "${json.name}" successfully.`);
+          return;
+        }
+
+        // Format 3: Fleet backup { version: 1, custom_planes, custom_checklists, ... }
+        if (json.version === 1) {
+          const result = importFleet(json);
+          setImportSummary(
+            `Imported ${result.planes} plane(s), ${result.checklists} checklist(s), ${result.progress} progress record(s).`
+          );
+          return;
+        }
+
+        alert('Unrecognized JSON format. Expected a fleet backup, single plane, or checklist file.');
       } catch (error) {
-        alert(error instanceof Error ? error.message : 'Failed to import JSON. Expected fleet backup or single plane format.');
+        alert(error instanceof Error ? error.message : 'Failed to parse JSON file.');
       }
     };
     reader.readAsText(file);
@@ -315,6 +343,7 @@ export function Home() {
               isFavorite={favoriteIds.includes(plane.id)}
               onToggleFavorite={toggleFavorite}
               onHide={handleHidePlane}
+              onDelete={handleDeletePlane}
               onEditImage={handleEditImage}
             />
           ))}

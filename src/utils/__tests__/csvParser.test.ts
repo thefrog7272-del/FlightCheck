@@ -58,6 +58,24 @@ describe('csvParser', () => {
     expect(checklist.phases[0].items[1].expectedState).toBeUndefined();
   });
 
+  it('handles simple unquoted CSV without any quotes', () => {
+    const simpleCsv = `name,manufacturer,phase,item,expectedState
+Cessna 208B,Cessna,Pre-Start,Battery,ON
+Cessna 208B,Cessna,Pre-Start,Fuel Pump,ON
+Cessna 208B,Cessna,Taxi,Brakes,CHECK
+Cessna 208B,Cessna,Taxi,Flaps,UP`;
+    const { plane, checklist } = parsePlaneCsv(simpleCsv);
+    expect(plane.name).toBe('Cessna 208B');
+    expect(plane.manufacturer).toBe('Cessna');
+    expect(checklist.phases.length).toBe(2);
+    expect(checklist.phases[0].title).toBe('Pre-Start');
+    expect(checklist.phases[0].items.length).toBe(2);
+    expect(checklist.phases[0].items[0].label).toBe('Battery');
+    expect(checklist.phases[0].items[0].expectedState).toBe('ON');
+    expect(checklist.phases[1].title).toBe('Taxi');
+    expect(checklist.phases[1].items.length).toBe(2);
+  });
+
   it('handles quoted values with commas correctly', () => {
     const complexCsv = `name,manufacturer,type,image,phase,item,expectedState
 "Mooney M20","Mooney","GA","","Landing","Flaps","FULL, DOWN"`;
