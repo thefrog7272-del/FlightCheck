@@ -1,11 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import { useDatabase } from './useDatabase';
-import { planes as staticPlanes } from '../data/planes';
-import { checklists as staticChecklists } from '../data/checklists';
+import { useSharedPlanes } from './useSharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
 
 export function useFleet() {
   const { data, loading, updateKey, resetAll } = useDatabase();
+  const { sharedPlanes, sharedChecklists, sharedLoading } = useSharedPlanes();
 
   const customPlanes = data?.custom_planes ?? [];
   const customChecklists = data?.custom_checklists ?? {};
@@ -57,13 +57,13 @@ export function useFleet() {
   }, [data?.favorite_planes, updateKey]);
 
   const allPlanes = useMemo(() => {
-    const active = staticPlanes.filter(p => !deletedStaticIds.includes(p.id));
+    const active = sharedPlanes.filter(p => !deletedStaticIds.includes(p.id));
     return [...active, ...customPlanes];
-  }, [customPlanes, deletedStaticIds]);
+  }, [sharedPlanes, customPlanes, deletedStaticIds]);
 
   const allChecklists = useMemo(
-    () => ({ ...staticChecklists, ...customChecklists }),
-    [customChecklists],
+    () => ({ ...sharedChecklists, ...customChecklists }),
+    [sharedChecklists, customChecklists],
   );
 
   const addPlane = useCallback((newPlane: Plane, newChecklist: PlaneChecklist) => {
@@ -86,7 +86,7 @@ export function useFleet() {
   }, [customChecklists, updateKey]);
 
   const updatePlaneImage = useCallback((planeId: string, newImage: string) => {
-    const isStatic = staticPlanes.some(p => p.id === planeId);
+    const isStatic = sharedPlanes.some(p => p.id === planeId);
     const existingPlane = allPlanes.find(p => p.id === planeId);
     if (!existingPlane) return;
 
@@ -101,17 +101,17 @@ export function useFleet() {
         updateKey('deleted_static_planes', [...deletedStaticIds, planeId]);
         updateKey('custom_planes', [...customPlanes, updatedPlane]);
         // Copy the static checklist to custom so it's preserved
-        if (staticChecklists[planeId] && !customChecklists[planeId]) {
-          updateKey('custom_checklists', { ...customChecklists, [planeId]: staticChecklists[planeId] });
+        if (sharedChecklists[planeId] && !customChecklists[planeId]) {
+          updateKey('custom_checklists', { ...customChecklists, [planeId]: sharedChecklists[planeId] });
         }
       }
     } else {
       updateKey('custom_planes', customPlanes.map(p => p.id === planeId ? updatedPlane : p));
     }
-  }, [allPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
+  }, [sharedPlanes, sharedChecklists, allPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
   const deletePlane = useCallback((planeId: string) => {
-    const isStatic = staticPlanes.some(p => p.id === planeId);
+    const isStatic = sharedPlanes.some(p => p.id === planeId);
     if (isStatic) {
       updateKey('deleted_static_planes', [...deletedStaticIds, planeId]);
     } else {
@@ -120,7 +120,7 @@ export function useFleet() {
       delete next[planeId];
       updateKey('custom_checklists', next);
     }
-  }, [customPlanes, customChecklists, deletedStaticIds, updateKey]);
+  }, [sharedPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
   const resetFleet = useCallback(() => {
     resetAll();
@@ -255,7 +255,7 @@ export function useFleet() {
   return {
     planes: allPlanes,
     checklists: allChecklists,
-    loading,
+    loading: loading || sharedLoading,
     addPlane,
     updateChecklist,
     updatePlaneImage,
