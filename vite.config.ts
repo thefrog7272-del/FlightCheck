@@ -25,6 +25,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg}'],
+        navigateFallback: '/index.html',
         runtimeCaching: [
           {
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
@@ -35,6 +37,22 @@ export default defineConfig({
                 maxEntries: 50,
                 maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
               },
+            },
+          },
+          {
+            urlPattern: /\/planes\/.+\.(svg|jpg|png)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'plane-images',
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            urlPattern: /raw\.githubusercontent\.com\/.*community/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'community-checklists',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 },
             },
           },
         ],

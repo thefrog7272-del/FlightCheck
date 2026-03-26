@@ -1,6 +1,7 @@
 import { Plane, Coffee, Sun, Moon } from 'lucide-react';
 import { Link, Outlet } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
+import { OfflineIndicator } from './OfflineIndicator';
 import styles from './Layout.module.css';
 
 function GitHubIcon() {
@@ -16,6 +17,7 @@ export function Layout() {
 
   return (
     <div className={styles.container}>
+      <OfflineIndicator />
       <a href="#main-content" className={styles.skipLink}>Skip to content</a>
       <header className={styles.header}>
         <div className={styles.headerInner}>
