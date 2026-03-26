@@ -190,14 +190,45 @@ export function Home() {
       try {
         const json = JSON.parse(reader.result as string);
 
-        // Format 1: Single plane { plane: {...}, checklist: {...} }
+        // Format 1: Flat array of items [{ name, manufacturer, phase, item, expectedState }, ...]
+        if (Array.isArray(json) && json.length > 0 && json[0].phase && json[0].item) {
+          const first = json[0];
+          const name = first.name || file.name.replace(/\.[^.]+$/, '');
+          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const plane = { id: planeId, name, manufacturer: first.manufacturer || '', image: first.image || '', type: first.type || 'GA' };
+
+          // Group items by phase
+          const phasesMap = new Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string }[] }>();
+          for (const row of json) {
+            const phaseTitle = row.phase?.trim();
+            const itemLabel = row.item?.trim();
+            if (!phaseTitle || !itemLabel) continue;
+            if (!phasesMap.has(phaseTitle)) {
+              const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
+              phasesMap.set(phaseTitle, { id: phaseId, title: phaseTitle, items: [] });
+            }
+            const phase = phasesMap.get(phaseTitle)!;
+            phase.items.push({
+              id: `${phase.id}-${phase.items.length}`,
+              label: itemLabel,
+              expectedState: row.expectedState?.trim() || undefined,
+            });
+          }
+          const phases = Array.from(phasesMap.values());
+          const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
+          addPlane(plane, { planeId, phases });
+          setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).`);
+          return;
+        }
+
+        // Format 2: Single plane { plane: {...}, checklist: {...} }
         if (json.plane && json.checklist && json.checklist.phases) {
           addPlane(json.plane, json.checklist);
           setImportSummary(`Imported "${json.plane.name}" successfully.`);
           return;
         }
 
-        // Format 2: Checklist with plane info { name, phases } or { planeId, phases }
+        // Format 3: Checklist with plane info { name, phases } or { planeId, phases }
         if (json.phases && Array.isArray(json.phases)) {
           const name = json.name || json.planeId || file.name.replace(/\.[^.]+$/, '');
           const planeId = (json.planeId || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -208,7 +239,7 @@ export function Home() {
           return;
         }
 
-        // Format 3: Fleet backup { version: 1, custom_planes, custom_checklists, ... }
+        // Format 4: Fleet backup { version: 1, custom_planes, custom_checklists, ... }
         if (json.version === 1) {
           const result = importFleet(json);
           setImportSummary(
@@ -217,7 +248,7 @@ export function Home() {
           return;
         }
 
-        // Format 4: Object with custom_planes / custom_checklists (no version)
+        // Format 5: Object with custom_planes / custom_checklists (no version)
         if (json.custom_planes || json.custom_checklists) {
           const result = importFleet({ ...json, version: 1 });
           setImportSummary(
@@ -226,7 +257,7 @@ export function Home() {
           return;
         }
 
-        alert('Unrecognized JSON format. The file should contain a "plane" and "checklist" object, or a "phases" array, or be a fleet backup export.');
+        alert('Unrecognized JSON format. Supported: flat array of items, { plane, checklist }, { phases }, or fleet backup.');
       } catch (error) {
         alert(error instanceof Error ? error.message : 'Failed to parse JSON file.');
       }
