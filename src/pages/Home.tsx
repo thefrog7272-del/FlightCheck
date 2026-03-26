@@ -1,11 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
 import { PlaneCard } from '../components/PlaneCard';
 import { ImageEditModal } from '../components/ImageEditModal';
+import { CommunityBrowser } from '../components/CommunityBrowser';
 import styles from './Home.module.css';
-import { Search, Plus, Eye, ChevronDown, Download, Upload } from 'lucide-react';
+import { Search, Plus, Eye, ChevronDown, Download, Upload, Globe } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { parsePlaneCsv } from '../utils/csvParser';
+import type { Plane, PlaneChecklist } from '../data/types';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 type SimFilter = 'all' | 'msfs2020' | 'msfs2024';
@@ -28,6 +30,7 @@ export function Home() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editingImagePlaneId, setEditingImagePlaneId] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
+  const [showCommunity, setShowCommunity] = useState(false);
 
   const editingPlane = useMemo(
     () => editingImagePlaneId ? planes.find(p => p.id === editingImagePlaneId) ?? null : null,
@@ -176,6 +179,11 @@ export function Home() {
     reader.readAsText(file);
   };
 
+  const handleCommunityImport = (data: { plane: Plane; checklist: PlaneChecklist }) => {
+    addPlane(data.plane, data.checklist);
+    setShowCommunity(false);
+  };
+
   const sampleCsv = `name,manufacturer,type,image,phase,item,expectedState
 "Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Master Switch","ON"
 "Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Fuel Pump","ON"`;
@@ -194,6 +202,9 @@ export function Home() {
             </button>
             <button className={styles.resetButton} onClick={exportFleet}>
               <Download size={18} /> Export Fleet
+            </button>
+            <button className={styles.resetButton} onClick={() => setShowCommunity(true)}>
+              <Globe size={18} /> Community
             </button>
           </div>
         </div>
@@ -315,6 +326,13 @@ export function Home() {
           currentImage={editingPlane.image}
           onSave={handleSaveImage}
           onCancel={() => setEditingImagePlaneId(null)}
+        />
+      )}
+
+      {showCommunity && (
+        <CommunityBrowser
+          onImport={handleCommunityImport}
+          onClose={() => setShowCommunity(false)}
         />
       )}
 

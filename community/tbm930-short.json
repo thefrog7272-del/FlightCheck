@@ -1,0 +1,40 @@
+{
+  "plane": {
+    "id": "tbm930-quick",
+    "name": "TBM 930 Quick Start",
+    "manufacturer": "Daher",
+    "image": "/planes/tbm930.svg",
+    "type": "Turboprop"
+  },
+  "checklist": {
+    "planeId": "tbm930-quick",
+    "phases": [
+      {
+        "id": "quick-start",
+        "title": "Quick Engine Start",
+        "items": [
+          { "id": "battery", "label": "Battery", "expectedState": "ON" },
+          { "id": "fuel", "label": "Fuel Selector", "expectedState": "AUTO" },
+          { "id": "aux-pump", "label": "Aux Boost Pump", "expectedState": "ON" },
+          { "id": "ignition", "label": "Ignition", "expectedState": "AUTO" },
+          { "id": "starter", "label": "Starter", "expectedState": "ON (WAIT Ng 13%)" },
+          { "id": "power-lever", "label": "Power Lever", "expectedState": "LOW IDLE" },
+          { "id": "generator", "label": "Generator", "expectedState": "MAIN" },
+          { "id": "avionics", "label": "Avionics", "expectedState": "ON" }
+        ]
+      },
+      {
+        "id": "quick-taxi",
+        "title": "Quick Taxi & Takeoff",
+        "items": [
+          { "id": "flaps", "label": "Flaps", "expectedState": "TAKEOFF" },
+          { "id": "trims", "label": "Trims", "expectedState": "SET" },
+          { "id": "lights", "label": "Lights", "expectedState": "ON" },
+          { "id": "transponder", "label": "Transponder", "expectedState": "ALT" },
+          { "id": "power", "label": "Power", "expectedState": "TAKEOFF" },
+          { "id": "rotate", "label": "Rotate", "expectedState": "90 KIAS" }
+        ]
+      }
+    ]
+  }
+}
