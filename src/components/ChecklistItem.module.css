@@ -148,3 +148,37 @@
     font-size: 0.8rem;
   }
 }
+
+@media print {
+  .item {
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+    break-inside: avoid;
+  }
+
+  .checkbox {
+    border: 2px solid #333 !important;
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .item.checked .checkbox {
+    background: #333 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .item.checked .label {
+    text-decoration: none !important;
+    color: #000 !important;
+  }
+
+  .noteButton {
+    display: none !important;
+  }
+
+  .noteInput {
+    display: none !important;
+  }
+}

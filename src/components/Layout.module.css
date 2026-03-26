@@ -1,3 +1,18 @@
+.skipLink {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  z-index: 100;
+  font-size: 0.875rem;
+}
+
+.skipLink:focus {
+  top: 0;
+}
+
 .container {
   min-height: 100vh;
   display: flex;

@@ -56,6 +56,7 @@ export function PlaneCard({ plane, progress, onHide, onEditImage, isFavorite, on
         to={`/checklist/${plane.id}`}
         className={styles.card}
         onContextMenu={handleContextMenu}
+        aria-label={`Open ${plane.name} checklist`}
       >
         <div className={styles.imageWrapper}>
           {imgError || !plane.image ? (
@@ -98,14 +99,15 @@ export function PlaneCard({ plane, progress, onHide, onEditImage, isFavorite, on
           ref={menuRef}
           className={styles.contextMenu}
           style={{ top: menuPos.y, left: menuPos.x }}
+          role="menu"
         >
           {onEditImage && (
-            <button className={styles.contextMenuItem} onClick={handleEditImage}>
+            <button className={styles.contextMenuItem} onClick={handleEditImage} role="menuitem">
               Change Image
             </button>
           )}
           {onHide && (
-            <button className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`} onClick={handleHide}>
+            <button className={`${styles.contextMenuItem} ${styles.contextMenuItemDanger}`} onClick={handleHide} role="menuitem">
               Hide Plane
             </button>
           )}

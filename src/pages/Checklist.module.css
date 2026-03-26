@@ -644,3 +644,58 @@
     gap: 0.5rem;
   }
 }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@media print {
+  .container {
+    gap: 1rem;
+    padding: 0;
+  }
+
+  .backLink,
+  .headerActions,
+  .searchBar,
+  .searchResultCount,
+  .toggleAllButton,
+  .insertButton,
+  .insertForm,
+  .addPhaseButton,
+  .addPhaseForm,
+  .dragHandle,
+  .deleteItemButton,
+  .deletePhaseButton,
+  .phaseActions {
+    display: none !important;
+  }
+
+  .phase {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+    padding: 1rem;
+  }
+
+  .overallProgress {
+    border: 1px solid #ccc;
+  }
+
+  .overallFill,
+  .progressFill {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+}

@@ -429,6 +429,9 @@ export function Checklist() {
         />
       </div>
 
+      <span className={styles.srOnly} aria-live="polite">
+        {Math.round(overallProgress)}% complete, {completedItems} of {totalItems} items
+      </span>
       <div className={styles.searchBar}>
         <Search className={styles.searchIcon} size={18} />
         <input
@@ -437,6 +440,7 @@ export function Checklist() {
           className={styles.searchInput}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search checklist items"
         />
         {searchQuery && (
           <button className={styles.searchClear} onClick={() => setSearchQuery('')}>
@@ -464,6 +468,7 @@ export function Checklist() {
                   onClick={() => togglePhase(phase.id)}
                   role="button"
                   tabIndex={0}
+                  aria-expanded={!isCollapsed}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePhase(phase.id); } }}
                 >
                   <div className={styles.phaseHeaderLeft}>

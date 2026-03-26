@@ -224,12 +224,14 @@ export function Home() {
         </div>
       </div>
 
-      <div className={styles.simTabs}>
+      <div className={styles.simTabs} role="radiogroup" aria-label="Filter by simulator">
         {(Object.keys(SIM_LABELS) as SimFilter[]).map(sim => (
           <button
             key={sim}
             className={`${styles.simTab} ${filterSim === sim ? styles.simTabActive : ''}`}
             onClick={() => setFilterSim(sim)}
+            role="radio"
+            aria-checked={filterSim === sim}
           >
             {SIM_LABELS[sim]}
           </button>
@@ -261,12 +263,14 @@ export function Home() {
       )}
 
       <div className={styles.filterBar}>
-        <div className={styles.filterChips}>
+        <div className={styles.filterChips} role="radiogroup" aria-label="Filter by aircraft type">
           {typeOptions.map(type => (
             <button
               key={type}
               className={`${styles.filterChip} ${filterType === type ? styles.filterChipActive : ''}`}
               onClick={() => setFilterType(type)}
+              role="radio"
+              aria-checked={filterType === type}
             >
               {type}
             </button>

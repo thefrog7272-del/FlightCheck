@@ -535,3 +535,12 @@
     height: 150px;
   }
 }
+
+@media print {
+  .searchRow,
+  .actions,
+  .simTabs,
+  .filterBar {
+    display: none !important;
+  }
+}

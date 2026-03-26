@@ -22,6 +22,7 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: C
         onClick={onToggle}
         role="checkbox"
         aria-checked={checked}
+        aria-label={`${item.label}${item.expectedState ? ': ' + item.expectedState : ''}`}
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === ' ' || e.key === 'Enter') {
