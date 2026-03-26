@@ -153,6 +153,38 @@ export async function deleteSharedPlane(id: string): Promise<boolean> {
   }
 }
 
+export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPlaneRecord, 'id'>>): Promise<boolean> {
+  try {
+    await client.graphql({
+      query: `mutation UpdateSharedPlane($input: UpdateSharedPlaneInput!) {
+        updateSharedPlane(input: $input) { id }
+      }`,
+      variables: { input: { id, ...plane } },
+      authMode: 'userPool',
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to update shared plane:', err);
+    return false;
+  }
+}
+
+export async function updateSharedChecklist(id: string, phases: string): Promise<boolean> {
+  try {
+    await client.graphql({
+      query: `mutation UpdateSharedChecklist($input: UpdateSharedChecklistInput!) {
+        updateSharedChecklist(input: $input) { id }
+      }`,
+      variables: { input: { id, phases } },
+      authMode: 'userPool',
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to update shared checklist:', err);
+    return false;
+  }
+}
+
 export async function deleteSharedChecklist(id: string): Promise<boolean> {
   try {
     await client.graphql({
