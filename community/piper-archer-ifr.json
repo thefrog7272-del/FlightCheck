@@ -1,0 +1,61 @@
+{
+  "plane": {
+    "id": "pa28-ifr",
+    "name": "Piper Archer II (IFR)",
+    "manufacturer": "Piper",
+    "image": "/planes/pa28.svg",
+    "type": "GA"
+  },
+  "checklist": {
+    "planeId": "pa28-ifr",
+    "phases": [
+      {
+        "id": "pre-flight",
+        "title": "Pre-Flight (IFR)",
+        "items": [
+          { "id": "weather", "label": "Weather Briefing", "expectedState": "OBTAINED" },
+          { "id": "notams", "label": "NOTAMs", "expectedState": "CHECKED" },
+          { "id": "flight-plan", "label": "IFR Flight Plan", "expectedState": "FILED" },
+          { "id": "nav-charts", "label": "Approach Charts", "expectedState": "LOADED" },
+          { "id": "preflight", "label": "Preflight Inspection", "expectedState": "COMPLETE" }
+        ]
+      },
+      {
+        "id": "engine-start",
+        "title": "Engine Start",
+        "items": [
+          { "id": "master", "label": "Master Switch", "expectedState": "ON" },
+          { "id": "fuel-pump", "label": "Fuel Pump", "expectedState": "ON" },
+          { "id": "mixture", "label": "Mixture", "expectedState": "RICH" },
+          { "id": "throttle", "label": "Throttle", "expectedState": "1/4 INCH" },
+          { "id": "ignition", "label": "Ignition", "expectedState": "START" },
+          { "id": "oil", "label": "Oil Pressure", "expectedState": "CHECK" }
+        ]
+      },
+      {
+        "id": "ifr-setup",
+        "title": "IFR Setup",
+        "items": [
+          { "id": "avionics", "label": "Avionics Master", "expectedState": "ON" },
+          { "id": "gps-nav", "label": "GPS/NAV Setup", "expectedState": "SET" },
+          { "id": "com-freq", "label": "COM Frequencies", "expectedState": "SET" },
+          { "id": "altimeter", "label": "Altimeter", "expectedState": "SET QNH" },
+          { "id": "heading-bug", "label": "Heading Bug", "expectedState": "SET RUNWAY HDG" },
+          { "id": "transponder", "label": "Transponder", "expectedState": "SET SQUAWK" },
+          { "id": "clearance", "label": "IFR Clearance", "expectedState": "OBTAINED" }
+        ]
+      },
+      {
+        "id": "takeoff",
+        "title": "Before Takeoff",
+        "items": [
+          { "id": "controls", "label": "Flight Controls", "expectedState": "FREE & CORRECT" },
+          { "id": "instruments", "label": "Flight Instruments", "expectedState": "CHECK" },
+          { "id": "dg", "label": "DG/HSI", "expectedState": "SET TO COMPASS" },
+          { "id": "nav-source", "label": "NAV Source", "expectedState": "GPS OR VOR" },
+          { "id": "lights", "label": "Lights", "expectedState": "ALL ON" }
+        ]
+      }
+    ]
+  }
+}

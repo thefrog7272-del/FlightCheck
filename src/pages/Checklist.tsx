@@ -4,7 +4,7 @@ import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
 import { Timer } from '../components/Timer';
 import styles from './Checklist.module.css';
-import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2 } from 'lucide-react';
 import clsx from 'clsx';
 import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -16,6 +16,7 @@ import { useTimer } from '../hooks/useTimer';
 import { useDragReorder } from '../hooks/useDragReorder';
 import { VariantSelector } from '../components/VariantSelector';
 import { Toast } from '../components/Toast';
+import { encodeChecklist } from '../utils/shareCodec';
 import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
@@ -136,6 +137,26 @@ export function Checklist() {
     a.click();
     URL.revokeObjectURL(url);
   }, [plane, checklist]);
+
+  const handleShare = async () => {
+    if (!plane || !checklist) return;
+    try {
+      const data = { plane, checklist };
+      const encoded = await encodeChecklist(data);
+      const url = `${window.location.origin}/share?data=${encoded}`;
+
+      if (url.length > 2000) {
+        // Too long for URL — copy JSON to clipboard instead
+        await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+        showToast('Checklist copied to clipboard (too large for URL)');
+      } else {
+        await navigator.clipboard.writeText(url);
+        showToast('Share link copied to clipboard!');
+      }
+    } catch {
+      showToast('Failed to create share link');
+    }
+  };
 
   useKeyboardShortcuts(useMemo(() => ({
     onEscape: () => {
@@ -406,6 +427,10 @@ export function Checklist() {
             >
               <Pencil className={styles.resetIcon} />
               {isEditing ? 'Done' : 'Edit'}
+            </button>
+            <button onClick={handleShare} className={styles.resetButton} title="Share checklist">
+              <Share2 className={styles.resetIcon} />
+              Share
             </button>
             <button onClick={downloadCsv} className={styles.resetButton}>
               <Download className={styles.resetIcon} />
