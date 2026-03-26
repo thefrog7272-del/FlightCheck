@@ -18,7 +18,7 @@ const SIM_LABELS: Record<SimFilter, string> = {
 };
 
 export function Home() {
-  const { planes, checklists, getProgress, recentlyUsed, addPlane, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
@@ -30,6 +30,7 @@ export function Home() {
   const [editingImagePlaneId, setEditingImagePlaneId] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [showFileImport, setShowFileImport] = useState(false);
+  const [importCategory, setImportCategory] = useState('');
 
   const editingPlane = useMemo(
     () => editingImagePlaneId ? planes.find(p => p.id === editingImagePlaneId) ?? null : null,
@@ -172,11 +173,22 @@ export function Home() {
       }
 
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
-      addPlane(plane, checklist);
+      const category = importCategory.trim();
+      if (category && category !== 'Standard') {
+        // Import as a variant on an existing (or new) plane
+        if (!planes.some(p => p.id === plane.id)) {
+          addPlane(plane, checklist); // create plane with this as default
+        }
+        addVariant(plane.id, category, checklist);
+        alert(`Imported "${plane.name}" variant "${category}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).`);
+      } else {
+        addPlane(plane, checklist);
+        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).`);
+      }
       setIsModalOpen(false);
       setCsvInput('');
       setImagePreview(null);
-      alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).`);
+      setImportCategory('');
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to parse CSV');
     }
@@ -216,8 +228,19 @@ export function Home() {
           }
           const phases = Array.from(phasesMap.values());
           const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
-          addPlane(plane, { planeId, phases });
-          setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).`);
+          const checklist = { planeId, phases };
+          const category = importCategory.trim();
+          if (category && category !== 'Standard') {
+            if (!planes.some(p => p.id === planeId)) {
+              addPlane(plane, checklist);
+            }
+            addVariant(planeId, category, checklist);
+            setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).`);
+          } else {
+            addPlane(plane, checklist);
+            setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).`);
+          }
+          setImportCategory('');
           return;
         }
 
@@ -455,6 +478,18 @@ export function Home() {
             </div>
 
             <div className={styles.fileInputWrapper}>
+              <label className={styles.csvLabel}>Checklist Category (Optional):</label>
+              <input
+                type="text"
+                placeholder='Leave blank for "Standard", or type e.g. "Emergency", "IFR"'
+                value={importCategory}
+                onChange={(e) => setImportCategory(e.target.value)}
+                className={styles.fileInput}
+                style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
+              />
+            </div>
+
+            <div className={styles.fileInputWrapper}>
               <label className={styles.csvLabel}>Upload CSV File:</label>
               <input
                 type="file"
@@ -484,6 +519,7 @@ export function Home() {
                   setIsModalOpen(false);
                   setImagePreview(null);
                   setImportSummary(null);
+                  setImportCategory('');
                 }}
               >
                 Cancel
