@@ -210,7 +210,7 @@ export function Home() {
           const plane = { id: planeId, name, manufacturer: first.manufacturer || '', image: first.image || '', type: first.type || 'GA' };
 
           // Group items by phase
-          const phasesMap = new Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string }[] }>();
+          const phasesMap = new Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; notes?: string }[] }>();
           for (const row of json) {
             const phaseTitle = row.phase?.trim();
             const itemLabel = row.item?.trim();
