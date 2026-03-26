@@ -36,9 +36,14 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: C
         </div>
         <div className={styles.content}>
           <span className={styles.label}>{item.label}</span>
-          {item.expectedState && (
-            <span className={styles.state}>{item.expectedState}</span>
-          )}
+          <div className={styles.stateGroup}>
+            {item.expectedState && (
+              <span className={styles.state}>{item.expectedState}</span>
+            )}
+            {item.notes && (
+              <span className={styles.importedNote}>{item.notes}</span>
+            )}
+          </div>
         </div>
         {onNoteChange && (
           <button

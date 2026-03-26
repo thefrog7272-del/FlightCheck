@@ -24,7 +24,8 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     image: headers.indexOf('image'),
     phase: headers.indexOf('phase'),
     item: headers.indexOf('item'),
-    expectedState: headers.indexOf('expectedstate')
+    expectedState: headers.indexOf('expectedstate'),
+    notes: headers.indexOf('notes')
   };
 
   // Check required headers
@@ -49,6 +50,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     const phaseTitle = values[col.phase]?.trim();
     const itemLabel = values[col.item]?.trim();
     const expectedState = col.expectedState !== -1 && values[col.expectedState] ? values[col.expectedState].trim() : undefined;
+    const notes = col.notes !== -1 && values[col.notes] ? values[col.notes].trim() : undefined;
 
     if (!phaseTitle || !itemLabel) continue;
 
@@ -70,7 +72,8 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     const newItem: ChecklistItem = {
       id: `${currentPhase.id}-${itemId}-${currentPhase.items.length}`,
       label: itemLabel,
-      expectedState
+      expectedState,
+      notes,
     };
 
     currentPhase.items.push(newItem);

@@ -224,6 +224,7 @@ export function Home() {
               id: `${phase.id}-${phase.items.length}`,
               label: itemLabel,
               expectedState: row.expectedState?.trim() || undefined,
+              notes: row.notes?.trim() || undefined,
             });
           }
           const phases = Array.from(phasesMap.values());
