@@ -3,6 +3,9 @@ import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Checklist } from './pages/Checklist';
 import { ShareImport } from './pages/ShareImport';
+import { AdminLogin } from './pages/AdminLogin';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminGuard } from './components/AdminGuard';
 import './App.css';
 
 function App() {
@@ -13,6 +16,8 @@ function App() {
           <Route index element={<Home />} />
           <Route path="checklist/:planeId" element={<Checklist />} />
           <Route path="/share" element={<ShareImport />} />
+          <Route path="admin/login" element={<AdminLogin />} />
+          <Route path="admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
         </Route>
       </Routes>
     </BrowserRouter>
