@@ -197,13 +197,14 @@ export function Home() {
           return;
         }
 
-        // Format 2: Just a checklist with plane info embedded { planeId, name, manufacturer, phases }
-        if (json.phases && Array.isArray(json.phases) && json.name) {
-          const planeId = (json.planeId || json.name).toLowerCase().replace(/[^a-z0-9]/g, '-');
-          const plane = { id: planeId, name: json.name, manufacturer: json.manufacturer || '', image: json.image || '', type: json.type || 'GA' };
+        // Format 2: Checklist with plane info { name, phases } or { planeId, phases }
+        if (json.phases && Array.isArray(json.phases)) {
+          const name = json.name || json.planeId || file.name.replace(/\.[^.]+$/, '');
+          const planeId = (json.planeId || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const plane = { id: planeId, name, manufacturer: json.manufacturer || '', image: json.image || '', type: json.type || 'GA' };
           const checklist = { planeId, phases: json.phases };
           addPlane(plane, checklist);
-          setImportSummary(`Imported "${json.name}" successfully.`);
+          setImportSummary(`Imported "${name}" with ${json.phases.length} phase(s).`);
           return;
         }
 
@@ -216,7 +217,16 @@ export function Home() {
           return;
         }
 
-        alert('Unrecognized JSON format. Expected a fleet backup, single plane, or checklist file.');
+        // Format 4: Object with custom_planes / custom_checklists (no version)
+        if (json.custom_planes || json.custom_checklists) {
+          const result = importFleet({ ...json, version: 1 });
+          setImportSummary(
+            `Imported ${result.planes} plane(s), ${result.checklists} checklist(s).`
+          );
+          return;
+        }
+
+        alert('Unrecognized JSON format. The file should contain a "plane" and "checklist" object, or a "phases" array, or be a fleet backup export.');
       } catch (error) {
         alert(error instanceof Error ? error.message : 'Failed to parse JSON file.');
       }

@@ -21,7 +21,7 @@ import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   const { planeId } = useParams();
-  const { planes, checklists, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getActiveVariant, setActiveVariant, getVariants, addVariant, deleteVariant } = useFleet();
+  const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getActiveVariant, setActiveVariant, getVariants, addVariant, deleteVariant } = useFleet();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -172,6 +172,10 @@ export function Checklist() {
     onDownloadCsv: downloadCsv,
     onPrint: () => window.print(),
   }), [isEditing, downloadCsv]));
+
+  if (loading) {
+    return <div className={styles.container}><p>Loading...</p></div>;
+  }
 
   if (!plane || !checklist) {
     return <Navigate to="/" replace />;
