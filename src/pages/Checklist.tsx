@@ -2,8 +2,9 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
+import { Timer } from '../components/Timer';
 import styles from './Checklist.module.css';
-import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical } from 'lucide-react';
 import clsx from 'clsx';
 import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -11,12 +12,14 @@ import { useChecklistNavigation } from '../hooks/useChecklistNavigation';
 import { useConfirm } from '../hooks/useConfirm';
 import { useSound } from '../hooks/useSound';
 import { useToast } from '../hooks/useToast';
+import { useTimer } from '../hooks/useTimer';
+import { useDragReorder } from '../hooks/useDragReorder';
 import { Toast } from '../components/Toast';
 import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   const { planeId } = useParams();
-  const { planes, checklists, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote } = useFleet();
+  const { planes, checklists, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest } = useFleet();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -45,6 +48,53 @@ export function Checklist() {
   };
 
   const prevCheckedRef = useRef<Record<string, boolean>>({});
+
+  // Timer hook (must be before guard clause)
+  const timer = useTimer();
+  const timerBest = plane ? getTimerData(plane.id).completed : undefined;
+
+  // Auto-stop timer when all items are complete
+  useEffect(() => {
+    if (!planeId || !checklist) return;
+    const allIds = checklist.phases.flatMap(p => p.items.map(i => i.id));
+    const total = allIds.length;
+    if (total === 0) return;
+    const completed = allIds.filter(id => checkedItems[id]).length;
+    if (completed === total && timer.isRunning) {
+      timer.pause();
+      if (timer.elapsed > 0) {
+        saveTimerBest(planeId, timer.elapsed);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkedItems]);
+
+  // DnD reorder callbacks (must be before guard clause)
+  const reorderItems = useCallback((phaseId: string, fromIndex: number, toIndex: number) => {
+    if (!checklist || !plane) return;
+    const updated: PlaneChecklist = {
+      ...checklist,
+      phases: checklist.phases.map(phase => {
+        if (phase.id !== phaseId) return phase;
+        const items = [...phase.items];
+        const [moved] = items.splice(fromIndex, 1);
+        items.splice(toIndex, 0, moved);
+        return { ...phase, items };
+      }),
+    };
+    updateChecklist(plane.id, updated);
+  }, [checklist, plane, updateChecklist]);
+
+  const reorderPhases = useCallback((fromIndex: number, toIndex: number) => {
+    if (!checklist || !plane) return;
+    const phases = [...checklist.phases];
+    const [moved] = phases.splice(fromIndex, 1);
+    phases.splice(toIndex, 0, moved);
+    updateChecklist(plane.id, { ...checklist, phases });
+  }, [checklist, plane, updateChecklist]);
+
+  const { handleDragStart, handleDragEnd, handleDragOver, handleDropItem, handleDropPhase: _handleDropPhase } = useDragReorder(reorderItems, reorderPhases);
+  void _handleDropPhase; // phases use up/down arrows instead of DnD
 
   const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
@@ -369,6 +419,14 @@ export function Checklist() {
           </div>
           <span className={styles.overallPercent}>{Math.round(overallProgress)}%</span>
         </div>
+        <Timer
+          elapsed={timer.elapsed}
+          isRunning={timer.isRunning}
+          onStart={timer.start}
+          onPause={timer.pause}
+          onReset={timer.reset}
+          bestTime={timerBest}
+        />
       </div>
 
       <div className={styles.searchBar}>
@@ -470,6 +528,19 @@ export function Checklist() {
                   {phase.items.map((item, idx) => (
                     <div key={item.id}>
                       <div className={styles.editableRow}>
+                        {isEditing && (
+                          <div
+                            className={styles.dragHandle}
+                            draggable
+                            onDragStart={handleDragStart('item', idx, phase.id)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={handleDragOver}
+                            onDrop={handleDropItem(phase.id, idx)}
+                            title="Drag to reorder"
+                          >
+                            <GripVertical size={14} />
+                          </div>
+                        )}
                         <ChecklistItem
                           item={item}
                           checked={!!checkedItems[item.id]}

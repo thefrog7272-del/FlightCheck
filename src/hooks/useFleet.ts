@@ -13,6 +13,18 @@ export function useFleet() {
   const favoriteIds = data?.favorite_planes ?? [];
   const recentlyUsed = data?.recently_used ?? [];
   const itemNotes = data?.item_notes ?? {};
+  const timerData = data?.timer_data ?? {};
+
+  const getTimerData = useCallback((planeId: string) => {
+    return timerData[planeId] ?? {};
+  }, [timerData]);
+
+  const saveTimerBest = useCallback((planeId: string, elapsed: number) => {
+    const current = timerData[planeId] ?? {};
+    if (!current.completed || elapsed < current.completed) {
+      updateKey('timer_data', { ...timerData, [planeId]: { ...current, completed: elapsed } });
+    }
+  }, [timerData, updateKey]);
 
   const getNote = useCallback((itemId: string): string => {
     return itemNotes[itemId] ?? '';
@@ -218,5 +230,7 @@ export function useFleet() {
     trackRecentUse,
     getNote,
     setNote,
+    getTimerData,
+    saveTimerBest,
   };
 }
