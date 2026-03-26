@@ -6,13 +6,14 @@ import { Plane as PlaneIcon, Star } from 'lucide-react';
 
 interface PlaneCardProps {
   plane: Plane;
+  progress?: number;
   onHide?: (id: string) => void;
   onEditImage?: (id: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
 }
 
-export function PlaneCard({ plane, onHide, onEditImage, isFavorite, onToggleFavorite }: PlaneCardProps) {
+export function PlaneCard({ plane, progress, onHide, onEditImage, isFavorite, onToggleFavorite }: PlaneCardProps) {
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -85,6 +86,11 @@ export function PlaneCard({ plane, onHide, onEditImage, isFavorite, onToggleFavo
           <h3 className={styles.name}>{plane.name}</h3>
           <span className={styles.type}>{plane.type}</span>
         </div>
+        {typeof progress === 'number' && progress > 0 && (
+          <div className={styles.progressBar}>
+            <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+          </div>
+        )}
       </Link>
 
       {menuPos && (
