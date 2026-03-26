@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Pl
 import clsx from 'clsx';
 import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useChecklistNavigation } from '../hooks/useChecklistNavigation';
 import { useConfirm } from '../hooks/useConfirm';
 import { useSound } from '../hooks/useSound';
 import { useToast } from '../hooks/useToast';
@@ -15,7 +16,7 @@ import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   const { planeId } = useParams();
-  const { planes, checklists, updateChecklist, getProgress, setProgress, trackRecentUse } = useFleet();
+  const { planes, checklists, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote } = useFleet();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -25,6 +26,7 @@ export function Checklist() {
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  useChecklistNavigation(!isEditing);
   const [insertAt, setInsertAt] = useState<{ phaseId: string; index: number } | null>(null);
   const [newLabel, setNewLabel] = useState('');
   const [newState, setNewState] = useState('');
@@ -472,6 +474,8 @@ export function Checklist() {
                           item={item}
                           checked={!!checkedItems[item.id]}
                           onToggle={() => toggleItem(item.id)}
+                          note={getNote(item.id)}
+                          onNoteChange={(text) => setNote(item.id, text)}
                         />
                         {isEditing && (
                           <button
