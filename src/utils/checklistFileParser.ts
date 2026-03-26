@@ -20,7 +20,8 @@ async function extractPdfText(file: File): Promise<string> {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const pageText = content.items
-      .map((item: { str?: string }) => item.str ?? '')
+      .filter((item): item is { str: string } => 'str' in item)
+      .map(item => item.str)
       .join(' ');
     lines.push(pageText);
   }
