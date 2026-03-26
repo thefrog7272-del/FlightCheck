@@ -9,6 +9,8 @@ import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useConfirm } from '../hooks/useConfirm';
 import { useSound } from '../hooks/useSound';
+import { useToast } from '../hooks/useToast';
+import { Toast } from '../components/Toast';
 import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
@@ -16,6 +18,7 @@ export function Checklist() {
   const { planes, checklists, updateChecklist, getProgress, setProgress } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
+  const { toast, show: showToast, dismiss: dismissToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [insertAt, setInsertAt] = useState<{ phaseId: string; index: number } | null>(null);
   const [newLabel, setNewLabel] = useState('');
@@ -115,6 +118,12 @@ export function Checklist() {
     const updated = { ...checkedItems, [itemId]: !checkedItems[itemId] };
     setCheckedItems(updated);
     autoAdvancePhase(updated);
+
+    const prevState = { ...checkedItems };
+    showToast(
+      wasChecked ? 'Item unchecked' : 'Item checked',
+      { label: 'Undo', onClick: () => { setCheckedItems(prevState); prevCheckedRef.current = prevState; } }
+    );
   };
 
   const togglePhase = (phaseId: string) => {
@@ -128,7 +137,12 @@ export function Checklist() {
       { confirmLabel: 'Reset', destructive: true }
     );
     if (confirmed) {
+      const prevState = { ...checkedItems };
       setCheckedItems({});
+      showToast('Checklist reset', {
+        label: 'Undo',
+        onClick: () => { setCheckedItems(prevState); prevCheckedRef.current = prevState; }
+      });
     }
   };
 
@@ -504,6 +518,7 @@ export function Checklist() {
       </div>
       <KeyboardHints />
       {ConfirmDialog}
+      {toast && <Toast message={toast.message} action={toast.action} onDismiss={dismissToast} />}
     </div>
   );
 }

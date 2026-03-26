@@ -74,7 +74,7 @@ export function Home() {
 
   const filteredPlanes = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    let result = planes.filter(plane => {
+    const result = planes.filter(plane => {
       const matchesSearch = plane.name.toLowerCase().includes(query) ||
         plane.manufacturer.toLowerCase().includes(query);
       const matchesType = filterType === 'All' || plane.type === filterType;
