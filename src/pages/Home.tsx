@@ -17,7 +17,7 @@ const SIM_LABELS: Record<SimFilter, string> = {
 };
 
 export function Home() {
-  const { planes, addPlane, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
@@ -33,6 +33,25 @@ export function Home() {
     () => editingImagePlaneId ? planes.find(p => p.id === editingImagePlaneId) ?? null : null,
     [editingImagePlaneId, planes]
   );
+
+  const getPlaneProgress = useCallback((planeId: string): number => {
+    const cl = checklists[planeId];
+    if (!cl) return 0;
+    const progress = getProgress(planeId);
+    const allIds = cl.phases.flatMap(p => p.items.map(i => i.id));
+    if (allIds.length === 0) return 0;
+    const checked = allIds.filter(id => progress[id]).length;
+    return Math.round((checked / allIds.length) * 100);
+  }, [checklists, getProgress]);
+
+  const recentPlanes = useMemo(() => {
+    return recentlyUsed
+      .filter(r => {
+        const progress = getPlaneProgress(r.planeId);
+        return progress > 0 && progress < 100;
+      })
+      .slice(0, 3);
+  }, [recentlyUsed, getPlaneProgress]);
 
   const handleEditImage = useCallback((planeId: string) => {
     setEditingImagePlaneId(planeId);
@@ -217,6 +236,30 @@ export function Home() {
         ))}
       </div>
 
+      {recentPlanes.length > 0 && !searchQuery && (
+        <div className={styles.recentSection}>
+          <h2 className={styles.recentTitle}>Continue</h2>
+          <div className={styles.recentGrid}>
+            {recentPlanes.map(rp => {
+              const plane = planes.find(p => p.id === rp.planeId);
+              if (!plane) return null;
+              const progress = getPlaneProgress(plane.id);
+              return (
+                <PlaneCard
+                  key={`recent-${plane.id}`}
+                  plane={plane}
+                  progress={progress}
+                  isFavorite={favoriteIds.includes(plane.id)}
+                  onToggleFavorite={toggleFavorite}
+                  onHide={handleHidePlane}
+                  onEditImage={handleEditImage}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className={styles.filterBar}>
         <div className={styles.filterChips}>
           {typeOptions.map(type => (
@@ -240,10 +283,11 @@ export function Home() {
             <PlaneCard
               key={plane.id}
               plane={plane}
-              onHide={handleHidePlane}
-              onEditImage={handleEditImage}
+              progress={getPlaneProgress(plane.id)}
               isFavorite={favoriteIds.includes(plane.id)}
               onToggleFavorite={toggleFavorite}
+              onHide={handleHidePlane}
+              onEditImage={handleEditImage}
             />
           ))}
         </div>

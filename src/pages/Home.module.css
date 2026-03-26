@@ -229,6 +229,38 @@
   white-space: nowrap;
 }
 
+.recentSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.recentTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.recentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .recentGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .recentGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

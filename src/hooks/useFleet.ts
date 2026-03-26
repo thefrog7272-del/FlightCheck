@@ -11,6 +11,14 @@ export function useFleet() {
   const customChecklists = data?.custom_checklists ?? {};
   const deletedStaticIds = data?.deleted_static_planes ?? [];
   const favoriteIds = data?.favorite_planes ?? [];
+  const recentlyUsed = data?.recently_used ?? [];
+
+  const trackRecentUse = useCallback((planeId: string) => {
+    const current = data?.recently_used ?? [];
+    const filtered = current.filter(r => r.planeId !== planeId);
+    const updated = [{ planeId, timestamp: Date.now() }, ...filtered].slice(0, 6);
+    updateKey('recently_used', updated);
+  }, [data?.recently_used, updateKey]);
 
   const toggleFavorite = useCallback((planeId: string) => {
     const current = data?.favorite_planes ?? [];
@@ -191,5 +199,7 @@ export function useFleet() {
     importFleet,
     favoriteIds,
     toggleFavorite,
+    recentlyUsed,
+    trackRecentUse,
   };
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
@@ -15,7 +15,12 @@ import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   const { planeId } = useParams();
-  const { planes, checklists, updateChecklist, getProgress, setProgress } = useFleet();
+  const { planes, checklists, updateChecklist, getProgress, setProgress, trackRecentUse } = useFleet();
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (planeId) trackRecentUse(planeId);
+  }, [planeId]);
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
