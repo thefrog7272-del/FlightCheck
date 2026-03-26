@@ -1,4 +1,4 @@
-import { Plane, Coffee, Sun, Moon } from 'lucide-react';
+import { Plane, Coffee, Sun, Moon, Lock } from 'lucide-react';
 import { Link, Outlet } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
 import { OfflineIndicator } from './OfflineIndicator';
@@ -61,6 +61,10 @@ export function Layout() {
           <GitHubIcon />
           <span>GitHub</span>
         </a>
+        <Link to="/admin" className={styles.footerLink}>
+          <Lock size={14} />
+          Admin
+        </Link>
       </footer>
     </div>
   );
