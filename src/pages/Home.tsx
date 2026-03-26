@@ -17,7 +17,7 @@ const SIM_LABELS: Record<SimFilter, string> = {
 };
 
 export function Home() {
-  const { planes, addPlane, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet } = useFleet();
+  const { planes, addPlane, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
@@ -100,8 +100,15 @@ export function Home() {
       }
     });
 
+    // Pin favorites to top
+    result.sort((a, b) => {
+      const aFav = favoriteIds.includes(a.id) ? 0 : 1;
+      const bFav = favoriteIds.includes(b.id) ? 0 : 1;
+      return aFav - bFav;
+    });
+
     return result;
-  }, [planes, searchQuery, filterType, filterSim, sortBy]);
+  }, [planes, searchQuery, filterType, filterSim, sortBy, favoriteIds]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -235,6 +242,8 @@ export function Home() {
               plane={plane}
               onHide={handleHidePlane}
               onEditImage={handleEditImage}
+              isFavorite={favoriteIds.includes(plane.id)}
+              onToggleFavorite={toggleFavorite}
             />
           ))}
         </div>

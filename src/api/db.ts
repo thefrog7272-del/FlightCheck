@@ -7,6 +7,7 @@ export interface DbState {
   custom_checklists: Record<string, PlaneChecklist>;
   deleted_static_planes: string[];
   checklist_progress: Record<string, Record<string, boolean>>;
+  favorite_planes: string[];
 }
 
 export async function loadDb(): Promise<DbState> {

@@ -80,5 +80,101 @@ export const planes: Plane[] = [
     image: '/planes/a330.svg',
     type: 'Widebody',
     sim: 'msfs2024'
-  }
+  },
+  {
+    id: 'tbm930',
+    name: 'Daher TBM 930',
+    manufacturer: 'Daher',
+    image: '/planes/tbm930.svg',
+    type: 'Turboprop',
+    sim: 'both'
+  },
+  {
+    id: 'pc12',
+    name: 'Pilatus PC-12 NGX',
+    manufacturer: 'Pilatus',
+    image: '/planes/pc12.svg',
+    type: 'Turboprop',
+    sim: 'msfs2024'
+  },
+  {
+    id: 'b787',
+    name: 'Boeing 787-10 Dreamliner',
+    manufacturer: 'Boeing',
+    image: '/planes/b787.svg',
+    type: 'Widebody',
+    sim: 'msfs2024'
+  },
+  {
+    id: 'b777',
+    name: 'Boeing 777-300ER',
+    manufacturer: 'Boeing',
+    image: '/planes/b777.svg',
+    type: 'Widebody',
+    sim: 'msfs2024'
+  },
+  {
+    id: 'a321',
+    name: 'Airbus A321neo',
+    manufacturer: 'Airbus',
+    image: '/planes/a321.svg',
+    type: 'Airliner',
+    sim: 'msfs2024'
+  },
+  {
+    id: 'dhc6',
+    name: 'De Havilland DHC-6 Twin Otter',
+    manufacturer: 'De Havilland',
+    image: '/planes/dhc6.svg',
+    type: 'Utility Turboprop',
+    sim: 'both'
+  },
+  {
+    id: 'cj4',
+    name: 'Cessna Citation CJ4',
+    manufacturer: 'Cessna',
+    image: '/planes/cj4.svg',
+    type: 'Regional Jet',
+    sim: 'both'
+  },
+  {
+    id: 'pa28',
+    name: 'Piper PA-28 Cherokee',
+    manufacturer: 'Piper',
+    image: '/planes/pa28.svg',
+    type: 'GA',
+    sim: 'both'
+  },
+  {
+    id: 'fa18',
+    name: 'Boeing F/A-18E Super Hornet',
+    manufacturer: 'Boeing',
+    image: '/planes/fa18.svg',
+    type: 'Military',
+    sim: 'msfs2024'
+  },
+  {
+    id: 'a5',
+    name: 'Icon A5',
+    manufacturer: 'Icon',
+    image: '/planes/a5.svg',
+    type: 'GA',
+    sim: 'msfs2024'
+  },
+  {
+    id: 'b58',
+    name: 'Beechcraft Baron 58',
+    manufacturer: 'Beechcraft',
+    image: '/planes/b58.svg',
+    type: 'GA Twin',
+    sim: 'both'
+  },
+  {
+    id: 'a310',
+    name: 'Airbus A310-300',
+    manufacturer: 'Airbus',
+    image: '/planes/a310.svg',
+    type: 'Widebody',
+    sim: 'msfs2020'
+  },
 ];

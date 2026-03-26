@@ -10,6 +10,16 @@ export function useFleet() {
   const customPlanes = data?.custom_planes ?? [];
   const customChecklists = data?.custom_checklists ?? {};
   const deletedStaticIds = data?.deleted_static_planes ?? [];
+  const favoriteIds = data?.favorite_planes ?? [];
+
+  const toggleFavorite = useCallback((planeId: string) => {
+    const current = data?.favorite_planes ?? [];
+    if (current.includes(planeId)) {
+      updateKey('favorite_planes', current.filter(id => id !== planeId));
+    } else {
+      updateKey('favorite_planes', [...current, planeId]);
+    }
+  }, [data?.favorite_planes, updateKey]);
 
   const allPlanes = useMemo(() => {
     const active = staticPlanes.filter(p => !deletedStaticIds.includes(p.id));
@@ -99,6 +109,7 @@ export function useFleet() {
       custom_planes: customPlanes,
       custom_checklists: customChecklists,
       checklist_progress: progressData,
+      favorite_planes: favoriteIds,
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -108,7 +119,7 @@ export function useFleet() {
     a.download = `flightcheck-backup-${date}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [customPlanes, customChecklists, progressData]);
+  }, [customPlanes, customChecklists, progressData, favoriteIds]);
 
   const importFleet = useCallback((json: unknown): { planes: number; checklists: number; progress: number } => {
     const backup = json as {
@@ -116,6 +127,7 @@ export function useFleet() {
       custom_planes?: Plane[];
       custom_checklists?: Record<string, PlaneChecklist>;
       checklist_progress?: Record<string, Record<string, boolean>>;
+      favorite_planes?: string[];
     };
 
     if (!backup || typeof backup !== 'object' || backup.version !== 1) {
@@ -155,8 +167,14 @@ export function useFleet() {
       updateKey('checklist_progress', mergedProgress);
     }
 
+    // Merge favorites
+    if (Array.isArray(backup.favorite_planes) && backup.favorite_planes.length > 0) {
+      const mergedFavorites = Array.from(new Set([...favoriteIds, ...backup.favorite_planes]));
+      updateKey('favorite_planes', mergedFavorites);
+    }
+
     return { planes: planesImported, checklists: checklistsImported, progress: progressImported };
-  }, [customPlanes, customChecklists, progressData, updateKey]);
+  }, [customPlanes, customChecklists, progressData, favoriteIds, updateKey]);
 
   return {
     planes: allPlanes,
@@ -171,5 +189,7 @@ export function useFleet() {
     setProgress,
     exportFleet,
     importFleet,
+    favoriteIds,
+    toggleFavorite,
   };
 }

@@ -36,9 +36,29 @@ docker build -t flightcheck .
 docker run -d --name flightcheck -p 5173:5173 -v flightcheck-data:/data flightcheck
 ```
 
+## Development Workflow (QA Loop)
+
+All non-trivial changes must follow this pipeline:
+
+1. **Research** — Understand the feature/fix context. Read relevant files, check types, review existing patterns.
+2. **Plan** — Define the implementation approach. List files to change, identify risks, align with conventions above.
+3. **Implement** — Make changes via agents in isolated worktrees where possible. One feature per agent to avoid conflicts.
+4. **Security Review** — Check for XSS, injection, unsafe `dangerouslySetInnerHTML`, unvalidated user input, exposed secrets. Review any new dependencies.
+5. **QA (Build + Lint + Test)** — Run `npm run build` (TypeScript + Vite). Run `npm run lint`. Run `npm test` if applicable. Fix all errors before proceeding.
+6. **UI Review** — Verify the change renders correctly: check dark/light themes, mobile/tablet/desktop breakpoints, keyboard accessibility, no console errors.
+7. **Commit to main** — Only after all above steps pass.
+
+If any step fails, loop back to **Implement** and fix before re-running the pipeline.
+
 ## Testing Changes
 
 Before pushing, verify the build succeeds:
+```bash
+npm run build        # TypeScript + Vite production build
+npm run lint         # ESLint checks
+npm test -- --run    # Vitest (if tests exist for changed code)
+```
+Docker build also works as a full integration check:
 ```bash
 docker build -t flightcheck .
 ```
