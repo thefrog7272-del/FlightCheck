@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
 import styles from './Checklist.module.css';
-import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search } from 'lucide-react';
+import clsx from 'clsx';
 import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useConfirm } from '../hooks/useConfirm';
@@ -22,6 +23,7 @@ export function Checklist() {
   const [collapsedPhases, setCollapsedPhases] = useState<Record<string, boolean>>({});
   const [isAddingPhase, setIsAddingPhase] = useState(false);
   const [newPhaseTitle, setNewPhaseTitle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const plane = planes.find(p => p.id === planeId);
   const checklist = planeId ? checklists[planeId] : null;
@@ -32,7 +34,9 @@ export function Checklist() {
     setProgress(planeId, newValue);
   };
 
-  const downloadCsv = () => {
+  const prevCheckedRef = useRef<Record<string, boolean>>({});
+
+  const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
     const header = 'name,manufacturer,type,image,phase,item,expectedState';
@@ -57,7 +61,7 @@ export function Checklist() {
     a.download = `${plane.id}-checklist.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }, [plane, checklist]);
 
   useKeyboardShortcuts(useMemo(() => ({
     onEscape: () => {
@@ -72,19 +76,45 @@ export function Checklist() {
     },
     onDownloadCsv: downloadCsv,
     onPrint: () => window.print(),
-  }), [isEditing, plane, checklist]));
+  }), [isEditing, downloadCsv]));
 
   if (!plane || !checklist) {
     return <Navigate to="/" replace />;
   }
 
+  const autoAdvancePhase = (updatedItems: Record<string, boolean>) => {
+    if (isEditing) return;
+    for (const phase of checklist.phases) {
+      const phaseItemIds = phase.items.map(i => i.id);
+      if (phaseItemIds.length === 0) continue;
+      const wasComplete = phaseItemIds.every(id => prevCheckedRef.current[id]);
+      const isComplete = phaseItemIds.every(id => updatedItems[id]);
+      if (isComplete && !wasComplete) {
+        setCollapsedPhases(prev => {
+          const next = { ...prev, [phase.id]: true };
+          const phaseIdx = checklist.phases.indexOf(phase);
+          for (let i = phaseIdx + 1; i < checklist.phases.length; i++) {
+            const nextPhase = checklist.phases[i];
+            const nextIds = nextPhase.items.map(item => item.id);
+            const nextComplete = nextIds.length > 0 && nextIds.every(id => updatedItems[id]);
+            if (!nextComplete) {
+              next[nextPhase.id] = false;
+              break;
+            }
+          }
+          return next;
+        });
+      }
+    }
+    prevCheckedRef.current = { ...updatedItems };
+  };
+
   const toggleItem = (itemId: string) => {
     const wasChecked = checkedItems[itemId];
     if (!wasChecked) playCheck();
-    setCheckedItems(prev => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
+    const updated = { ...checkedItems, [itemId]: !checkedItems[itemId] };
+    setCheckedItems(updated);
+    autoAdvancePhase(updated);
   };
 
   const togglePhase = (phaseId: string) => {
@@ -187,14 +217,13 @@ export function Checklist() {
   };
 
   const toggleAllPhaseItems = (phaseItemIds: string[], checkAll: boolean) => {
-    setCheckedItems(prev => {
-      const updated = { ...prev };
-      for (const id of phaseItemIds) {
-        updated[id] = checkAll;
-      }
-      return updated;
-    });
+    const updated = { ...checkedItems };
+    for (const id of phaseItemIds) {
+      updated[id] = checkAll;
+    }
+    setCheckedItems(updated);
     if (checkAll) playCheck();
+    autoAdvancePhase(updated);
   };
 
   const calculateProgress = (phaseItems: string[]) => {
@@ -208,6 +237,21 @@ export function Checklist() {
   const totalItems = allItemIds.length;
   const completedItems = allItemIds.filter(id => checkedItems[id]).length;
   const overallProgress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+
+  const query = searchQuery.toLowerCase().trim();
+  const displayPhases = query
+    ? checklist.phases.map(phase => ({
+        ...phase,
+        items: phase.items.filter(item =>
+          item.label.toLowerCase().includes(query) ||
+          (item.expectedState && item.expectedState.toLowerCase().includes(query))
+        ),
+      })).filter(phase => phase.items.length > 0)
+    : checklist.phases;
+
+  const searchResultCount = query
+    ? displayPhases.reduce((sum, p) => sum + p.items.length, 0)
+    : 0;
 
   const insertionPoint = (phaseId: string, index: number) => {
     const isActive = insertAt?.phaseId === phaseId && insertAt?.index === index;
@@ -289,7 +333,7 @@ export function Checklist() {
         </div>
 
         {/* Overall progress */}
-        <div className={styles.overallProgress}>
+        <div className={clsx(styles.overallProgress, overallProgress === 100 && styles.overallComplete)}>
           <div className={styles.overallProgressInfo}>
             <span className={styles.overallLabel}>Overall Progress</span>
             <span className={styles.overallCount}>
@@ -306,10 +350,31 @@ export function Checklist() {
         </div>
       </div>
 
+      <div className={styles.searchBar}>
+        <Search className={styles.searchIcon} size={18} />
+        <input
+          type="text"
+          placeholder="Search checklist items..."
+          className={styles.searchInput}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button className={styles.searchClear} onClick={() => setSearchQuery('')}>
+            <X size={16} />
+          </button>
+        )}
+      </div>
+      {query && (
+        <span className={styles.searchResultCount}>
+          {searchResultCount} item{searchResultCount !== 1 ? 's' : ''} found
+        </span>
+      )}
+
       <div className={styles.phases}>
-        {checklist.phases.map(phase => {
+        {displayPhases.map(phase => {
           const progress = calculateProgress(phase.items.map(i => i.id));
-          const isCollapsed = collapsedPhases[phase.id];
+          const isCollapsed = query ? false : collapsedPhases[phase.id];
           const phaseComplete = progress === 100;
 
           return (

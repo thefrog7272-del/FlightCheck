@@ -6,7 +6,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   gap: 1rem;
 }
 
@@ -29,12 +29,19 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .item.checked .checkbox {
   background-color: var(--success);
   border-color: var(--success);
+  animation: checkPop 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes checkPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 .icon {
@@ -53,6 +60,13 @@
 .label {
   font-weight: 500;
   color: var(--text-primary);
+  transition: color 0.3s, text-decoration 0.3s;
+}
+
+.item.checked .label {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+  transition: all 0.3s;
 }
 
 .state {

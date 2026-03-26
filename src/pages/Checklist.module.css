@@ -112,9 +112,18 @@
 
 .overallFill {
   height: 100%;
-  background: var(--success);
-  transition: width 0.3s ease-out;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  transition: width 0.3s ease-out, background 0.5s ease;
   border-radius: 5px;
+}
+
+.overallComplete {
+  animation: celebrationPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes celebrationPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  50% { box-shadow: 0 0 16px 4px rgba(34, 197, 94, 0.3); }
 }
 
 .overallPercent {
@@ -191,8 +200,8 @@
 
 .progressFill {
   height: 100%;
-  background-color: var(--success);
-  transition: width 0.3s ease-out;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  transition: width 0.3s ease-out, background 0.5s ease;
 }
 
 .progressText {
@@ -204,9 +213,37 @@
 }
 
 .items {
-  display: flex;
+  display: grid;
+  grid-template-rows: 1fr;
   flex-direction: column;
   gap: 0.75rem;
+  animation: itemsExpand var(--transition-speed) ease-out;
+}
+
+@keyframes itemsExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.items > * {
+  animation: slideInItem var(--transition-speed) ease-out both;
+}
+
+@keyframes slideInItem {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* Edit mode */
@@ -435,6 +472,67 @@
   background: var(--bg-secondary);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
+}
+
+/* Search bar */
+
+.searchBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchBar .searchIcon {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.searchBar .searchInput {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 2.75rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.searchBar .searchInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.searchBar .searchInput::placeholder {
+  color: var(--text-secondary);
+}
+
+.searchClear {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.searchClear:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.searchResultCount {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 /* Tablet responsive */
