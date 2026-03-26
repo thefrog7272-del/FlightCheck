@@ -6,7 +6,10 @@ import styles from './Home.module.css';
 import { Search, Plus, Eye, ChevronDown, Download, Upload, FileUp } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
+import { useAuth } from '../contexts/AuthContext';
 import { parsePlaneCsv } from '../utils/csvParser';
+import { createSharedPlane, createSharedChecklist } from '../api/sharedPlanes';
+import type { Plane, PlaneChecklist } from '../data/types';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 type SimFilter = 'all' | 'msfs2020' | 'msfs2024';
@@ -20,6 +23,7 @@ const SIM_LABELS: Record<SimFilter, string> = {
 export function Home() {
   const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
+  const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [filterType, setFilterType] = useState('All');
@@ -31,6 +35,31 @@ export function Home() {
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [showFileImport, setShowFileImport] = useState(false);
   const [importCategory, setImportCategory] = useState('');
+
+  // When admin, imports go to DynamoDB. Otherwise localStorage.
+  const importPlane = useCallback(async (plane: Plane, checklist: PlaneChecklist) => {
+    if (isAdmin) {
+      const planeResult = await createSharedPlane({
+        planeId: plane.id,
+        name: plane.name,
+        manufacturer: plane.manufacturer,
+        image: plane.image,
+        type: plane.type,
+        sim: plane.sim || null,
+        sortOrder: null,
+      });
+      if (planeResult) {
+        await createSharedChecklist({
+          planeId: plane.id,
+          phases: JSON.stringify(checklist.phases),
+        });
+      }
+      // Also clear the shared planes cache so it re-fetches
+      try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+    } else {
+      addPlane(plane, checklist);
+    }
+  }, [isAdmin, addPlane]);
 
   const editingPlane = useMemo(
     () => editingImagePlaneId ? planes.find(p => p.id === editingImagePlaneId) ?? null : null,
@@ -154,7 +183,7 @@ export function Home() {
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     try {
       if (!csvInput.trim()) {
         alert('Please paste or upload CSV content first.');
@@ -175,15 +204,14 @@ export function Home() {
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
       const category = importCategory.trim();
       if (category && category !== 'Standard') {
-        // Import as a variant on an existing (or new) plane
         if (!planes.some(p => p.id === plane.id)) {
-          addPlane(plane, checklist); // create plane with this as default
+          await importPlane(plane, checklist);
         }
         addVariant(plane.id, category, checklist);
-        alert(`Imported "${plane.name}" variant "${category}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).`);
+        alert(`Imported "${plane.name}" variant "${category}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}`);
       } else {
-        addPlane(plane, checklist);
-        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).`);
+        await importPlane(plane, checklist);
+        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}`);
       }
       setIsModalOpen(false);
       setCsvInput('');
@@ -198,7 +226,7 @@ export function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const json = JSON.parse(reader.result as string);
 
@@ -233,13 +261,13 @@ export function Home() {
           const category = importCategory.trim();
           if (category && category !== 'Standard') {
             if (!planes.some(p => p.id === planeId)) {
-              addPlane(plane, checklist);
+              await importPlane(plane, checklist);
             }
             addVariant(planeId, category, checklist);
-            setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).`);
+            setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}`);
           } else {
-            addPlane(plane, checklist);
-            setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).`);
+            await importPlane(plane, checklist);
+            setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}`);
           }
           setImportCategory('');
           return;
@@ -247,8 +275,8 @@ export function Home() {
 
         // Format 2: Single plane { plane: {...}, checklist: {...} }
         if (json.plane && json.checklist && json.checklist.phases) {
-          addPlane(json.plane, json.checklist);
-          setImportSummary(`Imported "${json.plane.name}" successfully.`);
+          await importPlane(json.plane, json.checklist);
+          setImportSummary(`Imported "${json.plane.name}" successfully.${isAdmin ? ' (shared)' : ''}`);
           return;
         }
 
@@ -258,8 +286,8 @@ export function Home() {
           const planeId = (json.planeId || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
           const plane = { id: planeId, name, manufacturer: json.manufacturer || '', image: json.image || '', type: json.type || 'GA' };
           const checklist = { planeId, phases: json.phases };
-          addPlane(plane, checklist);
-          setImportSummary(`Imported "${name}" with ${json.phases.length} phase(s).`);
+          await importPlane(plane, checklist);
+          setImportSummary(`Imported "${name}" with ${json.phases.length} phase(s).${isAdmin ? ' (shared)' : ''}`);
           return;
         }
 
@@ -429,7 +457,7 @@ export function Home() {
 
       {showFileImport && (
         <FileImportModal
-          onImport={(plane, checklist) => { addPlane(plane, checklist); setShowFileImport(false); }}
+          onImport={async (plane, checklist) => { await importPlane(plane, checklist); setShowFileImport(false); }}
           onClose={() => setShowFileImport(false)}
         />
       )}
