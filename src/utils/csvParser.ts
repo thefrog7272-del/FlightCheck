@@ -38,15 +38,19 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
 
   for (let i = 1; i < lines.length; i++) {
     const values = parseCsvRow(lines[i]);
-    if (values.length < headers.length) continue;
+    // Require at least the mandatory columns (name, manufacturer, phase, item)
+    const minCols = Math.max(col.name, col.manufacturer, col.phase, col.item) + 1;
+    if (values.length < minCols) continue;
 
     const name = values[col.name].trim();
     const manufacturer = values[col.manufacturer].trim();
-    const type = col.type !== -1 ? values[col.type].trim() : 'GA';
-    const image = col.image !== -1 ? values[col.image].trim() : 'https://images.unsplash.com/photo-1559627755-6622caf72f01?auto=format&fit=crop&q=80&w=600';
-    const phaseTitle = values[col.phase].trim();
-    const itemLabel = values[col.item].trim();
-    const expectedState = col.expectedState !== -1 ? values[col.expectedState].trim() : undefined;
+    const type = col.type !== -1 && values[col.type] ? values[col.type].trim() : 'GA';
+    const image = col.image !== -1 && values[col.image] ? values[col.image].trim() : '';
+    const phaseTitle = values[col.phase]?.trim();
+    const itemLabel = values[col.item]?.trim();
+    const expectedState = col.expectedState !== -1 && values[col.expectedState] ? values[col.expectedState].trim() : undefined;
+
+    if (!phaseTitle || !itemLabel) continue;
 
     // Use first row to define the plane
     if (i === 1) {

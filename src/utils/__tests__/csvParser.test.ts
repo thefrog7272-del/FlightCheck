@@ -35,6 +35,29 @@ describe('csvParser', () => {
     expect(beforeTakeoff?.items[1].expectedState).toBe('50%');
   });
 
+  it('handles CSV with missing optional columns (no expectedState)', () => {
+    const minimalCsv = `name,manufacturer,phase,item
+"Test Plane","TestCo","Startup","Battery"
+"Test Plane","TestCo","Startup","Fuel Pump"
+"Test Plane","TestCo","Taxi","Brakes"`;
+    const { plane, checklist } = parsePlaneCsv(minimalCsv);
+    expect(plane.name).toBe('Test Plane');
+    expect(checklist.phases.length).toBe(2);
+    expect(checklist.phases[0].items.length).toBe(2);
+    expect(checklist.phases[0].items[0].label).toBe('Battery');
+    expect(checklist.phases[0].items[0].expectedState).toBeUndefined();
+    expect(checklist.phases[1].items[0].label).toBe('Brakes');
+  });
+
+  it('handles rows with fewer columns than header gracefully', () => {
+    const csv = `name,manufacturer,type,image,phase,item,expectedState
+"Test","Mfr","GA","","Phase1","Item1","ON"
+"Test","Mfr","GA","","Phase1","Item2"`;
+    const { checklist } = parsePlaneCsv(csv);
+    expect(checklist.phases[0].items.length).toBe(2);
+    expect(checklist.phases[0].items[1].expectedState).toBeUndefined();
+  });
+
   it('handles quoted values with commas correctly', () => {
     const complexCsv = `name,manufacturer,type,image,phase,item,expectedState
 "Mooney M20","Mooney","GA","","Landing","Flaps","FULL, DOWN"`;
