@@ -16,13 +16,14 @@ export function Layout() {
 
   return (
     <div className={styles.container}>
+      <a href="#main-content" className={styles.skipLink}>Skip to content</a>
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <Link to="/" className={styles.logo}>
             <Plane className={styles.icon} />
             <span>FlightCheck</span>
           </Link>
-          <nav className={styles.nav}>
+          <nav className={styles.nav} aria-label="Main navigation">
             <button
               onClick={toggleTheme}
               className={styles.themeToggle}
@@ -44,7 +45,7 @@ export function Layout() {
           </nav>
         </div>
       </header>
-      <main className={styles.main}>
+      <main className={styles.main} id="main-content">
         <Outlet />
       </main>
       <footer className={styles.footer}>
