@@ -8,6 +8,9 @@ export interface DbState {
   deleted_static_planes: string[];
   checklist_progress: Record<string, Record<string, boolean>>;
   favorite_planes: string[];
+  recently_used: Array<{ planeId: string; timestamp: number }>;
+  item_notes: Record<string, string>;
+  timer_data: Record<string, { startTime?: number; elapsed?: number; completed?: number }>;
 }
 
 export async function loadDb(): Promise<DbState> {

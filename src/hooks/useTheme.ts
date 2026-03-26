@@ -11,6 +11,8 @@ function getInitialTheme(): Theme {
   } catch {
     // localStorage unavailable
   }
+  // Respect system preference when no explicit choice
+  if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light';
   return 'dark';
 }
 

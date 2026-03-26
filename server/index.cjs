@@ -10,6 +10,10 @@ const DEFAULT_DB = {
   custom_checklists: {},
   deleted_static_planes: [],
   checklist_progress: {},
+  favorite_planes: [],
+  recently_used: [],
+  item_notes: {},
+  timer_data: {},
 };
 
 // Ensure the db file (and parent directory) exist on startup
