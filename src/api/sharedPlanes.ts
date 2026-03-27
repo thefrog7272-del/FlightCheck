@@ -3,9 +3,14 @@ import { generateClient } from 'aws-amplify/data';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GqlResult = { data: Record<string, any> };
 
-const client = generateClient({
-  authMode: 'iam',
-});
+// Lazy-initialize client after Amplify.configure() has run
+let _client: ReturnType<typeof generateClient> | null = null;
+function getClient() {
+  if (!_client) {
+    _client = generateClient({ authMode: 'iam' });
+  }
+  return _client;
+}
 
 function log(action: string, ...args: unknown[]) {
   console.log(`[FlightCheck API] ${action}`, ...args);
@@ -35,7 +40,7 @@ export interface SharedChecklistRecord {
 export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
   log('listSharedPlanes', 'fetching...');
   try {
-    const result = await client.graphql({
+    const result = await getClient().graphql({
       query: `query ListSharedPlanes {
         listSharedPlanes(limit: 100) {
           items {
@@ -62,7 +67,7 @@ export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
 
 export async function getSharedChecklist(planeId: string): Promise<SharedChecklistRecord | null> {
   try {
-    const result = await client.graphql({
+    const result = await getClient().graphql({
       query: `query ListSharedChecklists($filter: ModelSharedChecklistFilterInput) {
         listSharedChecklists(filter: $filter, limit: 1) {
           items {
@@ -86,7 +91,7 @@ export async function getSharedChecklist(planeId: string): Promise<SharedCheckli
 
 export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]> {
   try {
-    const result = await client.graphql({
+    const result = await getClient().graphql({
       query: `query ListSharedChecklists {
         listSharedChecklists(limit: 100) {
           items {
@@ -110,7 +115,7 @@ export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]
 export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): Promise<SharedPlaneRecord | null> {
   log('createSharedPlane', plane.planeId, plane.name);
   try {
-    const result = await client.graphql({
+    const result = await getClient().graphql({
       query: `mutation CreateSharedPlane($input: CreateSharedPlaneInput!) {
         createSharedPlane(input: $input) {
           id
@@ -138,7 +143,7 @@ export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): P
 export async function createSharedChecklist(checklist: Omit<SharedChecklistRecord, 'id'>): Promise<SharedChecklistRecord | null> {
   log('createSharedChecklist', checklist.planeId, `phases: ${checklist.phases.length} chars`);
   try {
-    const result = await client.graphql({
+    const result = await getClient().graphql({
       query: `mutation CreateSharedChecklist($input: CreateSharedChecklistInput!) {
         createSharedChecklist(input: $input) {
           id
@@ -160,7 +165,7 @@ export async function createSharedChecklist(checklist: Omit<SharedChecklistRecor
 
 export async function deleteSharedPlane(id: string): Promise<boolean> {
   try {
-    await client.graphql({
+    await getClient().graphql({
       query: `mutation DeleteSharedPlane($input: DeleteSharedPlaneInput!) {
         deleteSharedPlane(input: $input) { id }
       }`,
@@ -176,7 +181,7 @@ export async function deleteSharedPlane(id: string): Promise<boolean> {
 
 export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPlaneRecord, 'id'>>): Promise<boolean> {
   try {
-    await client.graphql({
+    await getClient().graphql({
       query: `mutation UpdateSharedPlane($input: UpdateSharedPlaneInput!) {
         updateSharedPlane(input: $input) { id }
       }`,
@@ -192,7 +197,7 @@ export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPl
 
 export async function updateSharedChecklist(id: string, phases: string): Promise<boolean> {
   try {
-    await client.graphql({
+    await getClient().graphql({
       query: `mutation UpdateSharedChecklist($input: UpdateSharedChecklistInput!) {
         updateSharedChecklist(input: $input) { id }
       }`,
@@ -208,7 +213,7 @@ export async function updateSharedChecklist(id: string, phases: string): Promise
 
 export async function deleteSharedChecklist(id: string): Promise<boolean> {
   try {
-    await client.graphql({
+    await getClient().graphql({
       query: `mutation DeleteSharedChecklist($input: DeleteSharedChecklistInput!) {
         deleteSharedChecklist(input: $input) { id }
       }`,
@@ -248,7 +253,7 @@ export async function createPendingSubmission(submission: {
   status: string;
 }): Promise<boolean> {
   try {
-    await client.graphql({
+    await getClient().graphql({
       query: `mutation CreatePendingSubmission($input: CreatePendingSubmissionInput!) {
         createPendingSubmission(input: $input) { id }
       }`,
@@ -263,7 +268,7 @@ export async function createPendingSubmission(submission: {
 
 export async function listPendingSubmissions(): Promise<PendingSubmissionRecord[]> {
   try {
-    const result = await client.graphql({
+    const result = await getClient().graphql({
       query: `query ListPendingSubmissions($filter: ModelPendingSubmissionFilterInput) {
         listPendingSubmissions(filter: $filter, limit: 100) {
           items {
@@ -283,7 +288,7 @@ export async function listPendingSubmissions(): Promise<PendingSubmissionRecord[
 
 export async function updatePendingSubmission(id: string, status: string): Promise<boolean> {
   try {
-    await client.graphql({
+    await getClient().graphql({
       query: `mutation UpdatePendingSubmission($input: UpdatePendingSubmissionInput!) {
         updatePendingSubmission(input: $input) { id }
       }`,
@@ -299,7 +304,7 @@ export async function updatePendingSubmission(id: string, status: string): Promi
 
 export async function deletePendingSubmission(id: string): Promise<boolean> {
   try {
-    await client.graphql({
+    await getClient().graphql({
       query: `mutation DeletePendingSubmission($input: DeletePendingSubmissionInput!) {
         deletePendingSubmission(input: $input) { id }
       }`,
