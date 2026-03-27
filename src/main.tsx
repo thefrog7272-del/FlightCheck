@@ -7,13 +7,12 @@ import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-Amplify.configure(outputs as any, {
-  Auth: {
-    Cognito: {
-      allowGuestAccess: true,
-    },
-  },
-})
+const config = outputs as any;
+// Ensure guest access is enabled for unauthenticated API calls
+if (config.auth) {
+  config.auth.unauthenticated_identities_enabled = true;
+}
+Amplify.configure(config)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
