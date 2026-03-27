@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { useParams, Navigate, Link } from 'react-router-dom';
+import { useParams, Navigate, Link, useNavigate } from 'react-router-dom';
 import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
 import { Timer } from '../components/Timer';
@@ -20,8 +20,10 @@ import { encodeChecklist } from '../utils/shareCodec';
 import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
-  const { planeId } = useParams();
-  const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getActiveVariant, setActiveVariant, getVariants, addVariant, deleteVariant } = useFleet();
+  const { planeId, variantName: rawVariantName } = useParams();
+  const activeVariant = rawVariantName ?? 'Standard';
+  const navigate = useNavigate();
+  const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getVariants, addVariant, deleteVariant } = useFleet();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -39,27 +41,24 @@ export function Checklist() {
   const [isAddingPhase, setIsAddingPhase] = useState(false);
   const [newPhaseTitle, setNewPhaseTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeVariantState, setActiveVariantState] = useState(() => planeId ? getActiveVariant(planeId) : 'Standard');
-
   const plane = planes.find(p => p.id === planeId);
   const variants = planeId ? getVariants(planeId) : ['Standard'];
   const baseChecklist = planeId ? checklists[planeId] : null;
-  const variantKey = activeVariantState !== 'Standard' && planeId ? `${planeId}::${activeVariantState}` : null;
+  const variantKey = activeVariant !== 'Standard' && planeId ? `${planeId}::${activeVariant}` : null;
   const checklist = (variantKey ? checklists[variantKey] : null) ?? baseChecklist;
-  const checkedItems = planeId ? getProgress(planeId, activeVariantState) : {};
+  const checkedItems = planeId ? getProgress(planeId, activeVariant) : {};
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
     if (!planeId) return;
     const newValue = typeof updater === 'function' ? updater(checkedItems) : updater;
-    setProgress(planeId, newValue, activeVariantState);
+    setProgress(planeId, newValue, activeVariant);
   };
 
   const handleDuplicateVariant = () => {
     if (!planeId || !checklist) return;
-    const name = prompt('Enter variant name:');
+    const name = prompt('Enter sub-checklist name:');
     if (!name?.trim()) return;
     addVariant(planeId, name.trim(), checklist);
-    setActiveVariantState(name.trim());
-    setActiveVariant(planeId, name.trim());
+    navigate(`/checklist/${planeId}/${encodeURIComponent(name.trim())}`);
   };
 
   const prevCheckedRef = useRef<Record<string, boolean>>({});
@@ -87,6 +86,7 @@ export function Checklist() {
   // DnD reorder callbacks (must be before guard clause)
   const reorderItems = useCallback((phaseId: string, fromIndex: number, toIndex: number) => {
     if (!checklist || !plane) return;
+    const key = variantKey ?? plane.id;
     const updated: PlaneChecklist = {
       ...checklist,
       phases: checklist.phases.map(phase => {
@@ -97,16 +97,17 @@ export function Checklist() {
         return { ...phase, items };
       }),
     };
-    updateChecklist(plane.id, updated);
-  }, [checklist, plane, updateChecklist]);
+    updateChecklist(key, updated);
+  }, [checklist, plane, variantKey, updateChecklist]);
 
   const reorderPhases = useCallback((fromIndex: number, toIndex: number) => {
     if (!checklist || !plane) return;
+    const key = variantKey ?? plane.id;
     const phases = [...checklist.phases];
     const [moved] = phases.splice(fromIndex, 1);
     phases.splice(toIndex, 0, moved);
-    updateChecklist(plane.id, { ...checklist, phases });
-  }, [checklist, plane, updateChecklist]);
+    updateChecklist(key, { ...checklist, phases });
+  }, [checklist, plane, variantKey, updateChecklist]);
 
   const { handleDragStart, handleDragEnd, handleDragOver, handleDropItem, handleDropPhase: _handleDropPhase } = useDragReorder(reorderItems, reorderPhases);
   void _handleDropPhase; // phases use up/down arrows instead of DnD
@@ -180,6 +181,12 @@ export function Checklist() {
   if (!plane || !checklist) {
     return <Navigate to="/" replace />;
   }
+
+  if (rawVariantName && !variants.includes(rawVariantName)) {
+    return <Navigate to={`/checklist/${planeId}`} replace />;
+  }
+
+  const checklistKey = variantKey ?? (plane?.id || '');
 
   const autoAdvancePhase = (updatedItems: Record<string, boolean>) => {
     if (isEditing) return;
@@ -272,7 +279,7 @@ export function Checklist() {
       }),
     };
 
-    updateChecklist(plane.id, updated);
+    updateChecklist(checklistKey, updated);
     setInsertAt(null);
     setNewLabel('');
     setNewState('');
@@ -286,7 +293,7 @@ export function Checklist() {
         return { ...phase, items: phase.items.filter(i => i.id !== itemId) };
       }),
     };
-    updateChecklist(plane.id, updated);
+    updateChecklist(checklistKey, updated);
   };
 
   const addPhase = () => {
@@ -296,7 +303,7 @@ export function Checklist() {
       ...checklist,
       phases: [...checklist.phases, { id: phaseId, title: newPhaseTitle.trim(), items: [] }],
     };
-    updateChecklist(plane.id, updated);
+    updateChecklist(checklistKey, updated);
     setNewPhaseTitle('');
     setIsAddingPhase(false);
   };
@@ -312,7 +319,7 @@ export function Checklist() {
       ...checklist,
       phases: checklist.phases.filter(p => p.id !== phaseId),
     };
-    updateChecklist(plane.id, updated);
+    updateChecklist(checklistKey, updated);
   };
 
   const movePhase = (phaseId: string, direction: 'up' | 'down') => {
@@ -323,7 +330,7 @@ export function Checklist() {
     const phases = [...checklist.phases];
     [phases[idx], phases[newIdx]] = [phases[newIdx], phases[idx]];
     const updated: PlaneChecklist = { ...checklist, phases };
-    updateChecklist(plane.id, updated);
+    updateChecklist(checklistKey, updated);
   };
 
   const toggleAllPhaseItems = (phaseItemIds: string[], checkAll: boolean) => {
@@ -408,19 +415,24 @@ export function Checklist() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <Link to="/" className={styles.backLink}>
-          <ChevronLeft /> Back to Fleet
+        <Link to={activeVariant !== 'Standard' ? `/checklist/${planeId}` : '/'} className={styles.backLink}>
+          <ChevronLeft /> {activeVariant !== 'Standard' ? 'Back to Checklist' : 'Back to Fleet'}
         </Link>
         <div className={styles.headerContent}>
           <div>
-            <h1 className={styles.title}>{plane.name} Checklist</h1>
+            <h1 className={styles.title}>
+              {plane.name} {activeVariant !== 'Standard' ? `— ${activeVariant}` : 'Checklist'}
+            </h1>
             <span className={styles.subtitle}>{plane.manufacturer}</span>
             <VariantSelector
+              planeId={planeId!}
               variants={variants}
-              activeVariant={activeVariantState}
-              onSelect={(v) => { setActiveVariantState(v); if (planeId) setActiveVariant(planeId, v); }}
+              activeVariant={activeVariant}
               onDuplicate={handleDuplicateVariant}
-              onDelete={(v) => { if (planeId) deleteVariant(planeId, v); setActiveVariantState('Standard'); if (planeId) setActiveVariant(planeId, 'Standard'); }}
+              onDelete={(v) => {
+                if (planeId) deleteVariant(planeId, v);
+                if (v === activeVariant) navigate(`/checklist/${planeId}`);
+              }}
               isEditing={isEditing}
             />
           </div>

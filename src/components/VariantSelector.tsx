@@ -1,45 +1,73 @@
-import { Trash2, Copy } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { List, Trash2, Copy } from 'lucide-react';
 import styles from './VariantSelector.module.css';
 
 interface VariantSelectorProps {
+  planeId: string;
   variants: string[];
   activeVariant: string;
-  onSelect: (variant: string) => void;
   onDuplicate: () => void;
   onDelete: (variant: string) => void;
   isEditing: boolean;
 }
 
-export function VariantSelector({ variants, activeVariant, onSelect, onDuplicate, onDelete, isEditing }: VariantSelectorProps) {
-  if (variants.length <= 1 && !isEditing) return null;
+export function VariantSelector({ planeId, variants, activeVariant, onDuplicate, onDelete, isEditing }: VariantSelectorProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  const subChecklists = variants.filter(v => v !== 'Standard');
+  if (subChecklists.length === 0 && !isEditing) return null;
 
   return (
-    <div className={styles.container}>
-      <div className={styles.tabs}>
-        {variants.map(v => (
-          <button
-            key={v}
-            className={`${styles.tab} ${v === activeVariant ? styles.tabActive : ''}`}
-            onClick={() => onSelect(v)}
-          >
-            <span>{v}</span>
-            {isEditing && v !== 'Standard' && (
-              <button
-                className={styles.deleteVariant}
-                onClick={(e) => { e.stopPropagation(); onDelete(v); }}
-                title={`Delete ${v} variant`}
+    <div className={styles.container} ref={containerRef}>
+      <button className={styles.menuButton} onClick={() => setIsOpen(!isOpen)}>
+        <List size={16} />
+        Sub-checklists ({subChecklists.length})
+      </button>
+      {isOpen && (
+        <div className={styles.dropdown}>
+          {subChecklists.length === 0 && (
+            <span className={styles.emptyMessage}>No sub-checklists yet</span>
+          )}
+          {subChecklists.map(v => (
+            <div key={v} className={styles.dropdownItem}>
+              <Link
+                to={`/checklist/${planeId}/${encodeURIComponent(v)}`}
+                className={`${styles.variantLink} ${v === activeVariant ? styles.variantLinkActive : ''}`}
+                onClick={() => setIsOpen(false)}
               >
-                <Trash2 size={11} />
-              </button>
-            )}
-          </button>
-        ))}
-        {isEditing && (
-          <button className={styles.addTab} onClick={onDuplicate} title="Duplicate as new variant">
-            <Copy size={13} />
-          </button>
-        )}
-      </div>
+                {v}
+              </Link>
+              {isEditing && (
+                <button
+                  className={styles.deleteBtn}
+                  onClick={(e) => { e.stopPropagation(); onDelete(v); }}
+                  title={`Delete ${v}`}
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+          {isEditing && (
+            <button className={styles.duplicateBtn} onClick={() => { onDuplicate(); setIsOpen(false); }}>
+              <Copy size={13} /> Duplicate current as sub-checklist
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

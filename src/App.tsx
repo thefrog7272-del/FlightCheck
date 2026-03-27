@@ -15,6 +15,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="checklist/:planeId" element={<Checklist />} />
+          <Route path="checklist/:planeId/:variantName" element={<Checklist />} />
           <Route path="/share" element={<ShareImport />} />
           <Route path="admin/login" element={<AdminLogin />} />
           <Route path="admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
