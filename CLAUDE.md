@@ -5,42 +5,73 @@
 - **Live site**: https://main.d2m1s5v9i0w5nr.amplifyapp.com/
 - **Hosting**: AWS Amplify (static SPA, auto-deploys from `main` branch)
 - **Build**: `npm run build` produces `dist/` — Amplify serves this as static files
-- **No backend in production**: The Express API server (`server/index.cjs`) is only for local Docker dev. On Amplify, the app falls back to localStorage automatically via `useDatabase.ts`.
+- **Backend**: AWS Amplify Gen 2 — Cognito (auth), AppSync (GraphQL API), DynamoDB (shared planes)
 - **Peer dep conflict**: `vite-plugin-pwa` doesn't officially support Vite 8. The `.npmrc` file has `legacy-peer-deps=true` to handle this. Do not remove it or Amplify builds will fail.
 
 ## Architecture
 
 - React 19 + TypeScript + Vite 8 SPA
 - CSS Modules with CSS custom properties for theming (dark/light)
-- State: `useDatabase` hook tries `/api/db` first, falls back to localStorage
-- Static plane data in `src/data/planes.ts` and `src/data/checklists.ts`
-- Custom/user data layered on top via `useFleet` hook
+- **Shared planes**: Fetched from DynamoDB via AppSync GraphQL. Cached in localStorage (stale-while-revalidate, 24h). Falls back to static data in `src/data/planes.ts` and `src/data/checklists.ts` if API and cache both unavailable.
+- **User-local data**: Progress, favorites, notes, timer, custom imports — all in localStorage via `useDatabase` hook. NOT in the cloud.
+- **Admin auth**: Cognito user pool with `admin` group. Admin login at `/admin`. Admins can manage shared planes, approve user submissions.
+- `useSharedPlanes` hook fetches from AppSync; `useFleet` merges shared + custom planes.
 
 ## Key Conventions
 
 - All icons from `lucide-react` — check availability before using (e.g., `Github` doesn't exist, use inline SVG instead)
-- Plane types: 'GA', 'Airliner', 'Turboprop', 'Regional Jet', 'GA Twin', 'Widebody', 'Utility Turboprop'
-- Dark theme is default; light theme via `[data-theme="light"]` CSS override
-- Right-click context menu on plane cards (not buttons) for hide/change image
+- Plane types: 'GA', 'Airliner', 'Turboprop', 'Regional Jet', 'GA Twin', 'Widebody', 'Utility Turboprop', 'Military'
+- Dark theme is default; respects `prefers-color-scheme` on first visit. Light theme via `[data-theme="light"]` CSS override
+- Right-click context menu on plane cards for hide/delete/change image
 - Confirmation modals via `useConfirm` hook (not browser `confirm()`)
+- `useRef<T | null>(null)` — always pass initial value, never `useRef<T>()` (Amplify's stricter TS rejects it)
+
+## AWS Backend
+
+### Resources (eu-west-2)
+- **Cognito User Pool**: `eu-west-2_PiGk2P7Pg` (admin group: `admin`)
+- **Cognito Identity Pool**: `eu-west-2:63049872-be5a-40a7-8a32-9f86ad24c5a5` (guest access enabled)
+- **AppSync API**: `https://ep3mvuopvbh6rbznjkguq7i5b4.appsync-api.eu-west-2.amazonaws.com/graphql`
+- **DynamoDB tables**: SharedPlane, SharedChecklist, PendingSubmission
+
+### Data Models
+- `SharedPlane`: planeId, name, manufacturer, image, type, sim, sortOrder — **public read, admin write**
+- `SharedChecklist`: planeId, phases (JSON string) — **public read, admin write**
+- `PendingSubmission`: name, manufacturer, image, type, sim, phases, submittedBy, status — **guest create+read, admin full access**
+
+### Auth Rules
+- Unauthenticated users: can read shared planes, submit pending planes
+- Admin users (Cognito `admin` group): full CRUD on shared planes, approve/reject submissions
+- Admin login: email/password via Cognito (no Google/social auth yet)
+
+### Admin Credentials
+- Email: `admin@flightcheck.app`
+- Password: set on first login (temp password was `TempPass123!`)
+
+### Amplify Backend Management
+- Schema defined in `amplify/data/resource.ts`, auth in `amplify/auth/resource.ts`
+- Config in `amplify_outputs.json` (committed to repo — public endpoints only, no secrets)
+- **CDK/backend deps are NOT in package.json** — they break Amplify Hosting builds. For local sandbox:
+  ```bash
+  npm install --save-dev @aws-amplify/backend aws-cdk-lib constructs --legacy-peer-deps
+  npx ampx sandbox --once
+  ```
+  Then remove them from package.json before pushing.
 
 ## Local Development
 
 ```bash
-# With Docker Compose (persistent data)
-docker compose up -d --build
-
-# Or manual Docker
-docker rm -f flightcheck
-docker build -t flightcheck .
-docker run -d --name flightcheck -p 5173:5173 -v flightcheck-data:/data flightcheck
+npm run dev          # Vite dev server on port 5173
+npm run build        # TypeScript + Vite production build
+npm run lint         # ESLint checks
+npm test -- --run    # Vitest
 ```
 
 ## Branching Strategy
 
-- **`main`** is the production branch — Amplify auto-deploys from it. Never commit directly to `main`.
+- **`main`** is the production branch — Amplify auto-deploys from it.
 - All work goes on **feature branches** off `main`: `feature/<short-name>`, `fix/<short-name>`, etc.
-- When ready, open a **PR** from the feature branch into `main`.
+- When ready, merge to main and push.
 - After merge, delete the feature branch.
 
 ## Development Workflow (QA Loop)
@@ -54,20 +85,27 @@ All non-trivial changes must follow this pipeline:
 5. **Security Review** — Check for XSS, injection, unsafe `dangerouslySetInnerHTML`, unvalidated user input, exposed secrets. Review any new dependencies.
 6. **QA (Build + Lint + Test)** — Run `npm run build` (TypeScript + Vite). Run `npm run lint`. Run `npm test` if applicable. Fix all errors before proceeding.
 7. **UI Review** — Verify the change renders correctly: check dark/light themes, mobile/tablet/desktop breakpoints, keyboard accessibility, no console errors.
-8. **PR to main** — Push the feature branch and open a PR. Only merge after all above steps pass.
+8. **Merge to main** — Only after all above steps pass.
 
 If any step fails, loop back to **Implement** and fix before re-running the pipeline.
 
-## Testing Changes
+## Import Flow
 
-Before pushing, verify the build succeeds:
-```bash
-npm run build        # TypeScript + Vite production build
-npm run lint         # ESLint checks
-npm test -- --run    # Vitest (if tests exist for changed code)
-```
-Docker build also works as a full integration check:
-```bash
-docker build -t flightcheck .
-```
-This runs `npm install` and copies source — if it builds, Amplify will too. TypeScript errors will fail the Amplify build (`tsc -b && vite build`).
+- **Non-admin users**: Imports (CSV/JSON/PDF/DOCX) go to localStorage. After import, users are prompted to "Submit to community" — this creates a PendingSubmission in DynamoDB for admin review.
+- **Admin users**: Imports go directly to DynamoDB (SharedPlane + SharedChecklist), visible to all users immediately. Cache is cleared to trigger refresh.
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useSharedPlanes.ts` | Fetches shared planes from AppSync, caches in localStorage |
+| `src/hooks/useFleet.ts` | Merges shared + custom planes, manages all CRUD |
+| `src/hooks/useDatabase.ts` | localStorage persistence for user-local data |
+| `src/api/sharedPlanes.ts` | AppSync GraphQL queries/mutations for shared planes and submissions |
+| `src/contexts/AuthContext.tsx` | Cognito auth state, admin detection |
+| `src/pages/AdminDashboard.tsx` | Admin panel: list/add/edit/delete shared planes, approve submissions |
+| `src/pages/AdminLogin.tsx` | Admin login with new-password challenge handling |
+| `src/data/planes.ts` / `checklists.ts` | Static fallback/seed data (22 planes) |
+| `amplify/data/resource.ts` | AppSync + DynamoDB schema definition |
+| `amplify/auth/resource.ts` | Cognito auth configuration |
+| `amplify_outputs.json` | Amplify SDK config (public endpoints, committed to repo) |

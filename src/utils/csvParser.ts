@@ -1,22 +1,26 @@
 import type { Plane, PlaneChecklist, ChecklistPhase, ChecklistItem } from '../data/types';
 
 /**
- * Parses a CSV string and returns a Plane and PlaneChecklist object.
- * 
+ * Parses a CSV string and returns a Plane, PlaneChecklist, and any variant checklists.
+ *
  * CSV Format expected:
- * name,manufacturer,type,image,phase,item,expectedState
- * "Cessna 182","Cessna","GA","https://...","Pre-Start","Battery","ON"
- * 
+ * name,manufacturer,type,image,phase,item,expectedState,category
+ * "Cessna 182","Cessna","GA","https://...","Pre-Start","Battery","ON",""
+ * "Cessna 182","Cessna","GA","https://...","Engine Fire","Mixture","CUTOFF","Emergency"
+ *
+ * Items with no category, "Normal Checklist", or "Standard" go into the main checklist.
+ * Items with any other category become separate variant checklists.
+ *
  * @param csvContent The raw CSV text content.
  */
-export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: PlaneChecklist } {
+export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: PlaneChecklist; variants: Record<string, PlaneChecklist> } {
   const lines = csvContent.split(/\r?\n/).filter(line => line.trim() !== '');
   if (lines.length < 2) throw new Error('CSV must contain a header and at least one data row.');
 
   // Extract header to determine column indices
   const headerLine = lines[0];
   const headers = parseCsvRow(headerLine).map(h => h.toLowerCase().trim());
-  
+
   const col = {
     name: headers.indexOf('name'),
     manufacturer: headers.indexOf('manufacturer'),
@@ -25,7 +29,8 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     phase: headers.indexOf('phase'),
     item: headers.indexOf('item'),
     expectedState: headers.indexOf('expectedstate'),
-    notes: headers.indexOf('notes')
+    notes: headers.indexOf('notes'),
+    category: headers.indexOf('category'),
   };
 
   // Check required headers
@@ -33,9 +38,11 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     throw new Error('CSV missing required headers: name, manufacturer, phase, item');
   }
 
+  const MAIN_KEY = '__main__';
+
   // Data extraction
   let planeData: Partial<Plane> = {};
-  const phasesMap: Map<string, ChecklistPhase> = new Map();
+  const categoryPhaseMaps: Map<string, Map<string, ChecklistPhase>> = new Map();
 
   for (let i = 1; i < lines.length; i++) {
     const values = parseCsvRow(lines[i]);
@@ -52,6 +59,11 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     const expectedState = col.expectedState !== -1 && values[col.expectedState] ? values[col.expectedState].trim() : undefined;
     const notes = col.notes !== -1 && values[col.notes] ? values[col.notes].trim() : undefined;
 
+    // Determine category
+    const category = col.category !== -1 && values[col.category] ? values[col.category].trim() : '';
+    const isMain = !category || category.toLowerCase() === 'normal checklist' || category.toLowerCase() === 'standard';
+    const mapKey = isMain ? MAIN_KEY : category;
+
     if (!phaseTitle || !itemLabel) continue;
 
     // Use first row to define the plane
@@ -59,6 +71,12 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
       const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
       planeData = { id: planeId, name, manufacturer, type, image };
     }
+
+    // Get or create the phases map for this category
+    if (!categoryPhaseMaps.has(mapKey)) {
+      categoryPhaseMaps.set(mapKey, new Map());
+    }
+    const phasesMap = categoryPhaseMaps.get(mapKey)!;
 
     // Process phase and item
     if (!phasesMap.has(phaseTitle)) {
@@ -68,7 +86,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
 
     const currentPhase = phasesMap.get(phaseTitle)!;
     const itemId = itemLabel.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
+
     const newItem: ChecklistItem = {
       id: `${currentPhase.id}-${itemId}-${currentPhase.items.length}`,
       label: itemLabel,
@@ -82,12 +100,25 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
   if (!planeData.id) throw new Error('Failed to parse plane information from CSV.');
 
   const plane: Plane = planeData as Plane;
+
+  // Build the main checklist from the __main__ key
+  const mainPhasesMap = categoryPhaseMaps.get(MAIN_KEY) ?? new Map();
   const checklist: PlaneChecklist = {
     planeId: plane.id,
-    phases: Array.from(phasesMap.values())
+    phases: Array.from(mainPhasesMap.values())
   };
 
-  return { plane, checklist };
+  // Build variant checklists from all other keys
+  const variants: Record<string, PlaneChecklist> = {};
+  for (const [key, phasesMap] of categoryPhaseMaps) {
+    if (key === MAIN_KEY) continue;
+    variants[key] = {
+      planeId: plane.id,
+      phases: Array.from(phasesMap.values()),
+    };
+  }
+
+  return { plane, checklist, variants };
 }
 
 /**
