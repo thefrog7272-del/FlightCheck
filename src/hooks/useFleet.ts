@@ -142,13 +142,18 @@ export function useFleet() {
   // Variant management
   const getVariants = useCallback((planeId: string): string[] => {
     const variants = ['Standard'];
-    for (const key of Object.keys(customChecklists)) {
-      if (key.startsWith(`${planeId}::`)) {
-        variants.push(key.split('::')[1]);
+    const seen = new Set<string>();
+    // Check both shared (DynamoDB) and custom (localStorage) checklists
+    for (const source of [sharedChecklists, customChecklists]) {
+      for (const key of Object.keys(source)) {
+        if (key.startsWith(`${planeId}::`) && !seen.has(key)) {
+          seen.add(key);
+          variants.push(key.split('::')[1]);
+        }
       }
     }
     return variants;
-  }, [customChecklists]);
+  }, [sharedChecklists, customChecklists]);
 
   const addVariant = useCallback((planeId: string, variantName: string, checklist: PlaneChecklist) => {
     const variantKey = `${planeId}::${variantName}`;
