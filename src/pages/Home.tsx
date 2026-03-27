@@ -8,7 +8,7 @@ import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { useAuth } from '../contexts/AuthContext';
 import { parsePlaneCsv } from '../utils/csvParser';
-import { createSharedPlane, createSharedChecklist, createPendingSubmission } from '../api/sharedPlanes';
+import { createSharedPlane, createSharedChecklist, createPendingSubmission, listSharedPlanes, listAllSharedChecklists, updateSharedPlane, updateSharedChecklist } from '../api/sharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
@@ -41,23 +41,47 @@ export function Home() {
     console.log(`[FlightCheck Import] isAdmin=${isAdmin}, plane=${plane.id} "${plane.name}", phases=${checklist.phases.length}, items=${checklist.phases.reduce((s, p) => s + p.items.length, 0)}`);
     if (isAdmin) {
       console.log('[FlightCheck Import] Admin path → saving to DynamoDB...');
-      const planeResult = await createSharedPlane({
-        planeId: plane.id,
-        name: plane.name,
-        manufacturer: plane.manufacturer,
-        image: plane.image,
-        type: plane.type,
-        sim: plane.sim || null,
-        sortOrder: null,
-      });
-      if (planeResult) {
-        console.log('[FlightCheck Import] Plane created, saving checklist...');
-        await createSharedChecklist({
-          planeId: plane.id,
-          phases: JSON.stringify(checklist.phases),
+
+      // Check if plane already exists to avoid duplicates
+      const existingPlanes = await listSharedPlanes();
+      const existing = existingPlanes.find(p => p.planeId === plane.id);
+
+      if (existing) {
+        console.log('[FlightCheck Import] Plane already exists, updating...');
+        await updateSharedPlane(existing.id, {
+          name: plane.name,
+          manufacturer: plane.manufacturer,
+          image: plane.image,
+          type: plane.type,
+          sim: plane.sim || null,
         });
+        // Update checklist too
+        const existingChecklists = await listAllSharedChecklists();
+        const existingCl = existingChecklists.find(c => c.planeId === plane.id);
+        if (existingCl) {
+          await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
+        } else {
+          await createSharedChecklist({ planeId: plane.id, phases: JSON.stringify(checklist.phases) });
+        }
       } else {
-        console.error('[FlightCheck Import] createSharedPlane returned null — checklist NOT saved');
+        const planeResult = await createSharedPlane({
+          planeId: plane.id,
+          name: plane.name,
+          manufacturer: plane.manufacturer,
+          image: plane.image,
+          type: plane.type,
+          sim: plane.sim || null,
+          sortOrder: null,
+        });
+        if (planeResult) {
+          console.log('[FlightCheck Import] Plane created, saving checklist...');
+          await createSharedChecklist({
+            planeId: plane.id,
+            phases: JSON.stringify(checklist.phases),
+          });
+        } else {
+          console.error('[FlightCheck Import] createSharedPlane returned null — checklist NOT saved');
+        }
       }
       console.log('[FlightCheck Import] Clearing cache and refreshing...');
       try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
