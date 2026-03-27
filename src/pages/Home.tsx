@@ -267,11 +267,19 @@ export function Home() {
         console.log(`[FlightCheck Import] Importing ${Object.keys(variants).length} variant(s): ${Object.keys(variants).join(', ')}`);
         for (const [variantName, variantChecklist] of Object.entries(variants)) {
           if (isAdmin) {
-            // For admin, save variant checklists to DynamoDB with the variant key
-            await createSharedChecklist({
-              planeId: `${plane.id}::${variantName}`,
-              phases: JSON.stringify(variantChecklist.phases),
-            });
+            const variantPlaneId = `${plane.id}::${variantName}`;
+            // Check if this variant checklist already exists
+            const allCl = await listAllSharedChecklists();
+            const existingVariant = allCl.find(c => c.planeId === variantPlaneId);
+            if (existingVariant) {
+              console.log(`[FlightCheck Import] Variant "${variantName}" exists, updating...`);
+              await updateSharedChecklist(existingVariant.id, JSON.stringify(variantChecklist.phases));
+            } else {
+              await createSharedChecklist({
+                planeId: variantPlaneId,
+                phases: JSON.stringify(variantChecklist.phases),
+              });
+            }
           } else {
             addVariant(plane.id, variantName, variantChecklist);
           }
