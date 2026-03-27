@@ -140,18 +140,6 @@ export function useFleet() {
   }, [progressData, updateKey]);
 
   // Variant management
-  const getActiveVariant = useCallback((planeId: string): string => {
-    const key = `variant_active_${planeId}`;
-    try {
-      return localStorage.getItem(key) || 'Standard';
-    } catch { return 'Standard'; }
-  }, []);
-
-  const setActiveVariant = useCallback((planeId: string, variantName: string) => {
-    const key = `variant_active_${planeId}`;
-    try { localStorage.setItem(key, variantName); } catch { /* quota */ }
-  }, []);
-
   const getVariants = useCallback((planeId: string): string[] => {
     const variants = ['Standard'];
     for (const key of Object.keys(customChecklists)) {
@@ -273,8 +261,6 @@ export function useFleet() {
     setNote,
     getTimerData,
     saveTimerBest,
-    getActiveVariant,
-    setActiveVariant,
     getVariants,
     addVariant,
     deleteVariant,
