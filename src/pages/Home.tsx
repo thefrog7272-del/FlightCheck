@@ -189,9 +189,9 @@ export function Home() {
         alert('Please paste or upload CSV content first.');
         return;
       }
-      const { plane, checklist } = parsePlaneCsv(csvInput);
+      const { plane, checklist, variants } = parsePlaneCsv(csvInput);
 
-      if (checklist.phases.length === 0) {
+      if (checklist.phases.length === 0 && Object.keys(variants).length === 0) {
         alert('CSV was parsed but no checklist phases/items were found. Check your CSV format.');
         return;
       }
@@ -229,6 +229,18 @@ export function Home() {
           }
         }
       }
+
+      // Auto-import category-based variants from CSV
+      for (const [variantName, variantChecklist] of Object.entries(variants)) {
+        if (!planes.some(p => p.id === plane.id)) {
+          await importPlane(plane, checklist);
+        }
+        addVariant(plane.id, variantName, variantChecklist);
+      }
+      if (Object.keys(variants).length > 0) {
+        alert(`Also imported ${Object.keys(variants).length} variant(s): ${Object.keys(variants).join(', ')}`);
+      }
+
       setIsModalOpen(false);
       setCsvInput('');
       setImagePreview(null);
@@ -246,19 +258,30 @@ export function Home() {
       try {
         const json = JSON.parse(reader.result as string);
 
-        // Format 1: Flat array of items [{ name, manufacturer, phase, item, expectedState }, ...]
+        // Format 1: Flat array of items [{ name, manufacturer, phase, item, expectedState, category? }, ...]
         if (Array.isArray(json) && json.length > 0 && json[0].phase && json[0].item) {
           const first = json[0];
           const name = first.name || file.name.replace(/\.[^.]+$/, '');
           const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           const plane = { id: planeId, name, manufacturer: first.manufacturer || '', image: first.image || '', type: first.type || 'GA' };
 
-          // Group items by phase
-          const phasesMap = new Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; notes?: string }[] }>();
+          const MAIN_KEY = '__main__';
+          // Group items by category, then by phase
+          const categoryPhaseMaps = new Map<string, Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; notes?: string }[] }>>();
           for (const row of json) {
             const phaseTitle = row.phase?.trim();
             const itemLabel = row.item?.trim();
             if (!phaseTitle || !itemLabel) continue;
+
+            const rowCategory = row.category?.trim() || '';
+            const isMain = !rowCategory || rowCategory.toLowerCase() === 'normal checklist' || rowCategory.toLowerCase() === 'standard';
+            const mapKey = isMain ? MAIN_KEY : rowCategory;
+
+            if (!categoryPhaseMaps.has(mapKey)) {
+              categoryPhaseMaps.set(mapKey, new Map());
+            }
+            const phasesMap = categoryPhaseMaps.get(mapKey)!;
+
             if (!phasesMap.has(phaseTitle)) {
               const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
               phasesMap.set(phaseTitle, { id: phaseId, title: phaseTitle, items: [] });
@@ -271,9 +294,23 @@ export function Home() {
               notes: row.notes?.trim() || undefined,
             });
           }
-          const phases = Array.from(phasesMap.values());
+
+          // Build main checklist
+          const mainPhasesMap = categoryPhaseMaps.get(MAIN_KEY) ?? new Map();
+          const phases = Array.from(mainPhasesMap.values());
           const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
           const checklist = { planeId, phases };
+
+          // Build variant checklists
+          const jsonVariants: Record<string, { planeId: string; phases: typeof phases }> = {};
+          for (const [key, phasesMap] of categoryPhaseMaps) {
+            if (key === MAIN_KEY) continue;
+            jsonVariants[key] = {
+              planeId,
+              phases: Array.from(phasesMap.values()),
+            };
+          }
+
           const category = importCategory.trim();
           if (category && category !== 'Standard') {
             if (!planes.some(p => p.id === planeId)) {
@@ -301,6 +338,18 @@ export function Home() {
               }
             }
           }
+
+          // Auto-import category-based variants from JSON
+          for (const [variantName, variantChecklist] of Object.entries(jsonVariants)) {
+            if (!planes.some(p => p.id === planeId)) {
+              await importPlane(plane, checklist);
+            }
+            addVariant(planeId, variantName, variantChecklist);
+          }
+          if (Object.keys(jsonVariants).length > 0) {
+            setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`);
+          }
+
           setImportCategory('');
           return;
         }
