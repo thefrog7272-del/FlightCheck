@@ -4,7 +4,8 @@ import { generateClient } from 'aws-amplify/data';
 type GqlResult = { data: Record<string, any> };
 
 // Lazy-initialize client after Amplify.configure() has run
-let _client: ReturnType<typeof generateClient> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _client: any = null;
 function getClient() {
   if (!_client) {
     _client = generateClient({ authMode: 'iam' });
