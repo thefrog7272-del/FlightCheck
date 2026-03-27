@@ -1,32 +1,23 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { Signer } from '@aws-amplify/core/internals/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GqlResult = { data: Record<string, any> };
 
 const ENDPOINT = 'https://ep3mvuopvbh6rbznjkguq7i5b4.appsync-api.eu-west-2.amazonaws.com/graphql';
+const API_KEY = 'da2-fk7wwxhihfhcfimzsma5gnsvxq';
 
 async function gql(query: string, variables?: Record<string, unknown>, useUserPool = false): Promise<GqlResult> {
   const body = JSON.stringify({ query, variables });
-  const url = new URL(ENDPOINT);
-  const headers: Record<string, string> = { 'content-type': 'application/json', host: url.host };
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
 
   if (useUserPool) {
+    // Admin writes: use Cognito ID token
     const session = await fetchAuthSession();
     const token = session.tokens?.idToken?.toString();
     if (token) headers['Authorization'] = token;
   } else {
-    // Guest reads: get IAM credentials from Identity Pool and SigV4 sign the request
-    const session = await fetchAuthSession();
-    const creds = session.credentials;
-    if (creds) {
-      const signed = Signer.sign(
-        { method: 'POST', url: ENDPOINT, headers, data: body },
-        { access_key: creds.accessKeyId, secret_key: creds.secretAccessKey, session_token: creds.sessionToken ?? '' },
-        { region: 'eu-west-2', service: 'appsync' }
-      );
-      Object.assign(headers, signed.headers);
-    }
+    // Guest reads: use API key (no signing needed)
+    headers['x-api-key'] = API_KEY;
   }
 
   const res = await fetch(ENDPOINT, { method: 'POST', headers, body });
