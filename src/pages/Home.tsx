@@ -263,14 +263,20 @@ export function Home() {
       }
 
       // Auto-import category-based variants from CSV
-      for (const [variantName, variantChecklist] of Object.entries(variants)) {
-        if (!planes.some(p => p.id === plane.id)) {
-          await importPlane(plane, checklist);
-        }
-        addVariant(plane.id, variantName, variantChecklist);
-      }
       if (Object.keys(variants).length > 0) {
-        alert(`Also imported ${Object.keys(variants).length} variant(s): ${Object.keys(variants).join(', ')}`);
+        console.log(`[FlightCheck Import] Importing ${Object.keys(variants).length} variant(s): ${Object.keys(variants).join(', ')}`);
+        for (const [variantName, variantChecklist] of Object.entries(variants)) {
+          if (isAdmin) {
+            // For admin, save variant checklists to DynamoDB with the variant key
+            await createSharedChecklist({
+              planeId: `${plane.id}::${variantName}`,
+              phases: JSON.stringify(variantChecklist.phases),
+            });
+          } else {
+            addVariant(plane.id, variantName, variantChecklist);
+          }
+        }
+        alert(`Also imported ${Object.keys(variants).length} sub-checklist(s): ${Object.keys(variants).join(', ')}`);
       }
 
       setIsModalOpen(false);
