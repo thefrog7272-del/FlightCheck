@@ -3,7 +3,9 @@ import { generateClient } from 'aws-amplify/data';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GqlResult = { data: Record<string, any> };
 
-const client = generateClient();
+const client = generateClient({
+  authMode: 'iam',
+});
 
 function log(action: string, ...args: unknown[]) {
   console.log(`[FlightCheck API] ${action}`, ...args);
