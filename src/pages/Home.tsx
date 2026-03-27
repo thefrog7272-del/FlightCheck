@@ -21,7 +21,7 @@ const SIM_LABELS: Record<SimFilter, string> = {
 };
 
 export function Home() {
-  const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,12 +54,13 @@ export function Home() {
           phases: JSON.stringify(checklist.phases),
         });
       }
-      // Also clear the shared planes cache so it re-fetches
+      // Refresh the shared planes list so the new plane appears immediately
       try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+      await refreshSharedPlanes();
     } else {
       addPlane(plane, checklist);
     }
-  }, [isAdmin, addPlane]);
+  }, [isAdmin, addPlane, refreshSharedPlanes]);
 
   const editingPlane = useMemo(
     () => editingImagePlaneId ? planes.find(p => p.id === editingImagePlaneId) ?? null : null,

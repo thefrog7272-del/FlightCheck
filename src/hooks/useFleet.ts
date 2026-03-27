@@ -5,7 +5,7 @@ import type { Plane, PlaneChecklist } from '../data/types';
 
 export function useFleet() {
   const { data, loading, updateKey, resetAll } = useDatabase();
-  const { sharedPlanes, sharedChecklists, sharedLoading } = useSharedPlanes();
+  const { sharedPlanes, sharedChecklists, sharedLoading, refreshSharedPlanes } = useSharedPlanes();
 
   const customPlanes = data?.custom_planes ?? [];
   const customChecklists = data?.custom_checklists ?? {};
@@ -264,5 +264,6 @@ export function useFleet() {
     getVariants,
     addVariant,
     deleteVariant,
+    refreshSharedPlanes,
   };
 }
