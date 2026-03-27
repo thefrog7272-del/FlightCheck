@@ -1,16 +1,37 @@
-import { generateClient } from 'aws-amplify/data';
+import { fetchAuthSession } from 'aws-amplify/auth';
+import { Signer } from '@aws-amplify/core/internals/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GqlResult = { data: Record<string, any> };
 
-// Lazy-initialize client after Amplify.configure() has run
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _client: any = null;
-function getClient() {
-  if (!_client) {
-    _client = generateClient({ authMode: 'iam' });
+const ENDPOINT = 'https://ep3mvuopvbh6rbznjkguq7i5b4.appsync-api.eu-west-2.amazonaws.com/graphql';
+
+async function gql(query: string, variables?: Record<string, unknown>, useUserPool = false): Promise<GqlResult> {
+  const body = JSON.stringify({ query, variables });
+  const url = new URL(ENDPOINT);
+  const headers: Record<string, string> = { 'content-type': 'application/json', host: url.host };
+
+  if (useUserPool) {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
+    if (token) headers['Authorization'] = token;
+  } else {
+    // Guest reads: get IAM credentials from Identity Pool and SigV4 sign the request
+    const session = await fetchAuthSession();
+    const creds = session.credentials;
+    if (creds) {
+      const signed = Signer.sign(
+        { method: 'POST', url: ENDPOINT, headers, data: body },
+        { access_key: creds.accessKeyId, secret_key: creds.secretAccessKey, session_token: creds.sessionToken ?? '' },
+        { region: 'eu-west-2', service: 'appsync' }
+      );
+      Object.assign(headers, signed.headers);
+    }
   }
-  return _client;
+
+  const res = await fetch(ENDPOINT, { method: 'POST', headers, body });
+  if (!res.ok) throw new Error(`GraphQL request failed: ${res.status}`);
+  return res.json();
 }
 
 function log(action: string, ...args: unknown[]) {
@@ -41,23 +62,14 @@ export interface SharedChecklistRecord {
 export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
   log('listSharedPlanes', 'fetching...');
   try {
-    const result = await getClient().graphql({
-      query: `query ListSharedPlanes {
-        listSharedPlanes(limit: 100) {
-          items {
-            id
-            planeId
-            name
-            manufacturer
-            image
-            type
-            sim
-            sortOrder
-          }
+    const result = await gql(`query ListSharedPlanes {
+      listSharedPlanes(limit: 100) {
+        items {
+          id planeId name manufacturer image type sim sortOrder
         }
-      }`,
-    });
-    const items = (result as GqlResult).data.listSharedPlanes.items;
+      }
+    }`);
+    const items = result.data.listSharedPlanes.items;
     log('listSharedPlanes', `fetched ${items.length} planes`);
     return items;
   } catch (err) {
@@ -68,21 +80,15 @@ export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
 
 export async function getSharedChecklist(planeId: string): Promise<SharedChecklistRecord | null> {
   try {
-    const result = await getClient().graphql({
-      query: `query ListSharedChecklists($filter: ModelSharedChecklistFilterInput) {
+    const result = await gql(
+      `query ListSharedChecklists($filter: ModelSharedChecklistFilterInput) {
         listSharedChecklists(filter: $filter, limit: 1) {
-          items {
-            id
-            planeId
-            phases
-          }
+          items { id planeId phases }
         }
       }`,
-      variables: {
-        filter: { planeId: { eq: planeId } },
-      },
-    });
-    const items = (result as GqlResult).data.listSharedChecklists.items;
+      { filter: { planeId: { eq: planeId } } },
+    );
+    const items = result.data.listSharedChecklists.items;
     return items.length > 0 ? items[0] : null;
   } catch (err) {
     console.error('Failed to fetch shared checklist:', err);
@@ -92,18 +98,12 @@ export async function getSharedChecklist(planeId: string): Promise<SharedCheckli
 
 export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]> {
   try {
-    const result = await getClient().graphql({
-      query: `query ListSharedChecklists {
-        listSharedChecklists(limit: 100) {
-          items {
-            id
-            planeId
-            phases
-          }
-        }
-      }`,
-    });
-    const items = (result as GqlResult).data.listSharedChecklists.items;
+    const result = await gql(`query ListSharedChecklists {
+      listSharedChecklists(limit: 100) {
+        items { id planeId phases }
+      }
+    }`);
+    const items = result.data.listSharedChecklists.items;
     log('listAllSharedChecklists', `fetched ${items.length} checklists`);
     return items;
   } catch (err) {
@@ -116,23 +116,16 @@ export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]
 export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): Promise<SharedPlaneRecord | null> {
   log('createSharedPlane', plane.planeId, plane.name);
   try {
-    const result = await getClient().graphql({
-      query: `mutation CreateSharedPlane($input: CreateSharedPlaneInput!) {
+    const result = await gql(
+      `mutation CreateSharedPlane($input: CreateSharedPlaneInput!) {
         createSharedPlane(input: $input) {
-          id
-          planeId
-          name
-          manufacturer
-          image
-          type
-          sim
-          sortOrder
+          id planeId name manufacturer image type sim sortOrder
         }
       }`,
-      variables: { input: plane },
-      authMode: 'userPool',
-    });
-    const created = (result as GqlResult).data.createSharedPlane;
+      { input: plane },
+      true,
+    );
+    const created = result.data.createSharedPlane;
     log('createSharedPlane', 'SUCCESS', created.id);
     return created;
   } catch (err) {
@@ -144,18 +137,16 @@ export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): P
 export async function createSharedChecklist(checklist: Omit<SharedChecklistRecord, 'id'>): Promise<SharedChecklistRecord | null> {
   log('createSharedChecklist', checklist.planeId, `phases: ${checklist.phases.length} chars`);
   try {
-    const result = await getClient().graphql({
-      query: `mutation CreateSharedChecklist($input: CreateSharedChecklistInput!) {
+    const result = await gql(
+      `mutation CreateSharedChecklist($input: CreateSharedChecklistInput!) {
         createSharedChecklist(input: $input) {
-          id
-          planeId
-          phases
+          id planeId phases
         }
       }`,
-      variables: { input: checklist },
-      authMode: 'userPool',
-    });
-    const created = (result as GqlResult).data.createSharedChecklist;
+      { input: checklist },
+      true,
+    );
+    const created = result.data.createSharedChecklist;
     log('createSharedChecklist', 'SUCCESS', created.id);
     return created;
   } catch (err) {
@@ -166,13 +157,13 @@ export async function createSharedChecklist(checklist: Omit<SharedChecklistRecor
 
 export async function deleteSharedPlane(id: string): Promise<boolean> {
   try {
-    await getClient().graphql({
-      query: `mutation DeleteSharedPlane($input: DeleteSharedPlaneInput!) {
+    await gql(
+      `mutation DeleteSharedPlane($input: DeleteSharedPlaneInput!) {
         deleteSharedPlane(input: $input) { id }
       }`,
-      variables: { input: { id } },
-      authMode: 'userPool',
-    });
+      { input: { id } },
+      true,
+    );
     return true;
   } catch (err) {
     console.error('Failed to delete shared plane:', err);
@@ -182,13 +173,13 @@ export async function deleteSharedPlane(id: string): Promise<boolean> {
 
 export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPlaneRecord, 'id'>>): Promise<boolean> {
   try {
-    await getClient().graphql({
-      query: `mutation UpdateSharedPlane($input: UpdateSharedPlaneInput!) {
+    await gql(
+      `mutation UpdateSharedPlane($input: UpdateSharedPlaneInput!) {
         updateSharedPlane(input: $input) { id }
       }`,
-      variables: { input: { id, ...plane } },
-      authMode: 'userPool',
-    });
+      { input: { id, ...plane } },
+      true,
+    );
     return true;
   } catch (err) {
     console.error('Failed to update shared plane:', err);
@@ -198,13 +189,13 @@ export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPl
 
 export async function updateSharedChecklist(id: string, phases: string): Promise<boolean> {
   try {
-    await getClient().graphql({
-      query: `mutation UpdateSharedChecklist($input: UpdateSharedChecklistInput!) {
+    await gql(
+      `mutation UpdateSharedChecklist($input: UpdateSharedChecklistInput!) {
         updateSharedChecklist(input: $input) { id }
       }`,
-      variables: { input: { id, phases } },
-      authMode: 'userPool',
-    });
+      { input: { id, phases } },
+      true,
+    );
     return true;
   } catch (err) {
     console.error('Failed to update shared checklist:', err);
@@ -214,13 +205,13 @@ export async function updateSharedChecklist(id: string, phases: string): Promise
 
 export async function deleteSharedChecklist(id: string): Promise<boolean> {
   try {
-    await getClient().graphql({
-      query: `mutation DeleteSharedChecklist($input: DeleteSharedChecklistInput!) {
+    await gql(
+      `mutation DeleteSharedChecklist($input: DeleteSharedChecklistInput!) {
         deleteSharedChecklist(input: $input) { id }
       }`,
-      variables: { input: { id } },
-      authMode: 'userPool',
-    });
+      { input: { id } },
+      true,
+    );
     return true;
   } catch (err) {
     console.error('Failed to delete shared checklist:', err);
@@ -254,12 +245,12 @@ export async function createPendingSubmission(submission: {
   status: string;
 }): Promise<boolean> {
   try {
-    await getClient().graphql({
-      query: `mutation CreatePendingSubmission($input: CreatePendingSubmissionInput!) {
+    await gql(
+      `mutation CreatePendingSubmission($input: CreatePendingSubmissionInput!) {
         createPendingSubmission(input: $input) { id }
       }`,
-      variables: { input: submission },
-    });
+      { input: submission },
+    );
     return true;
   } catch (err) {
     console.error('Failed to create submission:', err);
@@ -269,18 +260,18 @@ export async function createPendingSubmission(submission: {
 
 export async function listPendingSubmissions(): Promise<PendingSubmissionRecord[]> {
   try {
-    const result = await getClient().graphql({
-      query: `query ListPendingSubmissions($filter: ModelPendingSubmissionFilterInput) {
+    const result = await gql(
+      `query ListPendingSubmissions($filter: ModelPendingSubmissionFilterInput) {
         listPendingSubmissions(filter: $filter, limit: 100) {
           items {
             id name manufacturer image type sim phases submittedBy status createdAt
           }
         }
       }`,
-      variables: { filter: { status: { eq: 'pending' } } },
-      authMode: 'userPool',
-    });
-    return (result as GqlResult).data.listPendingSubmissions.items;
+      { filter: { status: { eq: 'pending' } } },
+      true,
+    );
+    return result.data.listPendingSubmissions.items;
   } catch (err) {
     console.error('Failed to list submissions:', err);
     return [];
@@ -289,13 +280,13 @@ export async function listPendingSubmissions(): Promise<PendingSubmissionRecord[
 
 export async function updatePendingSubmission(id: string, status: string): Promise<boolean> {
   try {
-    await getClient().graphql({
-      query: `mutation UpdatePendingSubmission($input: UpdatePendingSubmissionInput!) {
+    await gql(
+      `mutation UpdatePendingSubmission($input: UpdatePendingSubmissionInput!) {
         updatePendingSubmission(input: $input) { id }
       }`,
-      variables: { input: { id, status } },
-      authMode: 'userPool',
-    });
+      { input: { id, status } },
+      true,
+    );
     return true;
   } catch (err) {
     console.error('Failed to update submission:', err);
@@ -305,13 +296,13 @@ export async function updatePendingSubmission(id: string, status: string): Promi
 
 export async function deletePendingSubmission(id: string): Promise<boolean> {
   try {
-    await getClient().graphql({
-      query: `mutation DeletePendingSubmission($input: DeletePendingSubmissionInput!) {
+    await gql(
+      `mutation DeletePendingSubmission($input: DeletePendingSubmissionInput!) {
         deletePendingSubmission(input: $input) { id }
       }`,
-      variables: { input: { id } },
-      authMode: 'userPool',
-    });
+      { input: { id } },
+      true,
+    );
     return true;
   } catch (err) {
     console.error('Failed to delete submission:', err);
