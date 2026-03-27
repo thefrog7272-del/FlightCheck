@@ -21,8 +21,12 @@ async function gql(query: string, variables?: Record<string, unknown>, useUserPo
   }
 
   const res = await fetch(ENDPOINT, { method: 'POST', headers, body });
-  if (!res.ok) throw new Error(`GraphQL request failed: ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  if (json.errors) {
+    console.error('[FlightCheck API] GraphQL errors:', JSON.stringify(json.errors));
+  }
+  if (!res.ok && !json.data) throw new Error(`GraphQL request failed: ${res.status}`);
+  return json;
 }
 
 function log(action: string, ...args: unknown[]) {
@@ -60,7 +64,7 @@ export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
         }
       }
     }`);
-    const items = result.data.listSharedPlanes.items;
+    const items = result.data?.listSharedPlanes?.items ?? [];
     log('listSharedPlanes', `fetched ${items.length} planes`);
     return items;
   } catch (err) {
@@ -94,7 +98,7 @@ export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]
         items { id planeId phases }
       }
     }`);
-    const items = result.data.listSharedChecklists.items;
+    const items = result.data?.listSharedChecklists?.items ?? [];
     log('listAllSharedChecklists', `fetched ${items.length} checklists`);
     return items;
   } catch (err) {
