@@ -273,7 +273,7 @@ export function Home() {
             const itemLabel = row.item?.trim();
             if (!phaseTitle || !itemLabel) continue;
 
-            const rowCategory = row.category?.trim() || '';
+            const rowCategory = (row.category || row.checklistCategory || row['checklist category'] || row['Checklist Category'] || '').trim();
             const isMain = !rowCategory || rowCategory.toLowerCase() === 'normal checklist' || rowCategory.toLowerCase() === 'standard';
             const mapKey = isMain ? MAIN_KEY : rowCategory;
 
@@ -398,9 +398,10 @@ export function Home() {
     reader.readAsText(file);
   };
 
-  const sampleCsv = `name,manufacturer,type,image,phase,item,expectedState
-"Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Master Switch","ON"
-"Piper Archer II","Piper","GA","https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&q=80&w=1200","Pre-Flight","Fuel Pump","ON"`;
+  const sampleCsv = `name,manufacturer,type,image,checklist category,phase,item,expectedState
+"Piper Archer II","Piper","GA","","Normal Checklist","Pre-Flight","Master Switch","ON"
+"Piper Archer II","Piper","GA","","Normal Checklist","Pre-Flight","Fuel Pump","ON"
+"Piper Archer II","Piper","GA","","Speeds","Takeoff","Vr","65 KIAS"`;
 
   return (
     <div className={styles.container}>

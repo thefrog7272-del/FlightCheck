@@ -30,7 +30,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     item: headers.indexOf('item'),
     expectedState: headers.indexOf('expectedstate'),
     notes: headers.indexOf('notes'),
-    category: headers.indexOf('category'),
+    category: Math.max(headers.indexOf('category'), headers.indexOf('checklist category'), headers.indexOf('checklistcategory')),
   };
 
   // Check required headers
