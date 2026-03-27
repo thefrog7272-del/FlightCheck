@@ -38,7 +38,9 @@ export function Home() {
 
   // When admin, imports go to DynamoDB. Otherwise localStorage.
   const importPlane = useCallback(async (plane: Plane, checklist: PlaneChecklist) => {
+    console.log(`[FlightCheck Import] isAdmin=${isAdmin}, plane=${plane.id} "${plane.name}", phases=${checklist.phases.length}, items=${checklist.phases.reduce((s, p) => s + p.items.length, 0)}`);
     if (isAdmin) {
+      console.log('[FlightCheck Import] Admin path → saving to DynamoDB...');
       const planeResult = await createSharedPlane({
         planeId: plane.id,
         name: plane.name,
@@ -49,15 +51,20 @@ export function Home() {
         sortOrder: null,
       });
       if (planeResult) {
+        console.log('[FlightCheck Import] Plane created, saving checklist...');
         await createSharedChecklist({
           planeId: plane.id,
           phases: JSON.stringify(checklist.phases),
         });
+      } else {
+        console.error('[FlightCheck Import] createSharedPlane returned null — checklist NOT saved');
       }
-      // Refresh the shared planes list so the new plane appears immediately
+      console.log('[FlightCheck Import] Clearing cache and refreshing...');
       try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
       await refreshSharedPlanes();
+      console.log('[FlightCheck Import] Refresh complete');
     } else {
+      console.log('[FlightCheck Import] Non-admin path → saving to localStorage');
       addPlane(plane, checklist);
     }
   }, [isAdmin, addPlane, refreshSharedPlanes]);

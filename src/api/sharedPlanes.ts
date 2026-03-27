@@ -5,6 +5,14 @@ type GqlResult = { data: Record<string, any> };
 
 const client = generateClient();
 
+function log(action: string, ...args: unknown[]) {
+  console.log(`[FlightCheck API] ${action}`, ...args);
+}
+
+function logError(action: string, err: unknown) {
+  console.error(`[FlightCheck API] ${action} FAILED:`, err);
+}
+
 export interface SharedPlaneRecord {
   id: string;
   planeId: string;
@@ -23,6 +31,7 @@ export interface SharedChecklistRecord {
 }
 
 export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
+  log('listSharedPlanes', 'fetching...');
   try {
     const result = await client.graphql({
       query: `query ListSharedPlanes {
@@ -40,9 +49,11 @@ export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
         }
       }`,
     });
-    return (result as GqlResult).data.listSharedPlanes.items;
+    const items = (result as GqlResult).data.listSharedPlanes.items;
+    log('listSharedPlanes', `fetched ${items.length} planes`);
+    return items;
   } catch (err) {
-    console.error('Failed to fetch shared planes:', err);
+    logError('listSharedPlanes', err);
     return [];
   }
 }
@@ -84,15 +95,18 @@ export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]
         }
       }`,
     });
-    return (result as GqlResult).data.listSharedChecklists.items;
+    const items = (result as GqlResult).data.listSharedChecklists.items;
+    log('listAllSharedChecklists', `fetched ${items.length} checklists`);
+    return items;
   } catch (err) {
-    console.error('Failed to fetch shared checklists:', err);
+    logError('listAllSharedChecklists', err);
     return [];
   }
 }
 
 // Admin-only mutations (requires Cognito auth)
 export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): Promise<SharedPlaneRecord | null> {
+  log('createSharedPlane', plane.planeId, plane.name);
   try {
     const result = await client.graphql({
       query: `mutation CreateSharedPlane($input: CreateSharedPlaneInput!) {
@@ -110,14 +124,17 @@ export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): P
       variables: { input: plane },
       authMode: 'userPool',
     });
-    return (result as GqlResult).data.createSharedPlane;
+    const created = (result as GqlResult).data.createSharedPlane;
+    log('createSharedPlane', 'SUCCESS', created.id);
+    return created;
   } catch (err) {
-    console.error('Failed to create shared plane:', err);
+    logError('createSharedPlane', err);
     return null;
   }
 }
 
 export async function createSharedChecklist(checklist: Omit<SharedChecklistRecord, 'id'>): Promise<SharedChecklistRecord | null> {
+  log('createSharedChecklist', checklist.planeId, `phases: ${checklist.phases.length} chars`);
   try {
     const result = await client.graphql({
       query: `mutation CreateSharedChecklist($input: CreateSharedChecklistInput!) {
@@ -130,9 +147,11 @@ export async function createSharedChecklist(checklist: Omit<SharedChecklistRecor
       variables: { input: checklist },
       authMode: 'userPool',
     });
-    return (result as GqlResult).data.createSharedChecklist;
+    const created = (result as GqlResult).data.createSharedChecklist;
+    log('createSharedChecklist', 'SUCCESS', created.id);
+    return created;
   } catch (err) {
-    console.error('Failed to create shared checklist:', err);
+    logError('createSharedChecklist', err);
     return null;
   }
 }

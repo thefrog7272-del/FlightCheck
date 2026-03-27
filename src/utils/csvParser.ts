@@ -33,6 +33,9 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     category: Math.max(headers.indexOf('category'), headers.indexOf('checklist category'), headers.indexOf('checklistcategory')),
   };
 
+  console.log('[FlightCheck CSV] Detected columns:', Object.entries(col).filter(([,v]) => v !== -1).map(([k,v]) => `${k}=${v}`).join(', '));
+  console.log('[FlightCheck CSV] Headers found:', headers.join(', '));
+
   // Check required headers
   if (col.name === -1 || col.manufacturer === -1 || col.phase === -1 || col.item === -1) {
     throw new Error('CSV missing required headers: name, manufacturer, phase, item');
@@ -117,6 +120,10 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
       phases: Array.from(phasesMap.values()),
     };
   }
+
+  const mainItems = checklist.phases.reduce((s, p) => s + p.items.length, 0);
+  const variantNames = Object.keys(variants);
+  console.log(`[FlightCheck CSV] Parsed: "${plane.name}" → main checklist: ${checklist.phases.length} phases, ${mainItems} items. Variants: ${variantNames.length > 0 ? variantNames.join(', ') : 'none'}`);
 
   return { plane, checklist, variants };
 }

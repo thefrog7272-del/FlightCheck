@@ -49,6 +49,7 @@ function mapToChecklist(record: SharedChecklistRecord): PlaneChecklist {
 
 // Load cache once at module level to use as initial state
 const initialCache = loadCache();
+console.log('[FlightCheck SharedPlanes] Initial cache:', initialCache ? `${initialCache.planes.length} planes, age ${Math.round((Date.now() - initialCache.timestamp) / 60000)}min` : 'none');
 
 export function useSharedPlanes() {
   const [sharedPlanes, setSharedPlanes] = useState<Plane[]>(
@@ -62,12 +63,14 @@ export function useSharedPlanes() {
   );
 
   const fetchFromApi = useCallback(async () => {
+    console.log('[FlightCheck SharedPlanes] Fetching from API...');
     try {
       const [planeRecords, checklistRecords] = await Promise.all([
         listSharedPlanes(),
         listAllSharedChecklists(),
       ]);
 
+      console.log(`[FlightCheck SharedPlanes] API returned ${planeRecords.length} planes, ${checklistRecords.length} checklists`);
       if (planeRecords.length > 0) {
         const planes = planeRecords.map(mapToPlane);
         const checklists: Record<string, PlaneChecklist> = {};
@@ -82,8 +85,10 @@ export function useSharedPlanes() {
         saveCache({ planes, checklists, timestamp: Date.now() });
         return true;
       }
+      console.log('[FlightCheck SharedPlanes] API returned 0 planes');
       return false;
-    } catch {
+    } catch (err) {
+      console.error('[FlightCheck SharedPlanes] API fetch failed:', err);
       return false;
     }
   }, []);
@@ -96,7 +101,7 @@ export function useSharedPlanes() {
       const success = await fetchFromApi();
       if (cancelled) return;
       if (!success && !hasCachedData) {
-        // Fall back to static data if API failed and no cache
+        console.log('[FlightCheck SharedPlanes] API failed, no cache → falling back to static data');
         setSharedPlanes(staticPlanes);
         setSharedChecklists(staticChecklists);
       }
