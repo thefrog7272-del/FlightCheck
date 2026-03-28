@@ -110,6 +110,15 @@
   background-color: rgba(251, 191, 36, 0.15);
 }
 
+.referenceImage {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-top: 0.5rem;
+}
+
 .noteButton {
   display: flex;
   align-items: center;
