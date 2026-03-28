@@ -127,6 +127,11 @@
   margin-top: 0.5rem;
 }
 
+.referenceTableItem {
+  cursor: default;
+  align-items: flex-start;
+}
+
 .referenceTableWrapper {
   overflow-x: auto;
   width: 100%;

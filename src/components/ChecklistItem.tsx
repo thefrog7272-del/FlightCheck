@@ -43,6 +43,21 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: C
   const [showNote, setShowNote] = useState(false);
   const hasTableNote = item.notes?.startsWith(TABLE_PREFIX) ?? false;
 
+  if (hasTableNote) {
+    return (
+      <div className={styles.wrapper}>
+        <div className={clsx(styles.item, styles.referenceTableItem)}>
+          <div className={styles.content}>
+            <div className={styles.labelRow}>
+              <span className={styles.label}>{item.label}</span>
+            </div>
+            <ReferenceTable data={item.notes!} label={item.label} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.wrapper}>
       <div
@@ -77,9 +92,6 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: C
               )}
             </div>
           </div>
-          {hasTableNote && (
-            <ReferenceTable data={item.notes!} label={item.label} />
-          )}
         </div>
         {onNoteChange && (
           <button

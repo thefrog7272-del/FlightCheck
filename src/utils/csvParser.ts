@@ -138,15 +138,29 @@ function parseCsvRow(row: string): string[] {
 
   for (let i = 0; i < row.length; i++) {
     const char = row[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
+    if (inQuotes) {
+      if (char === '"') {
+        if (row[i + 1] === '"') {
+          // RFC 4180: "" inside a quoted field is an escaped literal "
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
     } else {
-      current += char;
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
     }
   }
   result.push(current);
-  return result.map(v => v.replace(/^"|"$/g, ''));
+  return result;
 }
