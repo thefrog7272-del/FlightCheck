@@ -26,3 +26,6 @@ dist-ssr
 # Amplify Gen 2
 amplify_outputs.d.ts
 .amplify/
+
+# Claude Code internals
+.claude/
