@@ -47,20 +47,21 @@ function mapToChecklist(record: SharedChecklistRecord): PlaneChecklist {
   };
 }
 
-// Load cache once at module level to use as initial state
-const initialCache = loadCache();
-console.log('[FlightCheck SharedPlanes] Initial cache:', initialCache ? `${initialCache.planes.length} planes, age ${Math.round((Date.now() - initialCache.timestamp) / 60000)}min` : 'none');
-
 export function useSharedPlanes() {
-  const [sharedPlanes, setSharedPlanes] = useState<Plane[]>(
-    () => initialCache?.planes ?? [],
-  );
+  // Read cache fresh on each mount so newly imported planes are visible
+  // immediately without waiting for the API round-trip.
+  const [sharedPlanes, setSharedPlanes] = useState<Plane[]>(() => {
+    const cache = loadCache();
+    console.log('[FlightCheck SharedPlanes] Initial cache:', cache ? `${cache.planes.length} planes, age ${Math.round((Date.now() - cache.timestamp) / 60000)}min` : 'none');
+    return cache?.planes ?? [];
+  });
   const [sharedChecklists, setSharedChecklists] = useState<Record<string, PlaneChecklist>>(
-    () => initialCache?.checklists ?? {},
+    () => loadCache()?.checklists ?? {},
   );
-  const [loading, setLoading] = useState(
-    () => !initialCache || initialCache.planes.length === 0,
-  );
+  const [loading, setLoading] = useState(() => {
+    const cache = loadCache();
+    return !cache || cache.planes.length === 0;
+  });
 
   const fetchFromApi = useCallback(async () => {
     console.log('[FlightCheck SharedPlanes] Fetching from API...');
@@ -95,7 +96,8 @@ export function useSharedPlanes() {
 
   useEffect(() => {
     let cancelled = false;
-    const hasCachedData = initialCache && initialCache.planes.length > 0;
+    const cache = loadCache();
+    const hasCachedData = cache != null && cache.planes.length > 0;
 
     async function sync() {
       const success = await fetchFromApi();

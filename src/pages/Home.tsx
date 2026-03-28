@@ -9,7 +9,7 @@ import { useConfirm } from '../hooks/useConfirm';
 import { useAuth } from '../contexts/AuthContext';
 import { parsePlaneCsv } from '../utils/csvParser';
 import { validateChecklist, formatWarnings } from '../utils/checklistValidator';
-import { createSharedPlane, createSharedChecklist, createPendingSubmission, listSharedPlanes, listAllSharedChecklists, updateSharedPlane, updateSharedChecklist } from '../api/sharedPlanes';
+import { createSharedPlane, createSharedChecklist, createPendingSubmission, listSharedPlanes, listAllSharedChecklists, updateSharedPlane, updateSharedChecklist, deleteSharedPlane, deleteSharedChecklist } from '../api/sharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
@@ -146,10 +146,21 @@ export function Home() {
       'Permanently delete this plane and its checklist data? This cannot be undone.',
       { confirmLabel: 'Delete', destructive: true }
     );
-    if (confirmed) {
+    if (!confirmed) return;
+
+    if (isAdmin) {
+      // Delete from shared database (AppSync/DynamoDB)
+      const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
+      const planeRecord = planeRecords.find(p => p.planeId === planeId);
+      const checklistRecord = checklistRecords.find(c => c.planeId === planeId);
+      if (planeRecord) await deleteSharedPlane(planeRecord.id);
+      if (checklistRecord) await deleteSharedChecklist(checklistRecord.id);
+      try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+      await refreshSharedPlanes();
+    } else {
       deletePlane(planeId);
     }
-  }, [confirm, deletePlane]);
+  }, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
 
   const handleShowAll = useCallback(async () => {
     const confirmed = await confirm(
