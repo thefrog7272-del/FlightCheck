@@ -13,7 +13,7 @@ Usage:
     python checklist_converter.py <google-sheets-url> # Google Sheets
 
 Output CSV format matches FlightCheck's import format:
-    name, manufacturer, type, image, phase, item, expectedState, notes, checklist category
+    name, manufacturer, type, image, checklist category, phase, item, expectedState, notes
 """
 
 import argparse
@@ -139,11 +139,11 @@ class ParsedChecklist:
                         self.manufacturer,
                         self.plane_type,
                         "",  # image
+                        cat,
                         phase.title,
                         item.label,
                         item.expected_state,
                         item.notes,
-                        cat,
                     ]
                 )
         return rows
@@ -677,7 +677,7 @@ def save_reference_images(filepath: str, output_dir: str) -> list[str]:
 # Output writers
 # ---------------------------------------------------------------------------
 
-CSV_HEADERS = ["name", "manufacturer", "type", "image", "phase", "item", "expectedState", "notes", "checklist category"]
+CSV_HEADERS = ["name", "manufacturer", "type", "image", "checklist category", "phase", "item", "expectedState", "notes"]
 
 
 def write_csv(checklist: ParsedChecklist, output_path: str) -> None:
