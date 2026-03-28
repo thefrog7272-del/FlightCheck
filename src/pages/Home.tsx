@@ -8,6 +8,7 @@ import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { useAuth } from '../contexts/AuthContext';
 import { parsePlaneCsv } from '../utils/csvParser';
+import { validateChecklist, formatWarnings } from '../utils/checklistValidator';
 import { createSharedPlane, createSharedChecklist, createPendingSubmission, listSharedPlanes, listAllSharedChecklists, updateSharedPlane, updateSharedChecklist } from '../api/sharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
 
@@ -234,16 +235,17 @@ export function Home() {
       }
 
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
+      const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
       const category = importCategory.trim();
       if (category && category !== 'Standard') {
         if (!planes.some(p => p.id === plane.id)) {
           await importPlane(plane, checklist);
         }
         addVariant(plane.id, category, checklist);
-        alert(`Imported "${plane.name}" variant "${category}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}`);
+        alert(`Imported "${plane.name}" variant "${category}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
       } else {
         await importPlane(plane, checklist);
-        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}`);
+        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
         if (!isAdmin) {
           const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
           if (submitToAll) {
@@ -357,16 +359,17 @@ export function Home() {
             };
           }
 
+          const jsonWarnings = formatWarnings(validateChecklist(checklist, plane));
           const category = importCategory.trim();
           if (category && category !== 'Standard') {
             if (!planes.some(p => p.id === planeId)) {
               await importPlane(plane, checklist);
             }
             addVariant(planeId, category, checklist);
-            setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}`);
+            setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
           } else {
             await importPlane(plane, checklist);
-            setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}`);
+            setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
             if (!isAdmin) {
               const submitToAll = window.confirm(`Would you also like to submit "${name}" for all users? (Requires admin approval)`);
               if (submitToAll) {
@@ -403,7 +406,8 @@ export function Home() {
         // Format 2: Single plane { plane: {...}, checklist: {...} }
         if (json.plane && json.checklist && json.checklist.phases) {
           await importPlane(json.plane, json.checklist);
-          setImportSummary(`Imported "${json.plane.name}" successfully.${isAdmin ? ' (shared)' : ''}`);
+          const fmt2Warnings = formatWarnings(validateChecklist(json.checklist, json.plane));
+          setImportSummary(`Imported "${json.plane.name}" successfully.${isAdmin ? ' (shared)' : ''}${fmt2Warnings}`);
           return;
         }
 
@@ -414,7 +418,8 @@ export function Home() {
           const plane = { id: planeId, name, manufacturer: json.manufacturer || '', image: json.image || '', type: json.type || 'GA' };
           const checklist = { planeId, phases: json.phases };
           await importPlane(plane, checklist);
-          setImportSummary(`Imported "${name}" with ${json.phases.length} phase(s).${isAdmin ? ' (shared)' : ''}`);
+          const fmt3Warnings = formatWarnings(validateChecklist(checklist, plane));
+          setImportSummary(`Imported "${name}" with ${json.phases.length} phase(s).${isAdmin ? ' (shared)' : ''}${fmt3Warnings}`);
           return;
         }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Upload, FileText, AlertCircle, Check } from 'lucide-react';
+import { Upload, FileText, AlertCircle, Check, AlertTriangle, Info } from 'lucide-react';
 import { extractFileText, parseChecklistText } from '../utils/checklistFileParser';
+import { validateChecklist, type ImportWarning } from '../utils/checklistValidator';
 import styles from './FileImportModal.module.css';
 import type { Plane, PlaneChecklist } from '../data/types';
 
@@ -18,6 +19,7 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
   const [planeName, setPlaneName] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [result, setResult] = useState<{ plane: Plane; checklist: PlaneChecklist } | null>(null);
+  const [warnings, setWarnings] = useState<ImportWarning[]>([]);
 
   const handleFile = async (file: File) => {
     setStep('parsing');
@@ -40,9 +42,11 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
     try {
       const parsed = parseChecklistText(rawText, planeName.trim(), manufacturer.trim());
       setResult(parsed);
+      setWarnings(validateChecklist(parsed.checklist, parsed.plane));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse checklist');
       setResult(null);
+      setWarnings([]);
     }
   };
 
@@ -103,7 +107,7 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
                 <input
                   className={styles.input}
                   value={planeName}
-                  onChange={(e) => { setPlaneName(e.target.value); setResult(null); }}
+                  onChange={(e) => { setPlaneName(e.target.value); setResult(null); setWarnings([]); }}
                   placeholder="e.g. Cessna 208B"
                 />
               </div>
@@ -112,7 +116,7 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
                 <input
                   className={styles.input}
                   value={manufacturer}
-                  onChange={(e) => { setManufacturer(e.target.value); setResult(null); }}
+                  onChange={(e) => { setManufacturer(e.target.value); setResult(null); setWarnings([]); }}
                   placeholder="e.g. Cessna"
                 />
               </div>
@@ -144,6 +148,19 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {warnings.length > 0 && (
+              <div className={styles.warningsList}>
+                {warnings.map((w, i) => (
+                  <div key={i} className={`${styles.warningItem} ${styles[w.level]}`}>
+                    {w.level === 'error' ? <AlertCircle size={14} /> :
+                     w.level === 'warning' ? <AlertTriangle size={14} /> :
+                     <Info size={14} />}
+                    <span>{w.message}</span>
+                  </div>
+                ))}
               </div>
             )}
 
