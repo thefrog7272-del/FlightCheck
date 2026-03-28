@@ -490,11 +490,6 @@ export function Checklist() {
           onReset={timer.reset}
           bestTime={timerBest}
         />
-      </div>
-
-      <span className={styles.srOnly} aria-live="polite">
-        {Math.round(overallProgress)}% complete, {completedItems} of {totalItems} items
-      </span>
       <div className={styles.searchBar}>
         <Search className={styles.searchIcon} size={18} />
         <input
@@ -511,6 +506,11 @@ export function Checklist() {
           </button>
         )}
       </div>
+      </div>
+
+      <span className={styles.srOnly} aria-live="polite">
+        {Math.round(overallProgress)}% complete, {completedItems} of {totalItems} items
+      </span>
       {query && (
         <span className={styles.searchResultCount}>
           {searchResultCount} item{searchResultCount !== 1 ? 's' : ''} found
