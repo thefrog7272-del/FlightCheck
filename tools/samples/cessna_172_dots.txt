@@ -1,0 +1,110 @@
+CESSNA 172S SKYHAWK NORMAL CHECKLIST
+
+PRE-START INSPECTION
+Preflight Inspection .................. COMPLETE
+Passenger Briefing .................... COMPLETE
+Seats, Belts, Harnesses ............... ADJUST & LOCK
+Brakes ................................ TEST & SET
+Circuit Breakers ...................... CHECK IN
+Electrical Equipment .................. OFF
+Avionics Master Switch ................ OFF
+Fuel Selector Valve ................... BOTH
+Fuel Shutoff Valve .................... ON (PUSH IN)
+
+ENGINE START
+Mixture ............................... IDLE CUTOFF
+Throttle .............................. OPEN 1/4 INCH
+Propeller Area ........................ CLEAR
+Master Switch ......................... ON
+Beacon Light .......................... ON
+Auxiliary Fuel Pump ................... ON
+Mixture ............................... ADVANCE TO RICH
+Ignition Switch ....................... START
+Oil Pressure .......................... CHECK
+Auxiliary Fuel Pump ................... OFF
+
+BEFORE TAXI
+Flaps ................................. SET FOR TAKEOFF
+Radios & Avionics ..................... SET
+Transponder ........................... STANDBY
+Altimeter ............................. SET
+Taxi Light ............................ AS REQUIRED
+
+TAXI
+Brakes ................................ CHECK
+Instruments ........................... CHECK
+Heading Indicator ..................... ALIGN TO COMPASS
+
+BEFORE TAKEOFF (RUNUP)
+Parking Brake ......................... SET
+Seats, Belts, Harnesses ............... CHECK
+Doors & Windows ....................... CLOSED & LOCKED
+Flight Controls ....................... FREE & CORRECT
+Flight Instruments .................... CHECK & SET
+Fuel Quantity ......................... CHECK
+Mixture ............................... RICH
+Fuel Selector ......................... BOTH
+Throttle .............................. 1800 RPM
+Magnetos .............................. CHECK (MAX DROP 150 RPM)
+Vacuum Gage ........................... CHECK
+Ammeter / Voltmeter ................... CHECK
+Engine Instruments .................... CHECK
+Throttle .............................. CHECK IDLE
+Throttle .............................. 1000 RPM
+Flaps ................................. SET FOR TAKEOFF
+Trim .................................. SET FOR TAKEOFF
+Autopilot ............................. OFF
+
+TAKEOFF
+Flaps ................................. AS SET
+Throttle .............................. FULL OPEN
+Mixture ............................... RICH
+Elevator .............................. ROTATE AT 55 KIAS
+Climb Speed ........................... 70-80 KIAS
+Flaps ................................. RETRACT AT SAFE ALTITUDE
+
+CLIMB
+Airspeed .............................. 70-85 KIAS
+Throttle .............................. FULL
+Mixture ............................... RICH (LEAN ABOVE 3000 FT)
+Engine Instruments .................... MONITOR
+Landing Light ......................... OFF ABOVE 1000 FT AGL
+
+CRUISE
+Power ................................. 2100-2700 RPM
+Mixture ............................... LEAN FOR BEST ECONOMY
+Elevator Trim ......................... ADJUST
+Engine Instruments .................... MONITOR
+
+DESCENT
+Fuel Selector ......................... BOTH
+Mixture ............................... ENRICHEN AS REQUIRED
+Power ................................. AS REQUIRED
+Altimeter ............................. SET TO LOCAL
+Landing Light ......................... ON BELOW 10000 FT
+
+BEFORE LANDING
+Seats, Belts, Harnesses ............... CHECK SECURE
+Fuel Selector ......................... BOTH
+Mixture ............................... RICH
+Flaps ................................. AS REQUIRED
+Airspeed .............................. 65-75 KIAS (FINAL)
+Autopilot ............................. OFF
+Landing Light ......................... ON
+
+AFTER LANDING
+Flaps ................................. UP
+Carburetor Heat ....................... OFF
+Transponder ........................... STANDBY
+Landing Light ......................... OFF
+Taxi Light ............................ AS REQUIRED
+
+SHUTDOWN
+Parking Brake ......................... SET
+Avionics .............................. OFF
+Throttle .............................. IDLE
+Mixture ............................... IDLE CUTOFF
+Ignition Switch ....................... OFF
+Master Switch ......................... OFF
+Fuel Selector ......................... LEFT OR RIGHT
+Control Lock .......................... INSTALL

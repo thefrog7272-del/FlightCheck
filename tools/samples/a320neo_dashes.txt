@@ -1,0 +1,96 @@
+Airbus A320neo Normal Checklist
+
+COCKPIT PREPARATION
+ADIRS - NAV
+Seat Belts Sign - ON
+Baro Ref - SET (QNH)
+ECAM Recall - CHECK NO FAULTS
+Fuel Quantity - CHECK
+Speedbrake - RETRACTED
+
+BEFORE START
+Parking Brake - SET
+Beacon - ON
+Thrust Levers - IDLE
+Windows - CLOSED & LOCKED
+Cabin Crew - ADVISED
+
+ENGINE START
+Engine Mode Selector - IGN/START
+Engine Master 1 - ON
+N2 Rising - CONFIRM
+Engine Master 2 - ON
+N2 Rising - CONFIRM
+Engine Mode Selector - NORM
+
+AFTER START
+Anti-Ice - AS REQUIRED
+ECAM Status - CHECK
+Pitch Trim - SET
+Flight Controls - CHECK
+Rudder Trim - ZERO
+
+BEFORE TAKEOFF
+Takeoff Config - TEST / NO WARNINGS
+Cabin Crew - NOTIFIED
+Transponder - TA/RA
+TCAS - TA/RA
+Packs - AS REQUIRED
+External Lights - ON
+
+TAKEOFF
+Brakes - RELEASE
+Thrust - FLEX/TOGA
+100 Knots - CROSS-CHECK
+V1 - CALL
+VR - ROTATE
+V2 - CONFIRM
+Positive Rate - GEAR UP
+
+AFTER TAKEOFF
+Landing Gear - UP / RETRACTED
+Flaps - RETRACT ON SCHEDULE
+Packs - ON
+Ground Spoilers - DISARM
+
+CLIMB
+Altitude - VERIFY
+Altimeter - SET / CROSS-CHECK
+Autopilot - ENGAGE AS DESIRED
+Anti-Ice - AS REQUIRED
+
+CRUISE
+Fuel - CHECK / BALANCE
+Engine Parameters - MONITOR
+Altimeters - SET / STD ABOVE TL
+
+DESCENT
+ATIS - OBTAIN
+Approach Briefing - COMPLETE
+ECAM Status - CHECK
+Altimeters - SET LOCAL QNH
+Minimums - SET
+
+APPROACH
+Landing Gear - DOWN / 3 GREEN
+Flaps - FULL / AS REQUIRED
+Speedbrake - ARM
+Autobrake - SET
+Go-Around Altitude - SET
+
+AFTER LANDING
+Ground Spoilers - DISARM
+Flaps - RETRACT
+Anti-Ice - OFF
+APU - START IF REQUIRED
+Radar & PWS - OFF
+Exterior Lights - AS REQUIRED
+
+PARKING
+Parking Brake - SET
+Engines - OFF
+Seat Belts Sign - OFF
+External Power - CONNECT IF AVAILABLE
+APU Bleed - ON
+Anti-Collision Beacon - OFF
+Fuel Pumps - OFF

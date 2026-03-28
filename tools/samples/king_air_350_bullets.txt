@@ -1,0 +1,104 @@
+Beechcraft King Air 350 Checklist
+
+Before Starting Engines:
+- Parking Brake
+- Battery Switch
+- Avionics Master Switch
+- Fuel Quantity
+- Fuel Selectors
+- Generator Switches
+- Prop Levers
+- Power Levers
+- Condition Levers
+
+Engine Start:
+- Left Condition Lever
+- Left Starter Button
+- Left ITT
+- Left Ng
+- Left Generator
+- Right Condition Lever
+- Right Starter Button
+- Right ITT
+- Right Ng
+- Right Generator
+- Inverter Switch
+
+Before Taxi:
+- Flaps
+- Flight Instruments
+- Altimeter
+- Heading Indicator
+- NAV Radios
+- Autopilot
+- Trims
+- Pressurization
+
+Taxi:
+1. Brakes
+2. Instruments
+3. Nosewheel Steering
+4. Heading Indicator
+
+Before Takeoff:
+1. Seats, Belts, Harnesses
+2. Doors and Windows
+3. Flight Controls
+4. Trim
+5. Flaps
+6. Prop Levers
+7. Condition Levers
+8. Autofeather
+9. Anti-Ice
+10. Pitot Heat
+11. Transponder
+12. Lights
+
+Takeoff:
+1. Power Levers
+2. Airspeed
+3. Rotate
+4. Positive Rate / Gear Up
+5. Climb Power
+
+Climb:
+- Power
+- Prop RPM
+- Airspeed
+- Pressurization
+- Engine Instruments
+
+Cruise:
+- Power Setting
+- Prop RPM
+- Condition Levers
+- Pressurization
+- Fuel Balance
+
+Descent:
+- Pressurization
+- Altimeter
+- Airspeed
+- Anti-Ice
+
+Before Landing:
+- Seats, Belts, Harnesses
+- Props
+- Gear
+- Flaps
+- Airspeed
+
+After Landing:
+1. Flaps
+2. Props
+3. Condition Levers
+4. Anti-Ice
+5. Transponder
+6. Landing / Taxi Lights
+
+Shutdown:
+1. Parking Brake
+2. Avionics
+3. Condition Levers
+4. Battery
+5. Fuel Selectors
