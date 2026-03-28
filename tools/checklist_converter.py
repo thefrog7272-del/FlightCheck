@@ -45,6 +45,7 @@ HAS_PDFPLUMBER = _check_dep("pdfplumber", "pdfplumber")
 HAS_DOCX = _check_dep("docx", "python-docx")
 HAS_OPENPYXL = _check_dep("openpyxl", "openpyxl")
 HAS_REQUESTS = _check_dep("requests", "requests")
+HAS_FITZ = _check_dep("fitz", "pymupdf")
 
 # ---------------------------------------------------------------------------
 # Data model (mirrors FlightCheck's TypeScript types)
@@ -67,8 +68,9 @@ class ChecklistItem:
 
 
 class ChecklistPhase:
-    def __init__(self, title: str):
+    def __init__(self, title: str, category: str = ""):
         self.title = title
+        self.category = category
         self.items: list[ChecklistItem] = []
 
     def to_dict(self) -> dict:
@@ -122,7 +124,14 @@ class ParsedChecklist:
 
     def to_csv_rows(self) -> list[list[str]]:
         rows: list[list[str]] = []
+        # When the document has explicit section headers (Normal/Abnormal/Emergency
+        # Checklist), drop any phases that appeared before the first header — these
+        # are typically reference data or noise from speed/performance tables.
+        has_sections = any(p.category for p in self.phases)
         for phase in self.phases:
+            cat = phase.category if phase.category else self.category
+            if has_sections and not cat:
+                continue
             for item in phase.items:
                 rows.append(
                     [
@@ -134,7 +143,7 @@ class ParsedChecklist:
                         item.label,
                         item.expected_state,
                         item.notes,
-                        self.category,
+                        cat,
                     ]
                 )
         return rows
@@ -153,17 +162,18 @@ def extract_pdf_text(filepath: str) -> str:
     lines: list[str] = []
     with pdfplumber.open(filepath) as pdf:
         for page in pdf.pages:
-            # Try table extraction first — many checklists are formatted as tables
-            tables = page.extract_tables()
-            if tables:
-                for table in tables:
+            # Prefer text extraction: handles pages with mixed table+checklist content
+            # correctly (table extraction drops non-table text on the same page).
+            text = page.extract_text()
+            if text and text.strip():
+                lines.append(text)
+            else:
+                # Fall back to table extraction for pages with no extractable text
+                for table in page.extract_tables():
                     for row in table:
                         cells = [c.strip() if c else "" for c in row]
-                        lines.append("\t".join(cells))
-            else:
-                text = page.extract_text()
-                if text:
-                    lines.append(text)
+                        if any(cells):
+                            lines.append("\t".join(cells))
     return "\n".join(lines)
 
 
@@ -274,12 +284,40 @@ PHASE_KEYWORDS = re.compile(
     r"landing|climb|cruise|descent|approach|shutdown|securing|startup|"
     r"run[- ]?up|normal|emergency|abnormal|ground\s|parking|ramp|"
     r"starting|before\s+start|after\s+start|in[- ]?flight|go[- ]?around|"
-    r"missed\s+approach|holding|balked\s+landing)",
+    r"missed\s+approach|holding|balked\s+landing|"
+    r"short\s|enroute\s|air\s+start|asymmetric|precautionary|ditching|"
+    r"generator|inverter|starter\s|battery\s|cabin\s|wing\s+fire|"
+    r"electrical\s+fire|fcu\s|loss\s+of|fuel\s+reservoir|"
+    r"upper\s+half|lower\s+half|crew\s+door|cargo\s+pod|"
+    r"windmill|overheated|flaps\s+fail)",
+    re.IGNORECASE,
+)
+
+# Detects top-level checklist section headers (become the CSV `category` field)
+_SECTION_RE = re.compile(
+    r"\b(normal|abnormal|emergency)\s+checklist\b",
+    re.IGNORECASE,
+)
+
+# Phase headers that use "Title: Sub-condition" format (e.g., "Emergency descent: Rough air")
+# All other "Label: Value" lines are treated as items, not phase headers
+_COLON_PHASE_RE = re.compile(
+    r"^(emergency\s+(descent|landing)|engine\s+(start|fire)|"
+    r"air\s+start|enroute\s+climb|short\s+(takeoff|take-off|field))\s*:",
     re.IGNORECASE,
 )
 
 
 def _is_phase_header(line: str) -> bool:
+    # Conditional lines ("If X:") are never phase headers
+    if re.match(r"^[Ii]f\s", line):
+        return False
+
+    # Lines with "Label: Value" format are items, not headers — with one exception:
+    # specific procedure titles like "Emergency descent: Rough air"
+    if re.search(r":\s+\S", line):
+        return bool(_COLON_PHASE_RE.match(line))
+
     clean = line.rstrip(":").strip()
 
     # ALL CAPS with at least 3 letter characters
@@ -293,8 +331,8 @@ def _is_phase_header(line: str) -> bool:
     if line.endswith(":") and len(line) < 60 and "..." not in line:
         return True
 
-    # Matches common phase keywords (but not if it looks like a challenge-response item)
-    if PHASE_KEYWORDS.search(clean) and len(clean) < 50 and not re.search(r"\.{3,}|_{3,}|\s+-\s+", line):
+    # Matches common phase keywords (but not if it looks like a challenge-response item or tab-row)
+    if PHASE_KEYWORDS.search(clean) and len(clean) < 50 and not re.search(r"\.{3,}|_{3,}|\t|\s+-\s+", line):
         return True
 
     return False
@@ -316,15 +354,20 @@ def _parse_item_line(line: str) -> tuple[str, str] | None:
     if m:
         return m.group(1).strip(), m.group(2).strip()
 
+    # Pattern 1b: "Label: Value" (colon + space) — common in PDF checklists
+    m = re.match(r"^(.{2,}?):\s+(.+)$", line)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+
     # Pattern 2: "Label - STATE" or "Label -- STATE"
     m = re.match(r"^(.{2,}?)\s+-{1,3}\s+([A-Z][A-Z0-9 /()\-&_,.]{1,40})$", line)
     if m:
         return m.group(1).strip(), m.group(2).strip()
 
-    # Pattern 3: Tab-separated "Label\tSTATE"
+    # Pattern 3: Tab-separated "Label\tSTATE" (pdfplumber table extraction)
     m = re.match(r"^(.+?)\t+(.+)$", line)
     if m and len(m.group(2).strip()) < 40:
-        return m.group(1).strip(), m.group(2).strip()
+        return m.group(1).strip().rstrip(":"), m.group(2).strip()
 
     # Pattern 4: "Label    STATE" (3+ spaces, state is ALL CAPS)
     m = re.match(r"^(.{5,}?)\s{3,}([A-Z][A-Z0-9 /()\-&_,.]{1,40})$", line)
@@ -349,23 +392,31 @@ def parse_text_to_checklist(text: str) -> list[ChecklistPhase]:
     raw_lines = [l.strip() for l in text.split("\n") if l.strip()]
     phases: list[ChecklistPhase] = []
     current_phase: ChecklistPhase | None = None
+    current_category: str = ""
 
     for line in raw_lines:
         if len(line) < 3:
+            continue
+
+        # Detect top-level section headers (Normal/Abnormal/Emergency Checklist)
+        section_match = _SECTION_RE.search(line)
+        if section_match:
+            kind = section_match.group(1).title()
+            current_category = f"{kind} Checklist"
             continue
 
         if _is_phase_header(line):
             title = _clean_phase_title(line)
             if len(title) < 2:
                 continue
-            current_phase = ChecklistPhase(title)
+            current_phase = ChecklistPhase(title, category=current_category)
             phases.append(current_phase)
             continue
 
         parsed = _parse_item_line(line)
         if parsed:
             if current_phase is None:
-                current_phase = ChecklistPhase("General")
+                current_phase = ChecklistPhase("General", category=current_category)
                 phases.append(current_phase)
             label, state = parsed
             current_phase.items.append(ChecklistItem(label, state))
@@ -568,6 +619,61 @@ def parse_google_sheet(url: str) -> ParsedChecklist:
 
 
 # ---------------------------------------------------------------------------
+# Reference table image export
+# ---------------------------------------------------------------------------
+
+
+def save_reference_images(filepath: str, output_dir: str) -> list[str]:
+    """Find all tables in a PDF (speed/performance reference tables) and save each
+    as a JPEG image. Requires pdfplumber (for table detection) and pymupdf (for
+    rendering). Returns the list of saved image paths."""
+    if not HAS_PDFPLUMBER:
+        return []
+    if not HAS_FITZ:
+        print("  Tip: pip install pymupdf to export reference tables as images")
+        return []
+
+    import pdfplumber
+    import fitz  # pymupdf
+
+    stem = Path(filepath).stem
+    saved: list[str] = []
+
+    with pdfplumber.open(filepath) as pdf:
+        doc = fitz.open(filepath)
+        for page_idx, page in enumerate(pdf.pages):
+            table_specs = page.find_tables()
+            if not table_specs:
+                continue
+
+            fitz_page = doc[page_idx]
+            pw = fitz_page.rect.width
+            ph = fitz_page.rect.height
+
+            for ti, table_spec in enumerate(table_specs):
+                x0, top, x1, bottom = table_spec.bbox
+                pad = 10
+                clip = fitz.Rect(
+                    max(0, x0 - pad),
+                    max(0, top - pad),
+                    min(pw, x1 + pad),
+                    min(ph, bottom + pad),
+                )
+                mat = fitz.Matrix(2, 2)  # 2× zoom → ~144 dpi
+                pix = fitz_page.get_pixmap(matrix=mat, clip=clip)
+
+                suffix = f"_p{page_idx + 1}_t{ti + 1}" if len(table_specs) > 1 else f"_p{page_idx + 1}"
+                path = os.path.join(output_dir, f"{stem}_ref{suffix}.jpg")
+                pix.save(path, "jpeg")
+                saved.append(path)
+                print(f"  Saved reference image: {path}")
+
+        doc.close()
+
+    return saved
+
+
+# ---------------------------------------------------------------------------
 # Output writers
 # ---------------------------------------------------------------------------
 
@@ -736,6 +842,10 @@ def interactive_mode() -> None:
         json_path = os.path.join(output_dir, f"{default_stem}.json")
         write_json(checklist, json_path)
 
+    # For PDFs, export any reference/performance tables as JPEG images
+    if not is_url and Path(source).suffix.lower() == ".pdf":
+        save_reference_images(source, output_dir)
+
     print("\nDone!")
 
 
@@ -852,6 +962,10 @@ Supported outputs: .csv (FlightCheck format), .json (FlightCheck format)
         write_csv(checklist, os.path.join(output_dir, f"{default_stem}.csv"))
     if args.format in ("json", "both"):
         write_json(checklist, os.path.join(output_dir, f"{default_stem}.json"))
+
+    # For PDFs, export any reference/performance tables as JPEG images
+    if not is_url and Path(source).suffix.lower() == ".pdf":
+        save_reference_images(source, output_dir)
 
     print("\nDone!")
 
