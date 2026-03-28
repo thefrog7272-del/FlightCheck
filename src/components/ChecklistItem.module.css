@@ -59,8 +59,16 @@
 .content {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.labelRow {
+  display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
 }
 
 .label {
@@ -117,6 +125,42 @@
   border-radius: var(--radius);
   border: 1px solid var(--border);
   margin-top: 0.5rem;
+}
+
+.referenceTableWrapper {
+  overflow-x: auto;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.referenceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.referenceTable th,
+.referenceTable td {
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.referenceTable thead tr {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.referenceTable tbody tr:nth-child(even) {
+  background-color: var(--bg-secondary);
+}
+
+.referenceTable tbody tr:hover {
+  background-color: rgba(59, 130, 246, 0.08);
 }
 
 .noteButton {

@@ -12,8 +12,36 @@ interface ChecklistItemProps {
   onNoteChange?: (text: string) => void;
 }
 
+const TABLE_PREFIX = 'data:table/json,';
+
+function ReferenceTable({ data, label }: { data: string; label: string }) {
+  let rows: string[][] = [];
+  try {
+    rows = JSON.parse(data.slice(TABLE_PREFIX.length));
+  } catch {
+    return <span className={styles.importedNote}>Could not parse table data</span>;
+  }
+  if (!rows.length) return null;
+  const [headers, ...body] = rows;
+  return (
+    <div className={styles.referenceTableWrapper}>
+      <table className={styles.referenceTable} aria-label={label}>
+        <thead>
+          <tr>{headers.map((h, i) => <th key={i}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {body.map((row, ri) => (
+            <tr key={ri}>{row.map((cell, ci) => <td key={ci}>{cell}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: ChecklistItemProps) {
   const [showNote, setShowNote] = useState(false);
+  const hasTableNote = item.notes?.startsWith(TABLE_PREFIX) ?? false;
 
   return (
     <div className={styles.wrapper}>
@@ -35,17 +63,23 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: C
           {checked && <Check className={styles.icon} />}
         </div>
         <div className={styles.content}>
-          <span className={styles.label}>{item.label}</span>
-          <div className={styles.stateGroup}>
-            {item.expectedState && (
-              <span className={styles.state}>{item.expectedState}</span>
-            )}
-            {item.notes && (
-              item.notes.startsWith('data:image/')
-                ? <img src={item.notes} className={styles.referenceImage} alt={item.label} />
-                : <span className={styles.importedNote}>{item.notes}</span>
-            )}
+          <div className={styles.labelRow}>
+            <span className={styles.label}>{item.label}</span>
+            <div className={styles.stateGroup}>
+              {item.expectedState && (
+                <span className={styles.state}>{item.expectedState}</span>
+              )}
+              {item.notes?.startsWith('data:image/') && (
+                <img src={item.notes} className={styles.referenceImage} alt={item.label} />
+              )}
+              {item.notes && !item.notes.startsWith('data:image/') && !hasTableNote && (
+                <span className={styles.importedNote}>{item.notes}</span>
+              )}
+            </div>
           </div>
+          {hasTableNote && (
+            <ReferenceTable data={item.notes!} label={item.label} />
+          )}
         </div>
         {onNoteChange && (
           <button
