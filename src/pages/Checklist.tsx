@@ -467,22 +467,6 @@ export function Checklist() {
           </div>
         </div>
 
-        {/* Overall progress */}
-        {!isReferenceVariant && <div className={clsx(styles.overallProgress, overallProgress === 100 && styles.overallComplete)}>
-          <div className={styles.overallProgressInfo}>
-            <span className={styles.overallLabel}>Overall Progress</span>
-            <span className={styles.overallCount}>
-              {completedItems} / {totalItems} items
-            </span>
-          </div>
-          <div className={styles.overallBar}>
-            <div
-              className={styles.overallFill}
-              style={{ width: `${overallProgress}%` }}
-            />
-          </div>
-          <span className={styles.overallPercent}>{Math.round(overallProgress)}%</span>
-        </div>}
         <Timer
           elapsed={timer.elapsed}
           isRunning={timer.isRunning}
