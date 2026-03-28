@@ -632,6 +632,29 @@ def parse_google_sheet(url: str) -> ParsedChecklist:
 # ---------------------------------------------------------------------------
 
 
+def _find_table_title(page: object, bbox: tuple, table_num: int, page_num: int) -> str:
+    """Extract a title for a table by reading the text immediately above its bounding box.
+    Falls back to 'Table N — Page P' if no suitable text is found."""
+    try:
+        x0, top, x1, bottom = bbox
+        # Look at up to 80pt above the table, full page width
+        search_top = max(0, top - 80)
+        if search_top >= top:
+            return f"Table {table_num} — Page {page_num}"
+        above = page.crop((0, search_top, page.width, top))
+        raw = above.extract_text(x_tolerance=3, y_tolerance=3) or ""
+        # Take the last non-empty line (closest to the table)
+        lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+        if lines:
+            candidate = lines[-1]
+            # Reject lines that look like page numbers or are too short
+            if len(candidate) >= 4 and not candidate.isdigit():
+                return candidate
+    except Exception:
+        pass
+    return f"Table {table_num} — Page {page_num}"
+
+
 def _extract_table_data_as_json(filepath: str) -> list[tuple[str, str]]:
     """Extract cell data from PDF tables using pdfplumber and return
     (label, data_uri) pairs encoded as JSON for rendering as styled web
@@ -658,7 +681,8 @@ def _extract_table_data_as_json(filepath: str) -> list[tuple[str, str]]:
                 # Skip degenerate tables (fewer than 2 non-empty cells)
                 if sum(1 for row in cleaned for cell in row if cell) < 2:
                     continue
-                label = f"Table {len(results) + 1} — Page {page_idx + 1}"
+                # Try to find a title by extracting text just above the table
+                label = _find_table_title(page, table_spec.bbox, len(results) + 1, page_idx + 1)
                 encoded = json.dumps(cleaned, ensure_ascii=False, separators=(",", ":"))
                 results.append((label, f"data:table/json,{encoded}"))
     return results
