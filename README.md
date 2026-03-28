@@ -1,4 +1,5 @@
 # FlightCheck
+<img width="400" height="400" alt="d98a74b0-72f1-4539-9257-e9bf89094b3b" src="https://github.com/user-attachments/assets/6d66d328-9f9f-485c-a02a-5476bea90845" />
 
 An interactive flight simulator checklist web app, built with React, TypeScript, and Vite. Designed to be used alongside MSFS, X-Plane, or any flight sim as a digital Electronic Flight Bag (EFB).
 
