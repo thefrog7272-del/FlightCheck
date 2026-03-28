@@ -575,8 +575,25 @@ export function Home() {
 
       {showFileImport && (
         <FileImportModal
-          onImport={async (plane, checklist) => {
+          onImport={async (plane, checklist, variants) => {
             await importPlane(plane, checklist);
+            // Import any variants (e.g. Reference Tables) returned by the Lambda
+            if (variants && Object.keys(variants).length > 0) {
+              for (const [variantName, variantChecklist] of Object.entries(variants)) {
+                if (isAdmin) {
+                  const variantPlaneId = `${plane.id}::${variantName}`;
+                  const allCl = await listAllSharedChecklists();
+                  const existing = allCl.find(c => c.planeId === variantPlaneId);
+                  if (existing) {
+                    await updateSharedChecklist(existing.id, JSON.stringify(variantChecklist.phases));
+                  } else {
+                    await createSharedChecklist({ planeId: variantPlaneId, phases: JSON.stringify(variantChecklist.phases) });
+                  }
+                } else {
+                  addVariant(plane.id, variantName, variantChecklist);
+                }
+              }
+            }
             setShowFileImport(false);
             if (!isAdmin) {
               const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
