@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+# Converter output files (not samples)
+*.csv
+*.jpg
+*.jpeg
+*.png
+!samples/
