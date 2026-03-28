@@ -542,6 +542,15 @@ def parse_file(filepath: str) -> ParsedChecklist:
         phases = parse_text_to_checklist(text)
         result = ParsedChecklist()
         result.phases = phases
+        # Embed reference tables as a separate variant so they appear under
+        # the sub-checklist menu in FlightCheck rather than in the main list.
+        table_images = _extract_table_images_as_b64(filepath)
+        if table_images:
+            ref_phase = ChecklistPhase("Reference Tables", category="Reference Tables")
+            for label, data_uri in table_images:
+                ref_phase.items.append(ChecklistItem(label, notes=data_uri))
+            result.phases.append(ref_phase)
+            print(f"  Embedded {len(table_images)} reference table image(s) as 'Reference Tables' variant")
         return result
 
     elif ext == ".docx":
@@ -621,6 +630,40 @@ def parse_google_sheet(url: str) -> ParsedChecklist:
 # ---------------------------------------------------------------------------
 # Reference table image export
 # ---------------------------------------------------------------------------
+
+
+def _extract_table_images_as_b64(filepath: str) -> list[tuple[str, str]]:
+    """Render each PDF table as a JPEG and return (label, data_uri) pairs for
+    embedding directly in the checklist CSV as a 'Reference Tables' variant."""
+    if not HAS_PDFPLUMBER or not HAS_FITZ:
+        return []
+    import pdfplumber
+    import fitz
+    import base64
+
+    results: list[tuple[str, str]] = []
+    with pdfplumber.open(filepath) as pdf:
+        doc = fitz.open(filepath)
+        for page_idx, page in enumerate(pdf.pages):
+            table_specs = page.find_tables()
+            if not table_specs:
+                continue
+            fitz_page = doc[page_idx]
+            pw = fitz_page.rect.width
+            ph = fitz_page.rect.height
+            for ti, table_spec in enumerate(table_specs):
+                x0, top, x1, bottom = table_spec.bbox
+                pad = 10
+                clip = fitz.Rect(
+                    max(0, x0 - pad), max(0, top - pad),
+                    min(pw, x1 + pad), min(ph, bottom + pad),
+                )
+                pix = fitz_page.get_pixmap(matrix=fitz.Matrix(2, 2), clip=clip)
+                b64 = base64.b64encode(pix.tobytes("jpeg")).decode("ascii")
+                label = f"Table {len(results) + 1} — Page {page_idx + 1}"
+                results.append((label, f"data:image/jpeg;base64,{b64}"))
+        doc.close()
+    return results
 
 
 def save_reference_images(filepath: str, output_dir: str) -> list[str]:

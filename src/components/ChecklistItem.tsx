@@ -41,7 +41,9 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: C
               <span className={styles.state}>{item.expectedState}</span>
             )}
             {item.notes && (
-              <span className={styles.importedNote}>{item.notes}</span>
+              item.notes.startsWith('data:image/')
+                ? <img src={item.notes} className={styles.referenceImage} alt={item.label} />
+                : <span className={styles.importedNote}>{item.notes}</span>
             )}
           </div>
         </div>
