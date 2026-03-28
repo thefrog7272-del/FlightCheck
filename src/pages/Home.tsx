@@ -13,13 +13,6 @@ import { createSharedPlane, createSharedChecklist, createPendingSubmission, list
 import type { Plane, PlaneChecklist } from '../data/types';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
-type SimFilter = 'all' | 'msfs2020' | 'msfs2024';
-
-const SIM_LABELS: Record<SimFilter, string> = {
-  all: 'All Sims',
-  msfs2020: 'MSFS 2020',
-  msfs2024: 'MSFS 2024',
-};
 
 export function Home() {
   const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
@@ -28,7 +21,6 @@ export function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [filterType, setFilterType] = useState('All');
-  const [filterSim, setFilterSim] = useState<SimFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [csvInput, setCsvInput] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -184,11 +176,7 @@ export function Home() {
       const matchesSearch = plane.name.toLowerCase().includes(query) ||
         plane.manufacturer.toLowerCase().includes(query);
       const matchesType = filterType === 'All' || plane.type === filterType;
-      const matchesSim = filterSim === 'all' ||
-        plane.sim === filterSim ||
-        plane.sim === 'both' ||
-        !plane.sim; // custom planes without sim tag show in all
-      return matchesSearch && matchesType && matchesSim;
+      return matchesSearch && matchesType;
     });
 
     result.sort((a, b) => {
@@ -214,7 +202,7 @@ export function Home() {
     });
 
     return result;
-  }, [planes, searchQuery, filterType, filterSim, sortBy, favoriteIds]);
+  }, [planes, searchQuery, filterType, sortBy, favoriteIds]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -510,20 +498,6 @@ export function Home() {
             <ChevronDown className={styles.sortIcon} size={16} />
           </div>
         </div>
-      </div>
-
-      <div className={styles.simTabs} role="radiogroup" aria-label="Filter by simulator">
-        {(Object.keys(SIM_LABELS) as SimFilter[]).map(sim => (
-          <button
-            key={sim}
-            className={`${styles.simTab} ${filterSim === sim ? styles.simTabActive : ''}`}
-            onClick={() => setFilterSim(sim)}
-            role="radio"
-            aria-checked={filterSim === sim}
-          >
-            {SIM_LABELS[sim]}
-          </button>
-        ))}
       </div>
 
       {recentPlanes.length > 0 && !searchQuery && (
