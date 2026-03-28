@@ -187,6 +187,7 @@ export function Checklist() {
   }
 
   const checklistKey = variantKey ?? (plane?.id || '');
+  const isReferenceVariant = activeVariant === 'Reference Tables';
 
   const autoAdvancePhase = (updatedItems: Record<string, boolean>) => {
     if (isEditing) return;
@@ -467,7 +468,7 @@ export function Checklist() {
         </div>
 
         {/* Overall progress */}
-        <div className={clsx(styles.overallProgress, overallProgress === 100 && styles.overallComplete)}>
+        {!isReferenceVariant && <div className={clsx(styles.overallProgress, overallProgress === 100 && styles.overallComplete)}>
           <div className={styles.overallProgressInfo}>
             <span className={styles.overallLabel}>Overall Progress</span>
             <span className={styles.overallCount}>
@@ -481,7 +482,7 @@ export function Checklist() {
             />
           </div>
           <span className={styles.overallPercent}>{Math.round(overallProgress)}%</span>
-        </div>
+        </div>}
         <Timer
           elapsed={timer.elapsed}
           isRunning={timer.isRunning}
@@ -538,7 +539,7 @@ export function Checklist() {
                     {isCollapsed ? <ChevronRight size={20} /> : <ChevronDown size={20} />}
                     <h2 className={styles.phaseTitle}>{phase.title}</h2>
                   </div>
-                  <div className={styles.progressWrapper}>
+                  {!isReferenceVariant && <div className={styles.progressWrapper}>
                     <div className={styles.progressBar}>
                       <div
                         className={styles.progressFill}
@@ -548,9 +549,9 @@ export function Checklist() {
                     <span className={styles.progressText}>
                       {Math.round(progress)}%
                     </span>
-                  </div>
+                  </div>}
                 </div>
-                {!isEditing && phase.items.length > 0 && (
+                {!isEditing && !isReferenceVariant && phase.items.length > 0 && (
                   <button
                     className={styles.toggleAllButton}
                     onClick={() => {
