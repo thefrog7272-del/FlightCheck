@@ -218,9 +218,19 @@ export function useVoiceChecklist({
     rec.onerror = (e: WSAErrorEvent) => {
       if (e.error !== 'no-speech') console.warn('[Voice] recognition error:', e.error);
     };
-    // Chrome continuous mode sometimes never fires isFinal:true — debounce
-    // on interim results so a natural pause in speech triggers the command.
-    let commandTimer: ReturnType<typeof setTimeout> | null = null;
+    // All command keywords in one flat list for quick lookup
+    const COMMAND_WORDS = [
+      'stop', 'exit', 'quit', 'cancel', 'voice off',
+      'repeat', 'again', 'say again', 'what',
+      'check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
+      'done', 'complete', 'correct', 'checked', 'good',
+      'next', 'skip', 'pass', 'continue', 'move on',
+      'back', 'previous', 'go back',
+    ];
+
+    // Timestamp of the last fired command — prevents double-firing when
+    // Chrome emits both interim and final results for the same utterance.
+    let lastCommandAt = 0;
 
     function executeCommand(raw: string) {
       const cmd = raw.toLowerCase().trim();
@@ -259,16 +269,19 @@ export function useVoiceChecklist({
       // Always show live transcript so user can confirm mic is working
       setLastTranscript(raw);
 
-      if (commandTimer) clearTimeout(commandTimer);
+      const cmd = raw.toLowerCase().trim();
 
-      if (result.isFinal) {
-        // Normal path
-        executeCommand(raw);
-      } else {
-        // Fallback: Chrome sometimes never sends isFinal:true in continuous
-        // mode — fire the command after a 500 ms pause in speech instead.
-        commandTimer = setTimeout(() => executeCommand(raw), 500);
-      }
+      // Fire as soon as a command word appears in the transcript — don't
+      // wait for isFinal (Chrome continuous mode often never sends it).
+      // The 1.5 s cooldown stops the same utterance firing twice when
+      // Chrome does emit both an interim and a final result.
+      if (!COMMAND_WORDS.some(w => cmd.includes(w))) return;
+
+      const now = Date.now();
+      if (now - lastCommandAt < 1500) return;
+      lastCommandAt = now;
+
+      executeCommand(raw);
     };
 
     // Find first unchecked item (or fall back to first item)
@@ -286,7 +299,6 @@ export function useVoiceChecklist({
 
     return () => {
       shouldListen = false;
-      if (commandTimer) clearTimeout(commandTimer);
       clearInterval(keepAlive);
       window.speechSynthesis?.cancel();
       stopRec();
