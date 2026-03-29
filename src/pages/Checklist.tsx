@@ -5,7 +5,6 @@ import { KeyboardHints } from '../components/KeyboardHints';
 import { Timer } from '../components/Timer';
 import styles from './Checklist.module.css';
 import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2 } from 'lucide-react';
-import clsx from 'clsx';
 import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useChecklistNavigation } from '../hooks/useChecklistNavigation';
