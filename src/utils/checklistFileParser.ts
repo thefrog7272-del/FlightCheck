@@ -1,17 +1,14 @@
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { Plane, PlaneChecklist, ChecklistPhase, ChecklistItem } from '../data/types';
+
+// Set worker source once at module load — Vite copies the worker file to assets
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 /**
  * Extract text from a PDF file using pdfjs-dist.
  */
 async function extractPdfText(file: File): Promise<string> {
-  const pdfjsLib = await import('pdfjs-dist');
-
-  // Set worker source to bundled worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url,
-  ).toString();
-
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const lines: string[] = [];

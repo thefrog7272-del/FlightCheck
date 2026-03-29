@@ -440,6 +440,30 @@ export function Home() {
           return;
         }
 
+        // Format 6: { aircraft, nickname, checklist: [{ title, items: [{callout, response}] }] }
+        // Used by some third-party checklist bundles (e.g. Cessna 208B Caravan Bundle)
+        if (json.aircraft && Array.isArray(json.checklist) && json.checklist[0]?.title) {
+          const name = String(json.aircraft);
+          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const plane = { id: planeId, name, manufacturer: '', image: '', type: 'GA' as const };
+          const phases = (json.checklist as Array<{ title: string; items: Array<Record<string, unknown>> }>).map((phase, pi) => {
+            const phaseId = phase.title.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
+            const items = (phase.items ?? [])
+              .filter(item => item.callout)
+              .map((item, ii) => ({
+                id: `${phaseId}-${ii}`,
+                label: String(item.callout),
+                ...(item.response ? { expectedState: String(item.response) } : {}),
+              }));
+            return { id: phaseId, title: phase.title, items };
+          }).filter(p => p.items.length > 0);
+          const checklist = { planeId, phases };
+          await importPlane(plane, checklist);
+          const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
+          setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${phases.reduce((s, p) => s + p.items.length, 0)} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`);
+          return;
+        }
+
         alert('Unrecognized JSON format. Supported: flat array of items, { plane, checklist }, { phases }, or fleet backup.');
       } catch (error) {
         alert(error instanceof Error ? error.message : 'Failed to parse JSON file.');
