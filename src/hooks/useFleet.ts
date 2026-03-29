@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDatabase } from './useDatabase';
 import { useSharedPlanes } from './useSharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
@@ -40,12 +40,17 @@ export function useFleet() {
     updateKey('item_notes', updated);
   }, [itemNotes, updateKey]);
 
+  // Use a ref so trackRecentUse doesn't change identity when recently_used updates,
+  // preventing an infinite re-render loop when the effect dep includes the callback.
+  const recentlyUsedRef = useRef(recentlyUsed);
+  useEffect(() => { recentlyUsedRef.current = recentlyUsed; }, [recentlyUsed]);
+
   const trackRecentUse = useCallback((planeId: string) => {
-    const current = data?.recently_used ?? [];
+    const current = recentlyUsedRef.current;
     const filtered = current.filter(r => r.planeId !== planeId);
     const updated = [{ planeId, timestamp: Date.now() }, ...filtered].slice(0, 6);
     updateKey('recently_used', updated);
-  }, [data?.recently_used, updateKey]);
+  }, [updateKey]);
 
   const toggleFavorite = useCallback((planeId: string) => {
     const current = data?.favorite_planes ?? [];

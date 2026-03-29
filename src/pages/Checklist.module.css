@@ -1,7 +1,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1rem;
   padding-bottom: 4rem;
 }
 
@@ -13,8 +13,7 @@
   top: var(--header-height);
   z-index: 5;
   background: var(--bg-primary);
-  padding-bottom: 1rem;
-  margin-bottom: -1rem;
+  padding-bottom: 1.5rem;
   border-bottom: 1px solid var(--border);
 }
 
