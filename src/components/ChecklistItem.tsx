@@ -15,27 +15,60 @@ interface ChecklistItemProps {
 
 const TABLE_PREFIX = 'data:table/json,';
 
+interface TableData {
+  headers: string[];
+  rows: string[][];
+  rowClasses?: string[];
+  cellClasses?: string[][];
+  preNote?: string;
+  postNote?: string;
+}
+
 function ReferenceTable({ data, label }: { data: string; label: string }) {
-  let rows: string[][] = [];
+  let tableData: TableData;
   try {
-    rows = JSON.parse(data.slice(TABLE_PREFIX.length));
+    const parsed: unknown = JSON.parse(data.slice(TABLE_PREFIX.length));
+    if (Array.isArray(parsed)) {
+      // Legacy format: [[header, ...], [row, ...], ...]
+      if ((parsed as string[][]).length < 2) return null;
+      const [headers, ...rows] = parsed as string[][];
+      tableData = { headers, rows };
+    } else {
+      tableData = parsed as TableData;
+    }
   } catch {
     return <span className={styles.importedNote}>Could not parse table data</span>;
   }
-  if (!rows.length) return null;
-  const [headers, ...body] = rows;
+  const { headers, rows: body, rowClasses, cellClasses, preNote, postNote } = tableData;
+  if (!headers?.length || !body?.length) return null;
   return (
-    <div className={styles.referenceTableWrapper}>
-      <table className={styles.referenceTable} aria-label={label}>
-        <thead>
-          <tr>{headers.map((h, i) => <th key={i}>{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {body.map((row, ri) => (
-            <tr key={ri}>{row.map((cell, ci) => <td key={ci}>{cell}</td>)}</tr>
-          ))}
-        </tbody>
-      </table>
+    <div>
+      {preNote && <p className={styles.tableNote}>{preNote}</p>}
+      <div className={styles.referenceTableWrapper}>
+        <table className={styles.referenceTable} aria-label={label}>
+          <thead>
+            <tr>{headers.map((h, i) => <th key={i}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {body.map((row, ri) => (
+              <tr
+                key={ri}
+                className={rowClasses?.[ri] === 'shaded-row' ? styles.tableRowShaded : undefined}
+              >
+                {row.map((cell, ci) => (
+                  <td
+                    key={ci}
+                    className={cellClasses?.[ri]?.[ci] === 'yellow-text' ? styles.tableCellYellow : undefined}
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {postNote && <p className={styles.tableNote}>{postNote}</p>}
     </div>
   );
 }
