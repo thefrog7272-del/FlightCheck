@@ -125,7 +125,7 @@ export function useVoiceChecklist({
     let speaking = false;
     const rec = new RecognitionClass();
     rec.continuous = true;
-    rec.interimResults = false;
+    rec.interimResults = true;
     rec.lang = 'en-US';
 
     function stopRec() {
@@ -220,11 +220,13 @@ export function useVoiceChecklist({
     };
     rec.onresult = (e: WSAEvent) => {
       const result = e.results[e.results.length - 1];
+      const raw = result[0].transcript;
+
+      // Always show transcript for live feedback, but only act on final results
+      setLastTranscript(raw);
       if (!result.isFinal) return;
 
-      const raw = result[0].transcript;
       const cmd = raw.toLowerCase().trim();
-      setLastTranscript(raw);
 
       const cur = currentItemIdRef.current;
 
