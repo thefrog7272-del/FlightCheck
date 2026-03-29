@@ -767,15 +767,23 @@ _EM_DASH = '\u2014'  # —
 
 class _TableExtractor(_StdHTMLParser):
     """Collect all <h3> headings and <table> elements from an HTML fragment in
-    document order, associating each table with the nearest preceding <h3>."""
+    document order, associating each table with the nearest preceding <h3>.
+
+    Results are (label, table_data) tuples where table_data is a dict:
+      headers     – list[str]       (always present)
+      rows        – list[list[str]] (always present)
+      rowClasses  – list[str]       (only when at least one "shaded-row" exists)
+      preNote     – str             (only when a <div class="small"> precedes)
+      postNote    – str             (only when a <div class="small"> follows)
+    """
 
     def __init__(self, default_label: str = "Reference Table"):
         super().__init__(convert_charrefs=True)
         self.default_label = default_label
-        # List of (label, rows) tuples where rows is list[list[str]]
-        self.results: list[tuple[str, list[list[str]]]] = []
+        self.results: list[tuple[str, dict]] = []
 
         self._label = default_label
+        # ── original table state (variable names unchanged) ──────────────────
         self._table_depth = 0
         self._has_th = False
         self._rows: list[list[str]] = []
@@ -784,9 +792,34 @@ class _TableExtractor(_StdHTMLParser):
         self._in_cell = False
         self._in_h3 = False
         self._h3_buf = ""
+        # ── added: per-row shading class ─────────────────────────────────────
+        self._cur_row_class = ""           # "shaded-row" or ""
+        self._row_classes: list[str] = []  # parallel to self._rows
+        # ── added: <div class="small"> note capture ──────────────────────────
+        self._in_small_div = False
+        self._small_depth = 0   # counts nested divs inside the small div
+        self._small_buf = ""
+        self._pending_pre_note = ""
+        self._after_table = False  # True immediately after a table is saved
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
         tag = tag.lower()
+        attr_class = dict(attrs).get("class", "")
+
+        # ── <div> tracking ───────────────────────────────────────────────────
+        if tag == "div":
+            if self._in_small_div:
+                self._small_depth += 1           # nested div inside note
+            elif "small" in attr_class.split() and self._table_depth == 0:
+                self._in_small_div = True
+                self._small_depth = 1
+                self._small_buf = ""
+            return  # divs never affect heading/table state
+
+        if self._in_small_div:
+            return  # ignore all non-div open-tags inside a note div
+
+        # ── original logic (unchanged) ───────────────────────────────────────
         if tag == "h3" and self._table_depth == 0:
             self._in_h3 = True
             self._h3_buf = ""
@@ -794,9 +827,11 @@ class _TableExtractor(_StdHTMLParser):
             self._table_depth += 1
             if self._table_depth == 1:
                 self._rows = []
+                self._row_classes = []
                 self._has_th = False
         elif tag == "tr" and self._table_depth == 1:
             self._row = []
+            self._cur_row_class = "shaded-row" if "shaded-row" in attr_class.split() else ""
         elif tag in ("th", "td") and self._table_depth == 1:
             self._in_cell = True
             self._cell = ""
@@ -805,6 +840,33 @@ class _TableExtractor(_StdHTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
+
+        # ── <div> tracking ───────────────────────────────────────────────────
+        if tag == "div":
+            if self._in_small_div:
+                self._small_depth -= 1
+                if self._small_depth == 0:
+                    self._in_small_div = False
+                    note = re.sub(r"\s+", " ", self._small_buf).strip()
+                    if note:
+                        if self._after_table and self.results:
+                            # post-note: attach to the table just saved
+                            prev = self.results[-1][1]
+                            prev["postNote"] = (
+                                (prev.get("postNote") or "") + " " + note
+                            ).strip()
+                        else:
+                            # pre-note: hold until next table is saved
+                            self._pending_pre_note = (
+                                self._pending_pre_note + " " + note
+                            ).strip()
+                    self._after_table = False
+            return  # divs never affect heading/table state
+
+        if self._in_small_div:
+            return  # ignore all non-div close-tags inside a note div
+
+        # ── original logic (unchanged) ───────────────────────────────────────
         if tag == "h3":
             self._in_h3 = False
             label = self._h3_buf.strip()
@@ -812,7 +874,15 @@ class _TableExtractor(_StdHTMLParser):
                 self._label = label
         elif tag == "table":
             if self._table_depth == 1:
-                rows = [r for r in self._rows if any(c for c in r)]
+                # Filter empty rows, keeping row_classes in sync
+                pairs = [
+                    (r, rc)
+                    for r, rc in zip(self._rows, self._row_classes)
+                    if any(c for c in r)
+                ]
+                rows = [p[0] for p in pairs]
+                row_classes = [p[1] for p in pairs]
+
                 if rows and not self._has_th:
                     num_cols = max((len(r) for r in rows), default=0)
                     header = (
@@ -821,13 +891,27 @@ class _TableExtractor(_StdHTMLParser):
                         else [f"Col {i + 1}" for i in range(num_cols)]
                     )
                     rows = [header] + rows
+                    row_classes = [""] + row_classes
+
                 if len(rows) > 1:  # header + at least one data row
-                    self.results.append((self._label, rows))
+                    table_data: dict = {
+                        "headers": rows[0],
+                        "rows": rows[1:],
+                    }
+                    data_rc = row_classes[1:]
+                    if any(c for c in data_rc):
+                        table_data["rowClasses"] = data_rc
+                    if self._pending_pre_note:
+                        table_data["preNote"] = self._pending_pre_note
+                        self._pending_pre_note = ""
+                    self.results.append((self._label, table_data))
                     self._label = self.default_label  # reset for next table
+                    self._after_table = True
             self._table_depth -= 1
         elif tag == "tr" and self._table_depth == 1:
             if self._row:
                 self._rows.append(self._row)
+                self._row_classes.append(self._cur_row_class)
         elif tag in ("th", "td") and self._table_depth == 1:
             self._in_cell = False
             self._row.append(re.sub(r"\s+", " ", self._cell).strip())
@@ -837,6 +921,8 @@ class _TableExtractor(_StdHTMLParser):
             self._h3_buf += data
         elif self._in_cell:
             self._cell += data
+        elif self._in_small_div:
+            self._small_buf += data
 
 
 def _html_bracket_content(text: str, start: int) -> str:
@@ -978,8 +1064,13 @@ def _parse_html_ref_tables(script_text: str) -> list[tuple[str, str]]:
             print(f"  Warning: Could not parse HTML for '{section_title}': {e}")
             continue
 
-        for label, rows in extractor.results:
-            encoded = json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
+        for label, table_data in extractor.results:
+            # Always output legacy array format [[header,...],[row,...],...]
+            # so that imported tables render on all FlightCheck versions.
+            # Notes (preNote/postNote) and rowClasses are preserved inside
+            # table_data for future use but not included in the CSV payload.
+            payload = [table_data["headers"]] + table_data["rows"]
+            encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
             results.append((label, f"data:table/json,{encoded}"))
 
     return results

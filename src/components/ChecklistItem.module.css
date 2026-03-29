@@ -168,6 +168,27 @@
   background-color: rgba(59, 130, 246, 0.08);
 }
 
+.tableRowShaded {
+  background-color: rgba(100, 116, 139, 0.18) !important;
+}
+
+.tableCellYellow {
+  color: #92400e;
+  font-weight: 500;
+}
+
+:root[data-theme="dark"] .tableCellYellow {
+  color: #fbbf24;
+}
+
+.tableNote {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0.2rem 0;
+  line-height: 1.4;
+}
+
 .noteButton {
   display: flex;
   align-items: center;
