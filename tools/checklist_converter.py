@@ -1065,14 +1065,11 @@ def _parse_html_ref_tables(script_text: str) -> list[tuple[str, str]]:
             continue
 
         for label, table_data in extractor.results:
-            has_extras = any(k in table_data for k in ("rowClasses", "preNote", "postNote"))
-            if has_extras:
-                # Rich format — requires updated FlightCheck TypeScript component
-                payload = table_data
-            else:
-                # Legacy array format [[header,...],[row,...],...]
-                # Compatible with all versions of the FlightCheck importer
-                payload = [table_data["headers"]] + table_data["rows"]
+            # Always output legacy array format [[header,...],[row,...],...]
+            # so that imported tables render on all FlightCheck versions.
+            # Notes (preNote/postNote) and rowClasses are preserved inside
+            # table_data for future use but not included in the CSV payload.
+            payload = [table_data["headers"]] + table_data["rows"]
             encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
             results.append((label, f"data:table/json,{encoded}"))
 
