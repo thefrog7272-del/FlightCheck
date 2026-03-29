@@ -144,7 +144,20 @@ export function useVoiceChecklist({
       const utt = new SpeechSynthesisUtterance(text);
       utt.rate = 0.88;
       utt.pitch = 1.0;
+
+      // Chrome bug: SpeechSynthesisUtterance.onend sometimes never fires.
+      // Fallback: force-release the speaking lock after an estimated duration.
+      const fallbackMs = text.length * 80 + 1200;
+      const fallbackTimer = setTimeout(() => {
+        if (speaking) {
+          speaking = false;
+          startRec();
+          onEnd?.();
+        }
+      }, fallbackMs);
+
       utt.onend = () => {
+        clearTimeout(fallbackTimer);
         speaking = false;
         startRec();
         onEnd?.();
@@ -189,6 +202,13 @@ export function useVoiceChecklist({
       const idx = cur ? items.findIndex(i => i.id === cur) : items.length;
       return items[idx - 1]?.id ?? null;
     }
+
+    // Chrome silently pauses speechSynthesis after ~15 s; resume() keeps it alive.
+    const keepAlive = setInterval(() => {
+      if (window.speechSynthesis.speaking && window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+    }, 10_000);
 
     rec.onstart = () => setIsListening(true);
     rec.onend = () => {
@@ -249,6 +269,7 @@ export function useVoiceChecklist({
 
     return () => {
       shouldListen = false;
+      clearInterval(keepAlive);
       window.speechSynthesis?.cancel();
       stopRec();
       rec.onend = null;
