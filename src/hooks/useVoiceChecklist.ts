@@ -292,16 +292,26 @@ export function useVoiceChecklist({
       // matching a command word buried in a longer sentence.
       if (cmd.split(/\s+/).length > 6) return;
 
+      const now = Date.now();
+      if (now - lastCommandAt < 1500) return;
+
+      // Check if the transcript matches the current item's expectedState —
+      // e.g. saying "full" when the item expects "FULL" counts as a check.
+      const currentItem = allItemsRef.current.find(i => i.id === currentItemIdRef.current);
+      const expectedState = currentItem?.expectedState?.toLowerCase().trim();
+      if (expectedState && cmd.includes(expectedState)) {
+        lastCommandAt = now;
+        executeCommand('check');
+        return;
+      }
+
       // Fire as soon as a command word appears in the transcript — don't
       // wait for isFinal (Chrome continuous mode often never sends it).
       // The 1.5 s cooldown stops the same utterance firing twice when
       // Chrome does emit both an interim and a final result.
       if (!COMMAND_WORDS.some(w => cmd.includes(w))) return;
 
-      const now = Date.now();
-      if (now - lastCommandAt < 1500) return;
       lastCommandAt = now;
-
       executeCommand(raw);
     };
 
