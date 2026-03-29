@@ -49,6 +49,7 @@ export function Checklist() {
     isSupported: isVoiceSupported,
     currentItemId: voiceItemId,
     lastTranscript,
+    recognitionError,
     toggleVoiceMode,
   } = useVoiceChecklist({
     phases: checklist?.phases ?? [],
@@ -516,7 +517,10 @@ export function Checklist() {
           <div className={styles.voiceBar}>
             <span className={isListening ? styles.listeningDot : styles.listeningDotIdle} />
             <span>{isListening ? 'Listening…' : 'Speaking…'}</span>
-            {lastTranscript && (
+            {recognitionError && (
+              <span className={styles.voiceError}>⚠ {recognitionError}</span>
+            )}
+            {!recognitionError && lastTranscript && (
               <span className={styles.voiceTranscript}>"{lastTranscript}"</span>
             )}
             <span className={styles.voiceHints}>

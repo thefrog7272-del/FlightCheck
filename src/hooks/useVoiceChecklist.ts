@@ -54,6 +54,7 @@ export interface VoiceChecklistReturn {
   isSupported: boolean;
   currentItemId: string | null;
   lastTranscript: string;
+  recognitionError: string;
   toggleVoiceMode: () => void;
 }
 
@@ -86,6 +87,7 @@ export function useVoiceChecklist({
   const [isListening, setIsListening] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const [lastTranscript, setLastTranscript] = useState('');
+  const [recognitionError, setRecognitionError] = useState('');
 
   const RecognitionClass = useMemo(getRecognitionClass, []);
   const isSupported =
@@ -124,7 +126,7 @@ export function useVoiceChecklist({
     let shouldListen = true;
     let speaking = false;
     const rec = new RecognitionClass();
-    rec.continuous = true;
+    rec.continuous = false; // non-continuous is more reliable; onend restart handles looping
     rec.interimResults = true;
     rec.lang = 'en-US';
 
@@ -218,12 +220,13 @@ export function useVoiceChecklist({
       }
     }, 10_000);
 
-    rec.onstart = () => setIsListening(true);
+    rec.onstart = () => { setIsListening(true); setRecognitionError(''); };
     rec.onend = () => {
       setIsListening(false);
       if (shouldListen && !speaking) setTimeout(startRec, 200);
     };
     rec.onerror = (e: WSAErrorEvent) => {
+      setRecognitionError(e.error);
       if (e.error !== 'no-speech') console.warn('[Voice] recognition error:', e.error);
     };
     // All command keywords in one flat list for quick lookup
@@ -321,8 +324,9 @@ export function useVoiceChecklist({
       setIsListening(false);
       setCurrentItemId(null);
       setLastTranscript('');
+      setRecognitionError('');
     };
   }, [isVoiceMode]); // RecognitionClass is stable (memo on []); all volatile data via refs
 
-  return { isVoiceMode, isListening, isSupported, currentItemId, lastTranscript, toggleVoiceMode };
+  return { isVoiceMode, isListening, isSupported, currentItemId, lastTranscript, recognitionError, toggleVoiceMode };
 }

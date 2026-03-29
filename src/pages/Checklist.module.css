@@ -727,6 +727,13 @@
   50%       { opacity: 0.2; }
 }
 
+.voiceError {
+  color: #e74c3c;
+  font-weight: 600;
+  font-size: 0.8rem;
+  flex: 1;
+}
+
 .voiceTranscript {
   font-style: italic;
   overflow: hidden;
