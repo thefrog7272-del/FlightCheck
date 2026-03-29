@@ -987,9 +987,11 @@ def _html_bracket_content(text: str, start: int) -> str:
 def _parse_js_phase(obj_text: str) -> dict | None:
     """Parse a single JS phase object: { name: "...", type: "...", items: [...] }"""
     name_m = re.search(r'name:\s*"([^"]+)"', obj_text)
-    type_m = re.search(r'type:\s*"([^"]+)"', obj_text)
-    if not name_m or not type_m:
+    if not name_m:
         return None
+    # type is optional — phases without it are treated as normal checklist items
+    type_m = re.search(r'type:\s*"([^"]+)"', obj_text)
+    type_val = type_m.group(1) if type_m else "normal"
 
     items_idx = obj_text.find("items:")
     if items_idx == -1:
@@ -1001,7 +1003,7 @@ def _parse_js_phase(obj_text: str) -> dict | None:
     items_content = _html_bracket_content(obj_text, bracket_idx)
     items = [m.strip() for m in re.findall(r'"((?:[^"\\]|\\.)*)"', items_content) if m.strip()]
 
-    return {"name": name_m.group(1), "type": type_m.group(1), "items": items}
+    return {"name": name_m.group(1), "type": type_val, "items": items}
 
 
 def _parse_html_js_phases(script_text: str) -> list[ChecklistPhase]:
