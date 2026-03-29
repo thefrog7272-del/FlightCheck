@@ -128,7 +128,7 @@ export function useVoiceChecklist({
     const rec = new RecognitionClass();
     rec.continuous = false; // non-continuous is more reliable; onend restart handles looping
     rec.interimResults = true;
-    rec.lang = 'en-US';
+    rec.lang = 'en-GB';
 
     function stopRec() {
       try { rec.stop(); } catch { /* already stopped */ }
@@ -154,6 +154,10 @@ export function useVoiceChecklist({
       const utt = new SpeechSynthesisUtterance(text);
       utt.rate = 0.88;
       utt.pitch = 1.0;
+      // Prefer a British English voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const gbVoice = voices.find(v => v.lang === 'en-GB') ?? voices.find(v => v.lang.startsWith('en-GB'));
+      if (gbVoice) utt.voice = gbVoice;
 
       // Chrome bug: SpeechSynthesisUtterance.onend sometimes never fires.
       // Fallback: force-release the speaking lock after an estimated duration.
