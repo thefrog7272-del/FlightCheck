@@ -83,9 +83,28 @@ export function ImageEditModal({
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
-        setUrlValue(dataUrl);
-        setPreviewSrc(dataUrl);
-        setImgError(false);
+        // Compress via canvas so the data URL stays well within localStorage limits.
+        // Raw uploads can be several MB; we cap at 800px and re-encode as JPEG 80%.
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 800;
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.8);
+          setUrlValue(compressed);
+          setPreviewSrc(compressed);
+          setImgError(false);
+        };
+        img.onerror = () => {
+          // Fallback: store as-is if the image can't be decoded
+          setUrlValue(dataUrl);
+          setPreviewSrc(dataUrl);
+          setImgError(false);
+        };
+        img.src = dataUrl;
       };
       reader.readAsDataURL(file);
     }

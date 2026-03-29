@@ -799,7 +799,10 @@ class _TableExtractor(_StdHTMLParser):
         self._in_small_div = False
         self._small_depth = 0   # counts nested divs inside the small div
         self._small_buf = ""
+        self._small_yellow_buf = ""   # text from <span class="yellow-text"> inside note
+        self._in_yellow_span = False  # True while inside such a span
         self._pending_pre_note = ""
+        self._pending_pre_note_yellow = ""
         self._after_table = False  # True immediately after a table is saved
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
@@ -817,7 +820,11 @@ class _TableExtractor(_StdHTMLParser):
             return  # divs never affect heading/table state
 
         if self._in_small_div:
-            return  # ignore all non-div open-tags inside a note div
+            # Track yellow-text spans inside note divs
+            if tag == "span" and "yellow-text" in attr_class.split():
+                self._in_yellow_span = True
+                self._small_yellow_buf = ""
+            return  # ignore all other open-tags inside a note div
 
         # ── original logic (unchanged) ───────────────────────────────────────
         if tag == "h3" and self._table_depth == 0:
@@ -829,6 +836,7 @@ class _TableExtractor(_StdHTMLParser):
                 self._rows = []
                 self._row_classes = []
                 self._has_th = False
+                self._after_table = False  # entering a new table — pending notes are pre-notes
         elif tag == "tr" and self._table_depth == 1:
             self._row = []
             self._cur_row_class = "shaded-row" if "shaded-row" in attr_class.split() else ""
@@ -847,24 +855,41 @@ class _TableExtractor(_StdHTMLParser):
                 self._small_depth -= 1
                 if self._small_depth == 0:
                     self._in_small_div = False
+                    self._in_yellow_span = False
                     note = re.sub(r"\s+", " ", self._small_buf).strip()
-                    if note:
+                    note_yellow = re.sub(r"\s+", " ", self._small_yellow_buf).strip()
+                    if note or note_yellow:
                         if self._after_table and self.results:
                             # post-note: attach to the table just saved
                             prev = self.results[-1][1]
-                            prev["postNote"] = (
-                                (prev.get("postNote") or "") + " " + note
-                            ).strip()
+                            if note:
+                                prev["postNote"] = (
+                                    (prev.get("postNote") or "") + " " + note
+                                ).strip()
+                            if note_yellow:
+                                prev["postNoteYellow"] = (
+                                    (prev.get("postNoteYellow") or "") + " " + note_yellow
+                                ).strip()
                         else:
                             # pre-note: hold until next table is saved
-                            self._pending_pre_note = (
-                                self._pending_pre_note + " " + note
-                            ).strip()
-                    self._after_table = False
+                            if note:
+                                self._pending_pre_note = (
+                                    self._pending_pre_note + " " + note
+                                ).strip()
+                            if note_yellow:
+                                self._pending_pre_note_yellow = (
+                                    self._pending_pre_note_yellow + " " + note_yellow
+                                ).strip()
+                    self._small_yellow_buf = ""
+                    # _after_table intentionally NOT reset here — consecutive
+                    # small-div notes after a table all belong to that table
+                    # as postNotes.  It resets only when a new <table> opens.
             return  # divs never affect heading/table state
 
         if self._in_small_div:
-            return  # ignore all non-div close-tags inside a note div
+            if tag == "span" and self._in_yellow_span:
+                self._in_yellow_span = False
+            return  # ignore all other close-tags inside a note div
 
         # ── original logic (unchanged) ───────────────────────────────────────
         if tag == "h3":
@@ -904,6 +929,9 @@ class _TableExtractor(_StdHTMLParser):
                     if self._pending_pre_note:
                         table_data["preNote"] = self._pending_pre_note
                         self._pending_pre_note = ""
+                    if self._pending_pre_note_yellow:
+                        table_data["preNoteYellow"] = self._pending_pre_note_yellow
+                        self._pending_pre_note_yellow = ""
                     self.results.append((self._label, table_data))
                     self._label = self.default_label  # reset for next table
                     self._after_table = True
@@ -922,7 +950,10 @@ class _TableExtractor(_StdHTMLParser):
         elif self._in_cell:
             self._cell += data
         elif self._in_small_div:
-            self._small_buf += data
+            if self._in_yellow_span:
+                self._small_yellow_buf += data
+            else:
+                self._small_buf += data
 
 
 def _html_bracket_content(text: str, start: int) -> str:
@@ -1065,13 +1096,26 @@ def _parse_html_ref_tables(script_text: str) -> list[tuple[str, str]]:
             continue
 
         for label, table_data in extractor.results:
-            # Always output legacy array format [[header,...],[row,...],...]
-            # so that imported tables render on all FlightCheck versions.
-            # Notes (preNote/postNote) and rowClasses are preserved inside
-            # table_data for future use but not included in the CSV payload.
-            payload = [table_data["headers"]] + table_data["rows"]
+            # When a <h3> provides a label that differs from the section title,
+            # prefix the section title so the table is identifiable in context
+            # (e.g. "JPI EDM-800 — ALARMS" instead of just "ALARMS").
+            if label != section_title:
+                display_label = f"{section_title} \u2014 {label}"
+            else:
+                display_label = label
+
+            has_extras = any(k in table_data for k in ("rowClasses", "preNote", "postNote", "preNoteYellow", "postNoteYellow"))
+            if has_extras:
+                # Rich dict format — includes notes and shaded-row colours.
+                # Requires the updated ReferenceTable component (feature branch).
+                # Falls back gracefully to legacy on older deployments.
+                payload = table_data
+            else:
+                # Legacy array format [[header,...],[row,...],...]
+                # Works with all versions of the FlightCheck importer.
+                payload = [table_data["headers"]] + table_data["rows"]
             encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-            results.append((label, f"data:table/json,{encoded}"))
+            results.append((display_label, f"data:table/json,{encoded}"))
 
     return results
 

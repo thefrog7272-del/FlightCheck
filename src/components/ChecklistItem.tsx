@@ -21,7 +21,9 @@ interface TableData {
   rowClasses?: string[];
   cellClasses?: string[][];
   preNote?: string;
+  preNoteYellow?: string;
   postNote?: string;
+  postNoteYellow?: string;
 }
 
 function ReferenceTable({ data, label }: { data: string; label: string }) {
@@ -39,11 +41,17 @@ function ReferenceTable({ data, label }: { data: string; label: string }) {
   } catch {
     return <span className={styles.importedNote}>Could not parse table data</span>;
   }
-  const { headers, rows: body, rowClasses, cellClasses, preNote, postNote } = tableData;
+  const { headers, rows: body, rowClasses, cellClasses, preNote, preNoteYellow, postNote, postNoteYellow } = tableData;
   if (!headers?.length || !body?.length) return null;
   return (
     <div>
-      {preNote && <p className={styles.tableNote}>{preNote}</p>}
+      {(preNoteYellow || preNote) && (
+        <p className={styles.tableNote}>
+          {preNoteYellow && <span className={styles.tableCellYellow}>{preNoteYellow}</span>}
+          {preNoteYellow && preNote ? ' ' : ''}
+          {preNote}
+        </p>
+      )}
       <div className={styles.referenceTableWrapper}>
         <table className={styles.referenceTable} aria-label={label}>
           <thead>
@@ -68,7 +76,13 @@ function ReferenceTable({ data, label }: { data: string; label: string }) {
           </tbody>
         </table>
       </div>
-      {postNote && <p className={styles.tableNote}>{postNote}</p>}
+      {(postNoteYellow || postNote) && (
+        <p className={styles.tableNote}>
+          {postNoteYellow && <span className={styles.tableCellYellow}>{postNoteYellow}</span>}
+          {postNoteYellow && postNote ? ' ' : ''}
+          {postNote}
+        </p>
+      )}
     </div>
   );
 }
