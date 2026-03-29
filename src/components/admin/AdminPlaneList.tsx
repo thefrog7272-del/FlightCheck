@@ -13,10 +13,13 @@ interface AdminPlaneListProps {
 export function AdminPlaneList({ planes, checklists, onEdit, onDelete }: AdminPlaneListProps) {
   const [search, setSearch] = useState('');
 
-  const filtered = planes.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.manufacturer.toLowerCase().includes(search.toLowerCase())
-  );
+  // Sort alphabetically by name — matches the default view first-time visitors see
+  const filtered = planes
+    .filter(p =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.manufacturer.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const getItemCount = (planeId: string): number => {
     const cl = checklists.find(c => c.planeId === planeId);
