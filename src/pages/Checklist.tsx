@@ -24,10 +24,9 @@ export function Checklist() {
   const navigate = useNavigate();
   const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getVariants, addVariant, deleteVariant } = useFleet();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (planeId) trackRecentUse(planeId);
-  }, [planeId]);
+  }, [planeId, trackRecentUse]);
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
