@@ -133,10 +133,13 @@ export function useDatabase() {
 
   const updateKey = useCallback(
     <K extends keyof DbState>(key: K, value: DbState[K]) => {
-      // Update local state immediately
+      // Update local state immediately and always persist to localStorage as a
+      // reliable fallback (the static Amplify deployment has no /api backend, so
+      // localStorage is the only durable store; always writing it avoids losing
+      // data during the brief startup window before useApi flips to false).
       setData((prev) => {
         const next = prev ? { ...prev, [key]: value } : prev;
-        if (next && !useApi) saveToLocalStorage(next);
+        if (next) saveToLocalStorage(next);
         return next;
       });
 
