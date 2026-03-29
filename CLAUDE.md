@@ -74,6 +74,17 @@ npm test -- --run    # Vitest
 - When ready, merge to main and push.
 - After merge, delete the feature branch.
 
+## Pre-Push Gate (MANDATORY)
+
+**Before EVERY push to `main`** (direct push or merge), you MUST run and pass ALL of these:
+
+```bash
+npm run build        # TypeScript compilation + Vite build — catches unused imports, type errors
+npm run lint         # ESLint — catches code quality issues
+```
+
+If either command fails, DO NOT push. Fix the errors first. This is a hard gate — no exceptions. Amplify auto-deploys from `main`, so a broken push = broken production.
+
 ## Development Workflow (QA Loop)
 
 All non-trivial changes must follow this pipeline:
@@ -83,11 +94,16 @@ All non-trivial changes must follow this pipeline:
 3. **Plan** — Define the implementation approach. List files to change, identify risks, align with conventions above.
 4. **Implement** — Make changes via agents in isolated worktrees where possible. One feature per agent to avoid conflicts.
 5. **Security Review** — Check for XSS, injection, unsafe `dangerouslySetInnerHTML`, unvalidated user input, exposed secrets. Review any new dependencies.
-6. **QA (Build + Lint + Test)** — Run `npm run build` (TypeScript + Vite). Run `npm run lint`. Run `npm test` if applicable. Fix all errors before proceeding.
+6. **QA (Build + Lint + Test)** — Run `npm run build` (TypeScript + Vite). Run `npm run lint`. Run `npm test` if applicable. **All must pass — no exceptions.**
 7. **UI Review** — Verify the change renders correctly: check dark/light themes, mobile/tablet/desktop breakpoints, keyboard accessibility, no console errors.
-8. **Merge to main** — Only after all above steps pass.
+8. **Merge to main** — Only after all above steps pass. Re-run the pre-push gate after merge.
 
 If any step fails, loop back to **Implement** and fix before re-running the pipeline.
+
+## CI / Deploy Monitoring
+
+- **GitHub Actions** (`.github/workflows/ci.yml`) runs `npm run build` + `npm run lint` on every push to `main` and every PR. Check status at the repo's Actions tab or via `gh run list`.
+- **Amplify** auto-deploys from `main` after CI. If CI passes but Amplify fails, repo admins can check with `aws amplify list-jobs --app-id d2m1s5v9i0w5nr --branch-name main --region eu-west-2`.
 
 ## Import Flow
 
