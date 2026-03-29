@@ -7,6 +7,7 @@ import styles from './Checklist.module.css';
 import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff } from 'lucide-react';
 import { useVoiceChecklist } from '../hooks/useVoiceChecklist';
 import { useFleet } from '../hooks/useFleet';
+import { useAuth } from '../contexts/AuthContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useChecklistNavigation } from '../hooks/useChecklistNavigation';
 import { useConfirm } from '../hooks/useConfirm';
@@ -57,6 +58,7 @@ export function Checklist() {
     onCheckItem: stableVoiceCheck,
   });
 
+  const { isAdmin } = useAuth();
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
@@ -677,6 +679,18 @@ export function Checklist() {
                           onToggle={() => toggleItem(item.id)}
                           note={getNote(item.id)}
                           onNoteChange={(text) => setNote(item.id, text)}
+                          onDeleteTable={
+                            isAdmin && item.notes?.startsWith('data:table/json,')
+                              ? async () => {
+                                  const ok = await confirm(
+                                    `Delete "${item.label}"?`,
+                                    'This reference table will be permanently removed from the checklist.',
+                                    { confirmLabel: 'Delete', destructive: true },
+                                  );
+                                  if (ok) deleteItem(phase.id, item.id);
+                                }
+                              : undefined
+                          }
                         />
                         {isEditing && (
                           <button

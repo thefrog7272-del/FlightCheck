@@ -25,6 +25,12 @@ import re
 import sys
 from pathlib import Path
 
+# Ensure Unicode output works on Windows terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ---------------------------------------------------------------------------
 # Dependency checks — give clear install instructions if missing
 # ---------------------------------------------------------------------------
@@ -98,6 +104,11 @@ class ParsedChecklist:
     ):
         self.plane_name = plane_name
         self.manufacturer = manufacturer
+        # When True (default), phases with no category are skipped if other
+        # phases have a category — used to drop pre-header noise from PDFs.
+        # Set to False for structured parsers (HTML, Excel, CSV) where empty
+        # category means "Normal" and all phases should be included.
+        self.skip_uncategorized: bool = True
         self.plane_type = plane_type
         self.category = category
         self.phases: list[ChecklistPhase] = []
@@ -125,12 +136,14 @@ class ParsedChecklist:
     def to_csv_rows(self) -> list[list[str]]:
         rows: list[list[str]] = []
         # When the document has explicit section headers (Normal/Abnormal/Emergency
-        # Checklist), drop any phases that appeared before the first header — these
-        # are typically reference data or noise from speed/performance tables.
+        # Checklist), optionally drop phases that appeared before the first header —
+        # these are typically reference data or noise from PDF/text extraction.
+        # Structured parsers (HTML, Excel, CSV) set skip_uncategorized=False so all
+        # phases are included regardless of whether a category is set.
         has_sections = any(p.category for p in self.phases)
         for phase in self.phases:
             cat = phase.category if phase.category else self.category
-            if has_sections and not cat:
+            if self.skip_uncategorized and has_sections and not cat:
                 continue
             for item in phase.items:
                 rows.append(
@@ -140,10 +153,10 @@ class ParsedChecklist:
                         self.plane_type,
                         "",  # image
                         cat,
-                        phase.title,
                         item.label,
                         item.expected_state,
                         item.notes,
+                        phase.title,
                     ]
                 )
         return rows
@@ -509,6 +522,7 @@ def parse_structured_rows(
         )
 
     checklist.phases = list(phase_map.values())
+    checklist.skip_uncategorized = False  # structured source — keep all phases
     return checklist
 
 
@@ -605,8 +619,12 @@ def parse_file(filepath: str) -> ParsedChecklist:
         result.phases = phases
         return result
 
+    elif ext in (".html", ".htm"):
+        print(f"  Parsing HTML checklist: {path.name}")
+        return parse_html_checklist(filepath)
+
     else:
-        raise ValueError(f"Unsupported file type: {ext}\nSupported: .pdf, .docx, .xlsx, .xls, .csv, .txt")
+        raise ValueError(f"Unsupported file type: {ext}\nSupported: .pdf, .docx, .xlsx, .xls, .csv, .txt, .html")
 
 
 def parse_google_sheet(url: str) -> ParsedChecklist:
@@ -739,10 +757,289 @@ def save_reference_images(filepath: str, output_dir: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# HTML checklist parser (FlightCheck-style self-contained HTML files)
+# ---------------------------------------------------------------------------
+
+from html.parser import HTMLParser as _StdHTMLParser
+
+_EM_DASH = '\u2014'  # —
+
+
+class _TableExtractor(_StdHTMLParser):
+    """Collect all <h3> headings and <table> elements from an HTML fragment in
+    document order, associating each table with the nearest preceding <h3>."""
+
+    def __init__(self, default_label: str = "Reference Table"):
+        super().__init__(convert_charrefs=True)
+        self.default_label = default_label
+        # List of (label, rows) tuples where rows is list[list[str]]
+        self.results: list[tuple[str, list[list[str]]]] = []
+
+        self._label = default_label
+        self._table_depth = 0
+        self._has_th = False
+        self._rows: list[list[str]] = []
+        self._row: list[str] = []
+        self._cell = ""
+        self._in_cell = False
+        self._in_h3 = False
+        self._h3_buf = ""
+
+    def handle_starttag(self, tag: str, attrs: list) -> None:
+        tag = tag.lower()
+        if tag == "h3" and self._table_depth == 0:
+            self._in_h3 = True
+            self._h3_buf = ""
+        elif tag == "table":
+            self._table_depth += 1
+            if self._table_depth == 1:
+                self._rows = []
+                self._has_th = False
+        elif tag == "tr" and self._table_depth == 1:
+            self._row = []
+        elif tag in ("th", "td") and self._table_depth == 1:
+            self._in_cell = True
+            self._cell = ""
+            if tag == "th":
+                self._has_th = True
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag == "h3":
+            self._in_h3 = False
+            label = self._h3_buf.strip()
+            if label:
+                self._label = label
+        elif tag == "table":
+            if self._table_depth == 1:
+                rows = [r for r in self._rows if any(c for c in r)]
+                if rows and not self._has_th:
+                    num_cols = max((len(r) for r in rows), default=0)
+                    header = (
+                        ["Specification", "Value"]
+                        if num_cols == 2
+                        else [f"Col {i + 1}" for i in range(num_cols)]
+                    )
+                    rows = [header] + rows
+                if len(rows) > 1:  # header + at least one data row
+                    self.results.append((self._label, rows))
+                    self._label = self.default_label  # reset for next table
+            self._table_depth -= 1
+        elif tag == "tr" and self._table_depth == 1:
+            if self._row:
+                self._rows.append(self._row)
+        elif tag in ("th", "td") and self._table_depth == 1:
+            self._in_cell = False
+            self._row.append(re.sub(r"\s+", " ", self._cell).strip())
+
+    def handle_data(self, data: str) -> None:
+        if self._in_h3:
+            self._h3_buf += data
+        elif self._in_cell:
+            self._cell += data
+
+
+def _html_bracket_content(text: str, start: int) -> str:
+    """Return the content between the opening bracket at `start` and its
+    matching closing bracket, respecting string literals."""
+    depth = 0
+    in_str = False
+    str_char = ""
+    i = start
+    while i < len(text):
+        c = text[i]
+        if in_str:
+            if c == "\\" :
+                i += 2
+                continue
+            if c == str_char:
+                in_str = False
+        elif c in ('"', "'"):
+            in_str = True
+            str_char = c
+        elif c in ("[", "{"):
+            depth += 1
+        elif c in ("]", "}"):
+            depth -= 1
+            if depth == 0:
+                return text[start + 1 : i]
+        i += 1
+    return ""
+
+
+def _parse_js_phase(obj_text: str) -> dict | None:
+    """Parse a single JS phase object: { name: "...", type: "...", items: [...] }"""
+    name_m = re.search(r'name:\s*"([^"]+)"', obj_text)
+    type_m = re.search(r'type:\s*"([^"]+)"', obj_text)
+    if not name_m or not type_m:
+        return None
+
+    items_idx = obj_text.find("items:")
+    if items_idx == -1:
+        return None
+    bracket_idx = obj_text.find("[", items_idx)
+    if bracket_idx == -1:
+        return None
+
+    items_content = _html_bracket_content(obj_text, bracket_idx)
+    items = [m.strip() for m in re.findall(r'"((?:[^"\\]|\\.)*)"', items_content) if m.strip()]
+
+    return {"name": name_m.group(1), "type": type_m.group(1), "items": items}
+
+
+def _parse_html_js_phases(script_text: str) -> list[ChecklistPhase]:
+    """Extract the `const phases = [...]` array from JS and return ChecklistPhase list."""
+    decl = script_text.find("const phases = [")
+    if decl == -1:
+        return []
+    arr_start = script_text.find("[", decl)
+    if arr_start == -1:
+        return []
+
+    arr_content = _html_bracket_content(script_text, arr_start)
+
+    phases: list[ChecklistPhase] = []
+    obj_start: int | None = None
+    obj_depth = 0
+    in_str = False
+    str_char = ""
+    i = 0
+
+    while i < len(arr_content):
+        c = arr_content[i]
+        if in_str:
+            if c == "\\":
+                i += 2
+                continue
+            if c == str_char:
+                in_str = False
+        elif c in ('"', "'"):
+            in_str = True
+            str_char = c
+        elif c == "{":
+            if obj_depth == 0:
+                obj_start = i
+            obj_depth += 1
+        elif c == "}":
+            obj_depth -= 1
+            if obj_depth == 0 and obj_start is not None:
+                obj_text = arr_content[obj_start : i + 1]
+                data = _parse_js_phase(obj_text)
+                if data:
+                    type_val = data["type"]
+                    if type_val == "emergency":
+                        category, prefix = "Emergency", "Emergency: "
+                    elif type_val == "abnormal":
+                        category, prefix = "Abnormal", "Abnormal: "
+                    else:
+                        category, prefix = "", ""
+
+                    title = prefix + data["name"].title()
+                    phase = ChecklistPhase(title, category=category)
+
+                    for raw in data["items"]:
+                        if f" {_EM_DASH} " in raw:
+                            label, state = raw.split(f" {_EM_DASH} ", 1)
+                        else:
+                            label, state = raw, ""
+                        phase.items.append(ChecklistItem(label.strip(), state.strip()))
+
+                    if phase.items:
+                        phases.append(phase)
+                obj_start = None
+        i += 1
+
+    return phases
+
+
+def _parse_html_ref_tables(script_text: str) -> list[tuple[str, str]]:
+    """Extract reference tables from AIRCRAFT_PERFORMANCE / CHARTS JS template
+    literals. Returns (label, data_uri) pairs in `data:table/json,` format."""
+    results: list[tuple[str, str]] = []
+
+    # Matches: title: "LABEL", html: `HTML_CONTENT`
+    # Also handles single-quoted titles as a fallback
+    entry_re = re.compile(r'title:\s*["\']([^"\']+)["\'],\s*html:\s*`([\s\S]*?)`')
+    matches = list(entry_re.finditer(script_text))
+
+    if not matches:
+        print("  Note: No title/html template-literal entries found in script blocks.")
+        print("        Reference tables will be skipped.")
+        return results
+
+    for m in matches:
+        section_title = m.group(1).strip()
+        html_content = m.group(2)
+
+        extractor = _TableExtractor(default_label=section_title)
+        try:
+            extractor.feed(html_content)
+        except Exception as e:
+            print(f"  Warning: Could not parse HTML for '{section_title}': {e}")
+            continue
+
+        for label, rows in extractor.results:
+            encoded = json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
+            results.append((label, f"data:table/json,{encoded}"))
+
+    return results
+
+
+def parse_html_checklist(filepath: str) -> ParsedChecklist:
+    """Parse a FlightCheck-style self-contained HTML checklist file.
+
+    Expects:
+    - Aircraft name in <title> tag (trailing 'Checklist' stripped)
+    - Checklist phases in a `const phases = [...]` JS array inside a <script>
+      Each phase: { name: "...", type: "normal|emergency|abnormal", items: ["Label — State", ...] }
+    - Optional reference tables in AIRCRAFT_PERFORMANCE / CHARTS JS objects
+      stored as HTML template literals with <table> elements
+    """
+    text = Path(filepath).read_text(encoding="utf-8", errors="replace")
+
+    # Plane name from <title>
+    title_m = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+    raw_title = title_m.group(1).strip() if title_m else ""
+    plane_name = re.sub(r"\s*checklist\s*$", "", raw_title, flags=re.IGNORECASE).strip()
+    if not plane_name:
+        plane_name = Path(filepath).stem.replace("_", " ").replace("-", " ").title()
+
+    # Collect all <script> text
+    script_blocks = re.findall(r"<script[^>]*>([\s\S]*?)</script>", text, re.IGNORECASE)
+    script_text = "\n".join(script_blocks)
+
+    if not script_text:
+        raise RuntimeError("No <script> blocks found in this HTML file.")
+
+    # Parse checklist phases
+    phases = _parse_html_js_phases(script_text)
+
+    # Parse reference tables
+    ref_pairs = _parse_html_ref_tables(script_text)
+    if ref_pairs:
+        ref_phase = ChecklistPhase("Reference Tables", category="Reference Tables")
+        for label, data_uri in ref_pairs:
+            ref_phase.items.append(ChecklistItem(label, notes=data_uri))
+        phases.append(ref_phase)
+        print(f"  Embedded {len(ref_pairs)} reference table(s) from HTML performance data")
+
+    if not phases:
+        raise RuntimeError(
+            "No checklist data found in this HTML file. "
+            "The parser expects a `const phases = [...]` array in a <script> block."
+        )
+
+    result = ParsedChecklist(plane_name=plane_name)
+    result.phases = phases
+    result.skip_uncategorized = False  # all HTML phases are intentional
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Output writers
 # ---------------------------------------------------------------------------
 
-CSV_HEADERS = ["name", "manufacturer", "type", "image", "checklist category", "phase", "item", "expectedState", "notes"]
+CSV_HEADERS = ["name", "manufacturer", "type", "image", "checklist category", "item", "expectedState", "notes", "phase"]
 
 
 def write_csv(checklist: ParsedChecklist, output_path: str) -> None:
@@ -834,7 +1131,7 @@ def interactive_mode() -> None:
     print()
     print("=" * 60)
     print("  Aircraft Checklist Converter")
-    print("  Converts PDF, Excel, Google Sheets, Word -> CSV / JSON")
+    print("  Converts PDF, Excel, Google Sheets, Word, HTML -> CSV / JSON")
     print("=" * 60)
 
     if MISSING_DEPS:
@@ -929,9 +1226,10 @@ Examples:
   python checklist_converter.py checklist.pdf                # PDF -> CSV
   python checklist_converter.py checklist.xlsx -f json       # Excel -> JSON
   python checklist_converter.py checklist.docx -f both       # Word -> CSV + JSON
+  python checklist_converter.py checklist.html -f both       # HTML -> CSV + JSON
   python checklist_converter.py "https://docs.google.com/spreadsheets/d/..." -f csv
 
-Supported inputs:  .pdf, .docx, .xlsx, .xls, .csv, .txt, Google Sheets URL
+Supported inputs:  .pdf, .docx, .xlsx, .xls, .csv, .txt, .html, Google Sheets URL
 Supported outputs: .csv (FlightCheck format), .json (FlightCheck format)
         """,
     )

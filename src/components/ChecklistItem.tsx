@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, StickyNote } from 'lucide-react';
 import styles from './ChecklistItem.module.css';
 import clsx from 'clsx';
@@ -10,6 +10,7 @@ interface ChecklistItemProps {
   onToggle: () => void;
   note?: string;
   onNoteChange?: (text: string) => void;
+  onDeleteTable?: () => void;
 }
 
 const TABLE_PREFIX = 'data:table/json,';
@@ -39,13 +40,32 @@ function ReferenceTable({ data, label }: { data: string; label: string }) {
   );
 }
 
-export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: ChecklistItemProps) {
+export function ChecklistItem({ item, checked, onToggle, note, onNoteChange, onDeleteTable }: ChecklistItemProps) {
   const [showNote, setShowNote] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const hasTableNote = item.notes?.startsWith(TABLE_PREFIX) ?? false;
+
+  useEffect(() => {
+    if (!menuPos) return;
+    const close = () => setMenuPos(null);
+    document.addEventListener('click', close);
+    document.addEventListener('scroll', close, true);
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('scroll', close, true);
+    };
+  }, [menuPos]);
 
   if (hasTableNote) {
     return (
-      <div className={styles.wrapper}>
+      <div
+        className={styles.wrapper}
+        onContextMenu={onDeleteTable ? (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setMenuPos({ x: e.clientX, y: e.clientY });
+        } : undefined}
+      >
         <div className={clsx(styles.item, styles.referenceTableItem)}>
           <div className={styles.content}>
             <div className={styles.labelRow}>
@@ -54,6 +74,22 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange }: C
             <ReferenceTable data={item.notes!} label={item.label} />
           </div>
         </div>
+
+        {menuPos && onDeleteTable && (
+          <div
+            className={styles.contextMenu}
+            style={{ top: menuPos.y, left: menuPos.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className={styles.contextMenuItem}
+              onClick={() => { setMenuPos(null); onDeleteTable(); }}
+              role="menuitem"
+            >
+              Delete Table
+            </button>
+          </div>
+        )}
       </div>
     );
   }
