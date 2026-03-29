@@ -220,7 +220,7 @@ export function useVoiceChecklist({
       }
     }, 10_000);
 
-    rec.onstart = () => { setIsListening(true); setRecognitionError(''); };
+    rec.onstart = () => { setIsListening(true); };
     rec.onend = () => {
       setIsListening(false);
       if (shouldListen && !speaking) setTimeout(startRec, 200);
@@ -279,6 +279,7 @@ export function useVoiceChecklist({
 
       // Always show live transcript so user can confirm mic is working
       setLastTranscript(raw);
+      setRecognitionError(''); // clear any previous error — speech is being heard
 
       const cmd = raw.toLowerCase().trim();
 
