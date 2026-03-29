@@ -136,11 +136,19 @@ export function useVoiceChecklist({
       try { rec.start(); } catch { /* already running */ }
     }
 
+    // Shared TTS fallback timer — cancelled whenever a new speakText call
+    // begins, so the old timer never fires into a new utterance.
+    let ttsTimer: ReturnType<typeof setTimeout> | null = null;
+
     function speakText(text: string, onEnd?: () => void) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
       stopRec();
       speaking = true;
+
+      // Cancel any previous fallback timer before setting a new one
+      if (ttsTimer) clearTimeout(ttsTimer);
+
       const utt = new SpeechSynthesisUtterance(text);
       utt.rate = 0.88;
       utt.pitch = 1.0;
@@ -148,7 +156,7 @@ export function useVoiceChecklist({
       // Chrome bug: SpeechSynthesisUtterance.onend sometimes never fires.
       // Fallback: force-release the speaking lock after an estimated duration.
       const fallbackMs = text.length * 80 + 1200;
-      const fallbackTimer = setTimeout(() => {
+      ttsTimer = setTimeout(() => {
         if (speaking) {
           speaking = false;
           startRec();
@@ -157,7 +165,7 @@ export function useVoiceChecklist({
       }, fallbackMs);
 
       utt.onend = () => {
-        clearTimeout(fallbackTimer);
+        if (ttsTimer) clearTimeout(ttsTimer);
         speaking = false;
         startRec();
         onEnd?.();
@@ -271,6 +279,11 @@ export function useVoiceChecklist({
 
       const cmd = raw.toLowerCase().trim();
 
+      // Ignore long transcripts — voice commands are always short phrases.
+      // This prevents background speech / ambient audio from accidentally
+      // matching a command word buried in a longer sentence.
+      if (cmd.split(/\s+/).length > 6) return;
+
       // Fire as soon as a command word appears in the transcript — don't
       // wait for isFinal (Chrome continuous mode often never sends it).
       // The 1.5 s cooldown stops the same utterance firing twice when
@@ -299,6 +312,7 @@ export function useVoiceChecklist({
 
     return () => {
       shouldListen = false;
+      if (ttsTimer) clearTimeout(ttsTimer);
       clearInterval(keepAlive);
       window.speechSynthesis?.cancel();
       stopRec();
