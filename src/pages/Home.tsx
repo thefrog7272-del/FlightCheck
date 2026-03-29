@@ -459,17 +459,21 @@ export function Home() {
         <div className={styles.titleGroup}>
           <h1 className={styles.title}>Select a Plane</h1>
           <div className={styles.actions}>
-            <button className={styles.addButton} onClick={() => setIsModalOpen(true)}>
-              <Plus size={18} /> Add Plane
-            </button>
-            <button className={styles.resetButton} onClick={() => setShowFileImport(true)}>
-              <FileUp size={18} /> Import File
-            </button>
+            {isAdmin && (
+              <>
+                <button className={styles.addButton} onClick={() => setIsModalOpen(true)}>
+                  <Plus size={18} /> Add Plane
+                </button>
+                <button className={styles.resetButton} onClick={() => setShowFileImport(true)}>
+                  <FileUp size={18} /> Import File
+                </button>
+                <button className={styles.resetButton} onClick={exportFleet}>
+                  <Download size={18} /> Export Fleet
+                </button>
+              </>
+            )}
             <button className={styles.resetButton} onClick={handleShowAll}>
               <Eye size={18} /> Show All
-            </button>
-            <button className={styles.resetButton} onClick={exportFleet}>
-              <Download size={18} /> Export Fleet
             </button>
           </div>
         </div>
