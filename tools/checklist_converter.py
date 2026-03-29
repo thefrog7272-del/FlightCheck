@@ -836,6 +836,7 @@ class _TableExtractor(_StdHTMLParser):
                 self._rows = []
                 self._row_classes = []
                 self._has_th = False
+                self._after_table = False  # entering a new table — pending notes are pre-notes
         elif tag == "tr" and self._table_depth == 1:
             self._row = []
             self._cur_row_class = "shaded-row" if "shaded-row" in attr_class.split() else ""
@@ -880,7 +881,9 @@ class _TableExtractor(_StdHTMLParser):
                                     self._pending_pre_note_yellow + " " + note_yellow
                                 ).strip()
                     self._small_yellow_buf = ""
-                    self._after_table = False
+                    # _after_table intentionally NOT reset here — consecutive
+                    # small-div notes after a table all belong to that table
+                    # as postNotes.  It resets only when a new <table> opens.
             return  # divs never affect heading/table state
 
         if self._in_small_div:
