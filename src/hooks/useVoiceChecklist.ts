@@ -218,16 +218,12 @@ export function useVoiceChecklist({
     rec.onerror = (e: WSAErrorEvent) => {
       if (e.error !== 'no-speech') console.warn('[Voice] recognition error:', e.error);
     };
-    rec.onresult = (e: WSAEvent) => {
-      const result = e.results[e.results.length - 1];
-      const raw = result[0].transcript;
+    // Chrome continuous mode sometimes never fires isFinal:true — debounce
+    // on interim results so a natural pause in speech triggers the command.
+    let commandTimer: ReturnType<typeof setTimeout> | null = null;
 
-      // Always show transcript for live feedback, but only act on final results
-      setLastTranscript(raw);
-      if (!result.isFinal) return;
-
+    function executeCommand(raw: string) {
       const cmd = raw.toLowerCase().trim();
-
       const cur = currentItemIdRef.current;
 
       if (['stop', 'exit', 'quit', 'cancel', 'voice off'].some(w => cmd.includes(w))) {
@@ -254,6 +250,25 @@ export function useVoiceChecklist({
         const p = getPrev();
         if (p) navigateTo(p);
       }
+    }
+
+    rec.onresult = (e: WSAEvent) => {
+      const result = e.results[e.results.length - 1];
+      const raw = result[0].transcript;
+
+      // Always show live transcript so user can confirm mic is working
+      setLastTranscript(raw);
+
+      if (commandTimer) clearTimeout(commandTimer);
+
+      if (result.isFinal) {
+        // Normal path
+        executeCommand(raw);
+      } else {
+        // Fallback: Chrome sometimes never sends isFinal:true in continuous
+        // mode — fire the command after a 500 ms pause in speech instead.
+        commandTimer = setTimeout(() => executeCommand(raw), 500);
+      }
     };
 
     // Find first unchecked item (or fall back to first item)
@@ -271,6 +286,7 @@ export function useVoiceChecklist({
 
     return () => {
       shouldListen = false;
+      if (commandTimer) clearTimeout(commandTimer);
       clearInterval(keepAlive);
       window.speechSynthesis?.cancel();
       stopRec();
