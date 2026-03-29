@@ -1096,6 +1096,14 @@ def _parse_html_ref_tables(script_text: str) -> list[tuple[str, str]]:
             continue
 
         for label, table_data in extractor.results:
+            # When a <h3> provides a label that differs from the section title,
+            # prefix the section title so the table is identifiable in context
+            # (e.g. "JPI EDM-800 — ALARMS" instead of just "ALARMS").
+            if label != section_title:
+                display_label = f"{section_title} \u2014 {label}"
+            else:
+                display_label = label
+
             has_extras = any(k in table_data for k in ("rowClasses", "preNote", "postNote", "preNoteYellow", "postNoteYellow"))
             if has_extras:
                 # Rich dict format — includes notes and shaded-row colours.
@@ -1107,7 +1115,7 @@ def _parse_html_ref_tables(script_text: str) -> list[tuple[str, str]]:
                 # Works with all versions of the FlightCheck importer.
                 payload = [table_data["headers"]] + table_data["rows"]
             encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-            results.append((label, f"data:table/json,{encoded}"))
+            results.append((display_label, f"data:table/json,{encoded}"))
 
     return results
 
