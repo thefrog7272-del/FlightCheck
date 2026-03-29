@@ -1,4 +1,35 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+
+// ── Local Web Speech API types ────────────────────────────────────────────────
+// TypeScript's DOM lib has partial Speech Recognition coverage; we define the
+// minimal surface we need here to avoid "Cannot find name" errors.
+
+interface WSAAlternative { readonly transcript: string }
+interface WSAResult {
+  readonly isFinal: boolean;
+  readonly length: number;
+  [index: number]: WSAAlternative;
+}
+interface WSAResultList {
+  readonly length: number;
+  [index: number]: WSAResult;
+}
+interface WSAEvent extends Event { readonly results: WSAResultList }
+interface WSAErrorEvent extends Event { readonly error: string }
+interface WSARecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: ((ev: Event) => void) | null;
+  onend: ((ev: Event) => void) | null;
+  onerror: ((ev: WSAErrorEvent) => void) | null;
+  onresult: ((ev: WSAEvent) => void) | null;
+  start(): void;
+  stop(): void;
+}
+type WSARecognitionCtor = new () => WSARecognition;
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 type PhaseItem = {
   id: string;
@@ -27,11 +58,11 @@ export interface VoiceChecklistReturn {
 }
 
 /** Returns the browser's SpeechRecognition constructor (handles webkit prefix). */
-function getRecognitionClass(): (new () => SpeechRecognition) | null {
+function getRecognitionClass(): WSARecognitionCtor | null {
   if (typeof window === 'undefined') return null;
   const w = window as unknown as {
-    SpeechRecognition?: new () => SpeechRecognition;
-    webkitSpeechRecognition?: new () => SpeechRecognition;
+    SpeechRecognition?: WSARecognitionCtor;
+    webkitSpeechRecognition?: WSARecognitionCtor;
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
@@ -164,11 +195,10 @@ export function useVoiceChecklist({
       setIsListening(false);
       if (shouldListen && !speaking) setTimeout(startRec, 200);
     };
-    rec.onerror = (e: SpeechRecognitionErrorEvent) => {
-      // 'no-speech' is not an error — just silence
+    rec.onerror = (e: WSAErrorEvent) => {
       if (e.error !== 'no-speech') console.warn('[Voice] recognition error:', e.error);
     };
-    rec.onresult = (e: SpeechRecognitionEvent) => {
+    rec.onresult = (e: WSAEvent) => {
       const result = e.results[e.results.length - 1];
       if (!result.isFinal) return;
 
