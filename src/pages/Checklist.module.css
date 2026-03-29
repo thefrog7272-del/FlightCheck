@@ -734,6 +734,12 @@
   flex: 1;
 }
 
+.voiceErrorLink {
+  color: #e74c3c;
+  text-decoration: underline;
+  margin-left: 0.25rem;
+}
+
 .voiceTranscript {
   font-style: italic;
   overflow: hidden;

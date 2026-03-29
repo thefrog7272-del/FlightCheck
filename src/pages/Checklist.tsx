@@ -518,7 +518,18 @@ export function Checklist() {
             <span className={isListening ? styles.listeningDot : styles.listeningDotIdle} />
             <span>{isListening ? 'Listening…' : 'Speaking…'}</span>
             {recognitionError && (
-              <span className={styles.voiceError}>⚠ {recognitionError}</span>
+              <span className={styles.voiceError}>
+                {recognitionError === 'no-speech' && '🎤 Not hearing you — wrong mic? Check '}
+                {recognitionError === 'network' && '⚠ No network — Chrome needs internet for speech recognition'}
+                {recognitionError === 'not-allowed' && '⚠ Mic permission denied — click the 🔒 in the address bar'}
+                {recognitionError === 'audio-capture' && '⚠ Mic not accessible — check OS audio settings'}
+                {!['no-speech','network','not-allowed','audio-capture'].includes(recognitionError) && `⚠ ${recognitionError}`}
+                {recognitionError === 'no-speech' && (
+                  <a href="chrome://settings/content/microphone" target="_blank" rel="noreferrer" className={styles.voiceErrorLink}>
+                    Chrome mic settings
+                  </a>
+                )}
+              </span>
             )}
             {!recognitionError && lastTranscript && (
               <span className={styles.voiceTranscript}>"{lastTranscript}"</span>
