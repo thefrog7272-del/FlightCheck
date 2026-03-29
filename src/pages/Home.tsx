@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { PlaneCard } from '../components/PlaneCard';
 import { ImageEditModal } from '../components/ImageEditModal';
 import { FileImportModal } from '../components/FileImportModal';
+import { AddReferenceTableModal } from '../components/AddReferenceTableModal';
 import styles from './Home.module.css';
 import { Search, Plus, Eye, ChevronDown, Download, Upload, FileUp } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
@@ -15,7 +16,7 @@ import type { Plane, PlaneChecklist } from '../data/types';
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
-  const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +26,7 @@ export function Home() {
   const [csvInput, setCsvInput] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editingImagePlaneId, setEditingImagePlaneId] = useState<string | null>(null);
+  const [addTablePlaneId, setAddTablePlaneId] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [showFileImport, setShowFileImport] = useState(false);
   const [importCategory, setImportCategory] = useState('');
@@ -113,6 +115,28 @@ export function Home() {
   const handleEditImage = useCallback((planeId: string) => {
     setEditingImagePlaneId(planeId);
   }, []);
+
+  const handleAddReferenceTable = useCallback((planeId: string) => {
+    setAddTablePlaneId(planeId);
+  }, []);
+
+  const handleSaveReferenceTable = useCallback(async (updatedChecklist: PlaneChecklist) => {
+    if (!addTablePlaneId) return;
+    if (isAdmin) {
+      const checklistRecords = await listAllSharedChecklists();
+      const record = checklistRecords.find(c => c.planeId === addTablePlaneId);
+      if (record) {
+        await updateSharedChecklist(record.id, JSON.stringify(updatedChecklist.phases));
+        try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+        await refreshSharedPlanes();
+      } else {
+        updateChecklist(addTablePlaneId, updatedChecklist);
+      }
+    } else {
+      updateChecklist(addTablePlaneId, updatedChecklist);
+    }
+    setAddTablePlaneId(null);
+  }, [addTablePlaneId, isAdmin, updateChecklist, refreshSharedPlanes]);
 
   const handleSaveImage = useCallback((newImage: string) => {
     if (editingImagePlaneId) {
@@ -584,6 +608,7 @@ export function Home() {
               onHide={handleHidePlane}
               onDelete={handleDeletePlane}
               onEditImage={handleEditImage}
+              onAddReferenceTable={isAdmin ? handleAddReferenceTable : undefined}
             />
           ))}
         </div>
@@ -650,6 +675,16 @@ export function Home() {
           currentImage={editingPlane.image}
           onSave={handleSaveImage}
           onCancel={() => setEditingImagePlaneId(null)}
+        />
+      )}
+
+      {addTablePlaneId && (
+        <AddReferenceTableModal
+          planeName={planes.find(p => p.id === addTablePlaneId)?.name ?? ''}
+          planeId={addTablePlaneId}
+          existingChecklist={checklists[addTablePlaneId] ?? null}
+          onSave={handleSaveReferenceTable}
+          onCancel={() => setAddTablePlaneId(null)}
         />
       )}
 
