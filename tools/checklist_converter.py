@@ -766,56 +766,51 @@ _EM_DASH = '\u2014'  # —
 
 
 class _TableExtractor(_StdHTMLParser):
-    """Collect h3 headings, small-div notes, and tables from an HTML fragment.
+    """Collect all <h3> headings and <table> elements from an HTML fragment in
+    document order, associating each table with the nearest preceding <h3>.
 
-    Each extracted table is stored as a dict with:
-      headers     – list[str]            first row of the table
-      rows        – list[list[str]]      data rows
-      rowClasses  – list[str]            (only present when non-empty)
-                    "shaded-row" for <tr class="shaded-row">, else ""
-      cellClasses – list[list[str]]      (only present when non-empty)
-                    "yellow-text" for cells containing
-                    <span class="yellow-text">, else ""
-      preNote     – str                  (only present when non-empty)
-                    text from a <div class="small"> before the table
-      postNote    – str                  (only present when non-empty)
-                    text from a <div class="small"> after the table
+    Each result is stored as a (label, table_data) tuple where table_data is a
+    dict that always has "headers" and "rows" keys, and optionally:
+      "rowClasses"  – list[str]   "shaded-row" or "" per data row
+      "cellClasses" – list[list[str]]  "yellow-text" or "" per cell
+      "preNote"     – str   text from <div class="small"> before the table
+      "postNote"    – str   text from <div class="small"> after the table
     """
 
     def __init__(self, default_label: str = "Reference Table"):
         super().__init__(convert_charrefs=True)
         self.default_label = default_label
-        # list of (label, table_data_dict)
+        # List of (label, table_data_dict) tuples
         self.results: list[tuple[str, dict]] = []
 
         self._label = default_label
-        # --- table state ---
+        # ── original table-parsing state (unchanged) ─────────────────────────
         self._table_depth = 0
         self._has_th = False
-        self._all_rows: list[list[str]] = []
-        self._all_row_classes: list[str] = []
-        self._all_cell_classes: list[list[str]] = []
-        self._cur_row_class = ""
-        self._row_buf: list[str] = []
-        self._row_cls_buf: list[str] = []
-        self._cell_buf = ""
-        self._cell_class = ""
+        self._rows: list[list[str]] = []
+        self._row: list[str] = []
+        self._cell = ""
         self._in_cell = False
-        # --- h3 state ---
         self._in_h3 = False
         self._h3_buf = ""
-        # --- <div class="small"> notes state ---
+        # ── new: per-row / per-cell colour classes ────────────────────────────
+        self._cur_row_class = ""          # "shaded-row" or ""
+        self._row_classes: list[str] = []  # parallel to self._rows
+        self._cell_class = ""             # "yellow-text" or ""
+        self._row_cell_classes: list[str] = []  # cell classes for current row
+        self._cell_classes: list[list[str]] = []  # parallel to self._rows
+        # ── new: <div class="small"> note tracking ────────────────────────────
         self._in_small_div = False
         self._small_div_depth = 0
         self._small_buf = ""
         self._pending_pre_note = ""
-        self._last_was_table = False  # True immediately after a table is saved
+        self._last_was_table = False
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
         tag = tag.lower()
         classes = set(dict(attrs).get("class", "").split())
 
-        # ── div tracking (notes) ────────────────────────────────────────────
+        # ── small-div note tracking ───────────────────────────────────────────
         if tag == "div":
             if self._in_small_div:
                 self._small_div_depth += 1
@@ -823,43 +818,39 @@ class _TableExtractor(_StdHTMLParser):
                 self._in_small_div = True
                 self._small_div_depth = 1
                 self._small_buf = ""
-            return  # divs don't affect table/heading state
+            return  # <div> never affects heading/table state
 
-        # Ignore everything else while collecting note text
         if self._in_small_div:
-            return
+            return  # skip all tags inside a note div
 
-        # ── heading ─────────────────────────────────────────────────────────
+        # ── original logic (unchanged names, minimal additions) ──────────────
         if tag == "h3" and self._table_depth == 0:
             self._in_h3 = True
             self._h3_buf = ""
-
-        # ── table structure ──────────────────────────────────────────────────
         elif tag == "table":
             self._table_depth += 1
             if self._table_depth == 1:
-                self._all_rows = []
-                self._all_row_classes = []
-                self._all_cell_classes = []
+                self._rows = []
+                self._row_classes = []
+                self._cell_classes = []
                 self._has_th = False
         elif tag == "tr" and self._table_depth == 1:
-            self._row_buf = []
-            self._row_cls_buf = []
+            self._row = []
             self._cur_row_class = "shaded-row" if "shaded-row" in classes else ""
+            self._row_cell_classes = []
         elif tag in ("th", "td") and self._table_depth == 1:
             self._in_cell = True
-            self._cell_buf = ""
+            self._cell = ""
             self._cell_class = ""
             if tag == "th":
                 self._has_th = True
-        elif tag == "span" and self._in_cell:
-            if "yellow-text" in classes:
-                self._cell_class = "yellow-text"
+        elif tag == "span" and self._in_cell and "yellow-text" in classes:
+            self._cell_class = "yellow-text"
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
 
-        # ── div (notes) ──────────────────────────────────────────────────────
+        # ── small-div note tracking ───────────────────────────────────────────
         if tag == "div":
             if self._in_small_div:
                 self._small_div_depth -= 1
@@ -868,68 +859,60 @@ class _TableExtractor(_StdHTMLParser):
                     note = re.sub(r"\s+", " ", self._small_buf).strip()
                     if note:
                         if self._last_was_table and self.results:
-                            # post-note: attach to the table we just finished
                             prev = self.results[-1][1]
                             prev["postNote"] = (
                                 (prev.get("postNote") or "") + " " + note
                             ).strip()
                         else:
-                            # pre-note: will be attached to the next table
                             self._pending_pre_note = (
                                 self._pending_pre_note + " " + note
                             ).strip()
                     self._last_was_table = False
-            return
+            return  # <div> never affects heading/table state
 
         if self._in_small_div:
-            return  # ignore close-tags inside note divs
+            return  # skip all tags inside a note div
 
-        # ── heading ──────────────────────────────────────────────────────────
+        # ── original logic with minimal additions ─────────────────────────────
         if tag == "h3":
             self._in_h3 = False
-            lbl = self._h3_buf.strip()
-            if lbl:
-                self._label = lbl
-
-        # ── table ────────────────────────────────────────────────────────────
+            label = self._h3_buf.strip()
+            if label:
+                self._label = label
         elif tag == "table":
             if self._table_depth == 1:
-                # Build filtered (row, row_class, cell_classes) triples
+                # Zip rows with their colour metadata then filter empty rows
                 triples = [
                     (r, rc, cc)
-                    for r, rc, cc in zip(
-                        self._all_rows,
-                        self._all_row_classes,
-                        self._all_cell_classes,
-                    )
-                    if any(c.strip() for c in r)
+                    for r, rc, cc in zip(self._rows, self._row_classes, self._cell_classes)
+                    if any(c for c in r)
                 ]
                 if triples:
-                    rows, row_classes, cell_classes = (list(x) for x in zip(*triples))
+                    rows, row_classes, cell_classes = map(list, zip(*triples))
                 else:
                     rows, row_classes, cell_classes = [], [], []
 
                 if rows and not self._has_th:
-                    num_cols = max(len(r) for r in rows)
-                    synth = (
+                    num_cols = max((len(r) for r in rows), default=0)
+                    header = (
                         ["Specification", "Value"]
                         if num_cols == 2
                         else [f"Col {i + 1}" for i in range(num_cols)]
                     )
-                    rows = [synth] + rows
+                    rows = [header] + rows
                     row_classes = [""] + row_classes
                     cell_classes = [[""] * num_cols] + cell_classes
 
-                if len(rows) > 1:
+                if len(rows) > 1:  # header + at least one data row
                     headers = rows[0]
                     body = rows[1:]
-                    data_rc = row_classes[1:]
-                    data_cc = cell_classes[1:]
+                    data_rc: list[str] = row_classes[1:] if len(row_classes) > 1 else []
+                    data_cc: list[list[str]] = cell_classes[1:] if len(cell_classes) > 1 else []
 
                     table_data: dict = {"headers": headers, "rows": body}
                     if any(c for c in data_rc):
                         table_data["rowClasses"] = data_rc
-                    if any(c for row in data_cc for c in row):
+                    if any(c for row_cc in data_cc for c in row_cc):
                         table_data["cellClasses"] = data_cc
                     if self._pending_pre_note:
                         table_data["preNote"] = self._pending_pre_note
@@ -939,23 +922,21 @@ class _TableExtractor(_StdHTMLParser):
                     self._label = self.default_label  # reset for next table
                     self._last_was_table = True
             self._table_depth -= 1
-
         elif tag == "tr" and self._table_depth == 1:
-            if self._row_buf:
-                self._all_rows.append(self._row_buf)
-                self._all_row_classes.append(self._cur_row_class)
-                self._all_cell_classes.append(self._row_cls_buf)
-
+            if self._row:
+                self._rows.append(self._row)
+                self._row_classes.append(self._cur_row_class)
+                self._cell_classes.append(self._row_cell_classes)
         elif tag in ("th", "td") and self._table_depth == 1:
             self._in_cell = False
-            self._row_buf.append(re.sub(r"\s+", " ", self._cell_buf).strip())
-            self._row_cls_buf.append(self._cell_class)
+            self._row.append(re.sub(r"\s+", " ", self._cell).strip())
+            self._row_cell_classes.append(self._cell_class)
 
     def handle_data(self, data: str) -> None:
         if self._in_h3:
             self._h3_buf += data
         elif self._in_cell:
-            self._cell_buf += data
+            self._cell += data
         elif self._in_small_div:
             self._small_buf += data
 
