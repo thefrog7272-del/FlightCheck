@@ -54,6 +54,7 @@ export interface VoiceChecklistReturn {
   isSupported: boolean;
   currentItemId: string | null;
   lastTranscript: string;
+  recognitionError: string;
   toggleVoiceMode: () => void;
 }
 
@@ -86,6 +87,7 @@ export function useVoiceChecklist({
   const [isListening, setIsListening] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const [lastTranscript, setLastTranscript] = useState('');
+  const [recognitionError, setRecognitionError] = useState('');
 
   const RecognitionClass = useMemo(getRecognitionClass, []);
   const isSupported =
@@ -124,8 +126,8 @@ export function useVoiceChecklist({
     let shouldListen = true;
     let speaking = false;
     const rec = new RecognitionClass();
-    rec.continuous = true;
-    rec.interimResults = false;
+    rec.continuous = false; // non-continuous is more reliable; onend restart handles looping
+    rec.interimResults = true;
     rec.lang = 'en-US';
 
     function stopRec() {
@@ -136,11 +138,19 @@ export function useVoiceChecklist({
       try { rec.start(); } catch { /* already running */ }
     }
 
+    // Shared TTS fallback timer — cancelled whenever a new speakText call
+    // begins, so the old timer never fires into a new utterance.
+    let ttsTimer: ReturnType<typeof setTimeout> | null = null;
+
     function speakText(text: string, onEnd?: () => void) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
       stopRec();
       speaking = true;
+
+      // Cancel any previous fallback timer before setting a new one
+      if (ttsTimer) clearTimeout(ttsTimer);
+
       const utt = new SpeechSynthesisUtterance(text);
       utt.rate = 0.88;
       utt.pitch = 1.0;
@@ -148,7 +158,7 @@ export function useVoiceChecklist({
       // Chrome bug: SpeechSynthesisUtterance.onend sometimes never fires.
       // Fallback: force-release the speaking lock after an estimated duration.
       const fallbackMs = text.length * 80 + 1200;
-      const fallbackTimer = setTimeout(() => {
+      ttsTimer = setTimeout(() => {
         if (speaking) {
           speaking = false;
           startRec();
@@ -157,7 +167,7 @@ export function useVoiceChecklist({
       }, fallbackMs);
 
       utt.onend = () => {
-        clearTimeout(fallbackTimer);
+        if (ttsTimer) clearTimeout(ttsTimer);
         speaking = false;
         startRec();
         onEnd?.();
@@ -210,22 +220,31 @@ export function useVoiceChecklist({
       }
     }, 10_000);
 
-    rec.onstart = () => setIsListening(true);
+    rec.onstart = () => { setIsListening(true); };
     rec.onend = () => {
       setIsListening(false);
       if (shouldListen && !speaking) setTimeout(startRec, 200);
     };
     rec.onerror = (e: WSAErrorEvent) => {
+      setRecognitionError(e.error);
       if (e.error !== 'no-speech') console.warn('[Voice] recognition error:', e.error);
     };
-    rec.onresult = (e: WSAEvent) => {
-      const result = e.results[e.results.length - 1];
-      if (!result.isFinal) return;
+    // All command keywords in one flat list for quick lookup
+    const COMMAND_WORDS = [
+      'stop', 'exit', 'quit', 'cancel', 'voice off',
+      'repeat', 'again', 'say again', 'what',
+      'check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
+      'done', 'complete', 'correct', 'checked', 'good',
+      'next', 'skip', 'pass', 'continue', 'move on',
+      'back', 'previous', 'go back',
+    ];
 
-      const raw = result[0].transcript;
+    // Timestamp of the last fired command — prevents double-firing when
+    // Chrome emits both interim and final results for the same utterance.
+    let lastCommandAt = 0;
+
+    function executeCommand(raw: string) {
       const cmd = raw.toLowerCase().trim();
-      setLastTranscript(raw);
-
       const cur = currentItemIdRef.current;
 
       if (['stop', 'exit', 'quit', 'cancel', 'voice off'].some(w => cmd.includes(w))) {
@@ -252,6 +271,34 @@ export function useVoiceChecklist({
         const p = getPrev();
         if (p) navigateTo(p);
       }
+    }
+
+    rec.onresult = (e: WSAEvent) => {
+      const result = e.results[e.results.length - 1];
+      const raw = result[0].transcript;
+
+      // Always show live transcript so user can confirm mic is working
+      setLastTranscript(raw);
+      setRecognitionError(''); // clear any previous error — speech is being heard
+
+      const cmd = raw.toLowerCase().trim();
+
+      // Ignore long transcripts — voice commands are always short phrases.
+      // This prevents background speech / ambient audio from accidentally
+      // matching a command word buried in a longer sentence.
+      if (cmd.split(/\s+/).length > 6) return;
+
+      // Fire as soon as a command word appears in the transcript — don't
+      // wait for isFinal (Chrome continuous mode often never sends it).
+      // The 1.5 s cooldown stops the same utterance firing twice when
+      // Chrome does emit both an interim and a final result.
+      if (!COMMAND_WORDS.some(w => cmd.includes(w))) return;
+
+      const now = Date.now();
+      if (now - lastCommandAt < 1500) return;
+      lastCommandAt = now;
+
+      executeCommand(raw);
     };
 
     // Find first unchecked item (or fall back to first item)
@@ -269,6 +316,7 @@ export function useVoiceChecklist({
 
     return () => {
       shouldListen = false;
+      if (ttsTimer) clearTimeout(ttsTimer);
       clearInterval(keepAlive);
       window.speechSynthesis?.cancel();
       stopRec();
@@ -277,8 +325,9 @@ export function useVoiceChecklist({
       setIsListening(false);
       setCurrentItemId(null);
       setLastTranscript('');
+      setRecognitionError('');
     };
   }, [isVoiceMode]); // RecognitionClass is stable (memo on []); all volatile data via refs
 
-  return { isVoiceMode, isListening, isSupported, currentItemId, lastTranscript, toggleVoiceMode };
+  return { isVoiceMode, isListening, isSupported, currentItemId, lastTranscript, recognitionError, toggleVoiceMode };
 }
