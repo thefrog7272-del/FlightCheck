@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Upload, FileText, AlertCircle, Check, AlertTriangle, Info } from 'lucide-react';
-import { extractFileText, parseChecklistText } from '../utils/checklistFileParser';
+import { extractFileText, parseChecklistText, parseHtmlChecklist } from '../utils/checklistFileParser';
 import { validateChecklist, type ImportWarning } from '../utils/checklistValidator';
 import styles from './FileImportModal.module.css';
 import type { Plane, PlaneChecklist } from '../data/types';
@@ -28,7 +28,27 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
     setStep('parsing');
     setError('');
 
-    const isPdf = file.name.toLowerCase().endsWith('.pdf');
+    const nameLower = file.name.toLowerCase();
+    const isHtml = nameLower.endsWith('.html') || nameLower.endsWith('.htm');
+    const isPdf = nameLower.endsWith('.pdf');
+
+    // For HTML checklists, use the dedicated HTML parser
+    if (isHtml) {
+      try {
+        const htmlText = await file.text();
+        const { plane, checklist } = parseHtmlChecklist(htmlText);
+        setPlaneName(plane.name);
+        setManufacturer(plane.manufacturer || '');
+        setResult({ plane, checklist });
+        setWarnings(validateChecklist(checklist, plane));
+        setStep('preview');
+        return;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to parse HTML checklist');
+        setStep('error');
+        return;
+      }
+    }
 
     // For PDFs, try the Lambda converter first
     if (isPdf && PDF_CONVERTER_URL) {
@@ -141,11 +161,11 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
           <div className={styles.uploadArea}>
             <Upload size={32} className={styles.uploadIcon} />
             <p className={styles.uploadText}>
-              Upload a PDF, DOCX, or TXT file containing a checklist
+              Upload a PDF, DOCX, TXT, or HTML file containing a checklist
             </p>
             <input
               type="file"
-              accept=".pdf,.docx,.txt"
+              accept=".pdf,.docx,.txt,.html,.htm"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) handleFile(file);
@@ -154,8 +174,8 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
             />
             <p className={styles.hint}>
               {PDF_CONVERTER_URL
-                ? 'PDFs will be parsed automatically using the cloud converter.'
-                : 'The parser will extract phases and items from the document.'}
+                ? 'PDFs will be parsed automatically using the cloud converter. HTML checklists are parsed locally.'
+                : 'The parser will extract phases, items, and reference tables from the document.'}
             </p>
           </div>
         )}
@@ -163,7 +183,7 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
         {step === 'parsing' && (
           <div className={styles.center}>
             <FileText size={32} className={styles.spinner} />
-            <p>{PDF_CONVERTER_URL ? 'Converting PDF…' : 'Extracting text from file…'}</p>
+            <p>{PDF_CONVERTER_URL ? 'Converting PDF…' : 'Parsing file…'}</p>
           </div>
         )}
 
