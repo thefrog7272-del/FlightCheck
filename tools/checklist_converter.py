@@ -958,14 +958,25 @@ def _parse_html_ref_tables(script_text: str) -> list[tuple[str, str]]:
     results: list[tuple[str, str]] = []
 
     # Matches: title: "LABEL", html: `HTML_CONTENT`
-    entry_re = re.compile(r'title:\s*"([^"]+)",\s*html:\s*`([\s\S]*?)`')
+    # Also handles single-quoted titles as a fallback
+    entry_re = re.compile(r'title:\s*["\']([^"\']+)["\'],\s*html:\s*`([\s\S]*?)`')
+    matches = list(entry_re.finditer(script_text))
 
-    for m in entry_re.finditer(script_text):
+    if not matches:
+        print("  Note: No title/html template-literal entries found in script blocks.")
+        print("        Reference tables will be skipped.")
+        return results
+
+    for m in matches:
         section_title = m.group(1).strip()
         html_content = m.group(2)
 
         extractor = _TableExtractor(default_label=section_title)
-        extractor.feed(html_content)
+        try:
+            extractor.feed(html_content)
+        except Exception as e:
+            print(f"  Warning: Could not parse HTML for '{section_title}': {e}")
+            continue
 
         for label, rows in extractor.results:
             encoded = json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
