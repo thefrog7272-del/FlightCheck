@@ -261,3 +261,33 @@
     display: none !important;
   }
 }
+
+/* ── Reference-table context menu ─────────────────────────────────────── */
+
+.contextMenu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  min-width: 140px;
+}
+
+.contextMenuItem {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--danger, #ef4444);
+  cursor: pointer;
+}
+
+.contextMenuItem:hover {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.05));
+}
