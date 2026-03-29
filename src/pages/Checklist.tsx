@@ -4,7 +4,8 @@ import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
 import { Timer } from '../components/Timer';
 import styles from './Checklist.module.css';
-import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2 } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff } from 'lucide-react';
+import { useVoiceChecklist } from '../hooks/useVoiceChecklist';
 import { useFleet } from '../hooks/useFleet';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useChecklistNavigation } from '../hooks/useChecklistNavigation';
@@ -27,6 +28,34 @@ export function Checklist() {
   useEffect(() => {
     if (planeId) trackRecentUse(planeId);
   }, [planeId, trackRecentUse]);
+
+  // Compute these early — needed both by voice hook (below) and normal render logic.
+  const variantKey = activeVariant !== 'Standard' && planeId ? `${planeId}::${activeVariant}` : null;
+  const baseChecklist = planeId ? checklists[planeId] : null;
+  const checklist = (variantKey ? checklists[variantKey] : null) ?? baseChecklist;
+  const checkedItems = planeId ? getProgress(planeId, activeVariant) : {};
+
+  // Voice checklist — hook must be called unconditionally (before any early return).
+  // We use a stable wrapper + ref so toggleItem (defined after the guard clause)
+  // is always called at its latest definition without re-creating the hook callback.
+  const voiceCheckCallbackRef = useRef<(id: string) => void>(() => {});
+  const stableVoiceCheck = useCallback((id: string) => {
+    voiceCheckCallbackRef.current(id);
+  }, []);
+
+  const {
+    isVoiceMode,
+    isListening,
+    isSupported: isVoiceSupported,
+    currentItemId: voiceItemId,
+    lastTranscript,
+    toggleVoiceMode,
+  } = useVoiceChecklist({
+    phases: checklist?.phases ?? [],
+    checkedItems,
+    onCheckItem: stableVoiceCheck,
+  });
+
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
@@ -41,10 +70,6 @@ export function Checklist() {
   const [searchQuery, setSearchQuery] = useState('');
   const plane = planes.find(p => p.id === planeId);
   const variants = planeId ? getVariants(planeId) : ['Standard'];
-  const baseChecklist = planeId ? checklists[planeId] : null;
-  const variantKey = activeVariant !== 'Standard' && planeId ? `${planeId}::${activeVariant}` : null;
-  const checklist = (variantKey ? checklists[variantKey] : null) ?? baseChecklist;
-  const checkedItems = planeId ? getProgress(planeId, activeVariant) : {};
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
     if (!planeId) return;
     const newValue = typeof updater === 'function' ? updater(checkedItems) : updater;
@@ -172,6 +197,13 @@ export function Checklist() {
     onPrint: () => window.print(),
   }), [isEditing, downloadCsv]));
 
+  // Auto-scroll the currently active voice item into view (must be before guard clause).
+  useEffect(() => {
+    if (!voiceItemId) return;
+    document.querySelector(`[data-voice-id="${voiceItemId}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [voiceItemId]);
+
   if (loading) {
     return <div className={styles.container}><p>Loading...</p></div>;
   }
@@ -226,6 +258,11 @@ export function Checklist() {
       wasChecked ? 'Item unchecked' : 'Item checked',
       { label: 'Undo', onClick: () => { setCheckedItems(prevState); prevCheckedRef.current = prevState; } }
     );
+  };
+
+  // Wire voice "check" to the real toggleItem (only checks, never unchecks).
+  voiceCheckCallbackRef.current = (itemId: string) => {
+    if (!checkedItems[itemId]) toggleItem(itemId);
   };
 
   const togglePhase = (phaseId: string) => {
@@ -462,8 +499,31 @@ export function Checklist() {
             <button onClick={toggleMute} className={styles.resetButton} title={isMuted ? 'Unmute sounds' : 'Mute sounds'}>
               {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
             </button>
+            {isVoiceSupported && !isReferenceVariant && (
+              <button
+                onClick={toggleVoiceMode}
+                className={isVoiceMode ? styles.micButtonActive : styles.micButton}
+                title={isVoiceMode ? 'Stop voice mode' : 'Start voice mode'}
+              >
+                {isVoiceMode ? <MicOff className={styles.resetIcon} /> : <Mic className={styles.resetIcon} />}
+                {isVoiceMode ? 'Voice On' : 'Voice'}
+              </button>
+            )}
           </div>
         </div>
+
+        {isVoiceMode && (
+          <div className={styles.voiceBar}>
+            <span className={isListening ? styles.listeningDot : styles.listeningDotIdle} />
+            <span>{isListening ? 'Listening…' : 'Speaking…'}</span>
+            {lastTranscript && (
+              <span className={styles.voiceTranscript}>"{lastTranscript}"</span>
+            )}
+            <span className={styles.voiceHints}>
+              "check" · "next" · "back" · "repeat" · "stop"
+            </span>
+          </div>
+        )}
 
         <Timer
           elapsed={timer.elapsed}
@@ -577,7 +637,11 @@ export function Checklist() {
                 <div className={styles.items}>
                   {isEditing && insertionPoint(phase.id, 0)}
                   {phase.items.map((item, idx) => (
-                    <div key={item.id}>
+                    <div
+                      key={item.id}
+                      data-voice-id={item.id}
+                      className={isVoiceMode && voiceItemId === item.id ? styles.voiceCurrentItem : undefined}
+                    >
                       <div className={styles.editableRow}>
                         {isEditing && (
                           <div

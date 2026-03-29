@@ -651,6 +651,100 @@
   }
 }
 
+/* ── Voice mode ──────────────────────────────────────────────────────────── */
+
+.micButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.micButton:hover {
+  background-color: var(--bg-secondary);
+  border-color: var(--accent);
+}
+
+.micButtonActive {
+  composes: micButton;
+  background-color: #e74c3c;
+  color: #fff;
+  border-color: #e74c3c;
+  animation: voicePulse 1.4s ease-in-out infinite;
+}
+
+.micButtonActive:hover {
+  opacity: 0.9;
+}
+
+@keyframes voicePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+  50%       { box-shadow: 0 0 0 6px rgba(231, 76, 60, 0.25); }
+}
+
+.voiceCurrentItem {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius);
+}
+
+.voiceBar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.listeningDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e74c3c;
+  flex-shrink: 0;
+  animation: dotBlink 1s ease-in-out infinite;
+}
+
+.listeningDotIdle {
+  composes: listeningDot;
+  background: var(--text-secondary);
+  animation: none;
+  opacity: 0.4;
+}
+
+@keyframes dotBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+.voiceTranscript {
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+  flex: 1;
+}
+
+.voiceHints {
+  margin-left: auto;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 .srOnly {
   position: absolute;
   width: 1px;
