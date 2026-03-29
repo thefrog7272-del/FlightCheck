@@ -168,8 +168,14 @@
   background-color: rgba(59, 130, 246, 0.08);
 }
 
-.tableRowShaded {
-  background-color: rgba(100, 116, 139, 0.18) !important;
+.tableRowShaded td,
+.tableRowShaded th {
+  color: #ffd166 !important;
+}
+
+:root[data-theme="light"] .tableRowShaded td,
+:root[data-theme="light"] .tableRowShaded th {
+  color: #92400e !important;
 }
 
 .tableCellYellow {
