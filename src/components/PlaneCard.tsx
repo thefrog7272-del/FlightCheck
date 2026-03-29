@@ -10,11 +10,12 @@ interface PlaneCardProps {
   onHide?: (id: string) => void;
   onDelete?: (id: string) => void;
   onEditImage?: (id: string) => void;
+  onAddReferenceTable?: (id: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
 }
 
-export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, isFavorite, onToggleFavorite }: PlaneCardProps) {
+export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, isFavorite, onToggleFavorite }: PlaneCardProps) {
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -49,6 +50,13 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, isFa
     e.stopPropagation();
     setMenuPos(null);
     onEditImage?.(plane.id);
+  };
+
+  const handleAddReferenceTable = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos(null);
+    onAddReferenceTable?.(plane.id);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -112,6 +120,11 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, isFa
           {onEditImage && (
             <button className={styles.contextMenuItem} onClick={handleEditImage} role="menuitem">
               Change Image
+            </button>
+          )}
+          {onAddReferenceTable && (
+            <button className={styles.contextMenuItem} onClick={handleAddReferenceTable} role="menuitem">
+              Add Reference Table
             </button>
           )}
           {onHide && (

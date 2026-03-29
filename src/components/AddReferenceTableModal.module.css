@@ -1,0 +1,236 @@
+.backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1.5rem;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal {
+  background-color: var(--bg-secondary);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  animation: slideUp 0.15s ease-out;
+}
+
+.title {
+  margin: 0 0 1.25rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.textInput,
+.phaseSelect,
+.newPhaseInput {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.textInput:focus,
+.phaseSelect:focus,
+.newPhaseInput:focus {
+  border-color: var(--accent);
+}
+
+.textInput::placeholder,
+.newPhaseInput::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.phaseSelect {
+  cursor: pointer;
+}
+
+.newPhaseInput {
+  margin-top: 0.5rem;
+}
+
+.csvTextarea {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-family: 'Courier New', Courier, monospace;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 9rem;
+}
+
+.csvTextarea:focus {
+  border-color: var(--accent);
+}
+
+.csvTextarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+/* ── Preview ── */
+
+.previewSection {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.previewLabel {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.previewEmpty {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.previewTableWrapper {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.previewTable th,
+.previewTable td {
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.previewTable thead tr {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.previewTable tbody tr:nth-child(even) {
+  background-color: var(--bg-secondary);
+}
+
+/* ── Error ── */
+
+.error {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  font-size: 0.8125rem;
+}
+
+/* ── Actions ── */
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.cancelButton,
+.saveButton {
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.cancelButton {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.cancelButton:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.saveButton {
+  background-color: var(--accent);
+  color: white;
+  border: none;
+}
+
+.saveButton:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
