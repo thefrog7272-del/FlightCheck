@@ -128,7 +128,7 @@ export function useVoiceChecklist({
     const rec = new RecognitionClass();
     rec.continuous = false; // non-continuous is more reliable; onend restart handles looping
     rec.interimResults = true;
-    rec.lang = 'en-US';
+    rec.lang = 'en-GB';
 
     function stopRec() {
       try { rec.stop(); } catch { /* already stopped */ }
@@ -154,6 +154,10 @@ export function useVoiceChecklist({
       const utt = new SpeechSynthesisUtterance(text);
       utt.rate = 0.88;
       utt.pitch = 1.0;
+      // Prefer a British English voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const gbVoice = voices.find(v => v.lang === 'en-GB') ?? voices.find(v => v.lang.startsWith('en-GB'));
+      if (gbVoice) utt.voice = gbVoice;
 
       // Chrome bug: SpeechSynthesisUtterance.onend sometimes never fires.
       // Fallback: force-release the speaking lock after an estimated duration.
@@ -288,16 +292,26 @@ export function useVoiceChecklist({
       // matching a command word buried in a longer sentence.
       if (cmd.split(/\s+/).length > 6) return;
 
+      const now = Date.now();
+      if (now - lastCommandAt < 1500) return;
+
+      // Check if the transcript matches the current item's expectedState —
+      // e.g. saying "full" when the item expects "FULL" counts as a check.
+      const currentItem = allItemsRef.current.find(i => i.id === currentItemIdRef.current);
+      const expectedState = currentItem?.expectedState?.toLowerCase().trim();
+      if (expectedState && cmd.includes(expectedState)) {
+        lastCommandAt = now;
+        executeCommand('check');
+        return;
+      }
+
       // Fire as soon as a command word appears in the transcript — don't
       // wait for isFinal (Chrome continuous mode often never sends it).
       // The 1.5 s cooldown stops the same utterance firing twice when
       // Chrome does emit both an interim and a final result.
       if (!COMMAND_WORDS.some(w => cmd.includes(w))) return;
 
-      const now = Date.now();
-      if (now - lastCommandAt < 1500) return;
       lastCommandAt = now;
-
       executeCommand(raw);
     };
 
