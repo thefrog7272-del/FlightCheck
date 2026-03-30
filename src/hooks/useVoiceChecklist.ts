@@ -206,15 +206,23 @@ export function useVoiceChecklist({
     function getNext(): string | null {
       const items = allItemsRef.current;
       const cur = currentItemIdRef.current;
+      const checked = checkedItemsRef.current;
       const idx = cur ? items.findIndex(i => i.id === cur) : -1;
-      return items[idx + 1]?.id ?? null;
+      for (let i = idx + 1; i < items.length; i++) {
+        if (!checked[items[i].id]) return items[i].id;
+      }
+      return null;
     }
 
     function getPrev(): string | null {
       const items = allItemsRef.current;
       const cur = currentItemIdRef.current;
+      const checked = checkedItemsRef.current;
       const idx = cur ? items.findIndex(i => i.id === cur) : items.length;
-      return items[idx - 1]?.id ?? null;
+      for (let i = idx - 1; i >= 0; i--) {
+        if (!checked[items[i].id]) return items[i].id;
+      }
+      return null;
     }
 
     // Chrome silently pauses speechSynthesis after ~15 s; resume() keeps it alive.
