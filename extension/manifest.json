@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "FlightCheck Voice Toggle",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Global hotkey to toggle FlightCheck voice checklist mode. Change the shortcut at chrome://extensions/shortcuts",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "scripting"],
   "host_permissions": [
     "*://main.d2m1s5v9i0w5nr.amplifyapp.com/*",
     "http://localhost:5173/*"
@@ -11,15 +11,6 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "*://main.d2m1s5v9i0w5nr.amplifyapp.com/*",
-        "http://localhost:5173/*"
-      ],
-      "js": ["content.js"]
-    }
-  ],
   "commands": {
     "toggle-voice": {
       "suggested_key": {

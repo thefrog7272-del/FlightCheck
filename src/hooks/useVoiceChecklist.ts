@@ -178,6 +178,21 @@ export function useVoiceChecklist({
 
     let shouldListen = true;
     let speaking = false;
+
+    // Play a silent looping audio so Chrome routes hardware media keys to this
+    // page. Without active audio Chrome ignores media key handlers.
+    let audioCtx: AudioContext | null = null;
+    let silentSource: AudioBufferSourceNode | null = null;
+    try {
+      audioCtx = new AudioContext();
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+      silentSource = audioCtx.createBufferSource();
+      silentSource.buffer = buf;
+      silentSource.loop = true;
+      silentSource.connect(audioCtx.destination);
+      silentSource.start();
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+    } catch { /* started outside a user gesture — media keys may not work */ }
     const rec = new RecognitionClass();
     rec.continuous = false; // non-continuous is more reliable; onend restart handles looping
     rec.interimResults = true;
@@ -243,21 +258,23 @@ export function useVoiceChecklist({
     }
 
     function navigateTo(itemId: string | null) {
+      const prevPhase = allItemsRef.current.find(
+        i => i.id === currentItemIdRef.current,
+      )?.phaseTitle;
+      const next = itemId ? allItemsRef.current.find(i => i.id === itemId) : null;
+
+      // Whenever we leave the current phase (including finishing the checklist),
+      // check off any items that were left unchecked in the departing phase.
+      if (prevPhase && (!next || prevPhase !== next.phaseTitle)) {
+        allItemsRef.current
+          .filter(i => i.phaseTitle === prevPhase && !checkedItemsRef.current[i.id])
+          .forEach(i => onCheckItemRef.current(i.id));
+      }
+
       if (!itemId) {
         setCurrentItemId(null);
         speakText('Checklist complete. Well done!');
         return;
-      }
-      const prevPhase = allItemsRef.current.find(
-        i => i.id === currentItemIdRef.current,
-      )?.phaseTitle;
-      const next = allItemsRef.current.find(i => i.id === itemId);
-
-      // When crossing a phase boundary, check off any remaining items in the departing phase
-      if (prevPhase && next && prevPhase !== next.phaseTitle) {
-        allItemsRef.current
-          .filter(i => i.phaseTitle === prevPhase && !checkedItemsRef.current[i.id])
-          .forEach(i => onCheckItemRef.current(i.id));
       }
 
       setCurrentItemId(itemId);
@@ -351,23 +368,11 @@ export function useVoiceChecklist({
         if (item) speakText(itemText(item));
 
       } else if (['check all', 'complete all', 'all complete', 'all checked'].some(w => cmd.includes(w))) {
-        // Check every unchecked item in the current phase then jump to next section
-        const curPhase = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
-        if (curPhase) {
-          allItemsRef.current
-            .filter(i => i.phaseTitle === curPhase && !checkedItemsRef.current[i.id])
-            .forEach(i => onCheckItemRef.current(i.id));
-        }
+        // navigateTo handles checking off remaining items in the departing phase
         navigateTo(getNextSection());
 
       } else if (['next section', 'next phase', 'go to next', 'jump'].some(w => cmd.includes(w))) {
-        // Also check remaining items in current phase before jumping
-        const curPhase2 = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
-        if (curPhase2) {
-          allItemsRef.current
-            .filter(i => i.phaseTitle === curPhase2 && !checkedItemsRef.current[i.id])
-            .forEach(i => onCheckItemRef.current(i.id));
-        }
+        // navigateTo handles checking off remaining items in the departing phase
         navigateTo(getNextSection());
 
       } else if (
@@ -394,8 +399,12 @@ export function useVoiceChecklist({
 
       const fire = () => {
         const now = Date.now();
-        if (now - lastCommandAt < 1500) return;
+        if (now - lastCommandAt < 1500) {
+          console.log('[Voice] command blocked by 1500ms cooldown:', raw);
+          return;
+        }
         lastCommandAt = now;
+        console.log('[Voice] executing command:', raw);
         executeCommand(raw);
       };
 
@@ -434,6 +443,7 @@ export function useVoiceChecklist({
 
       if (!COMMAND_WORDS.some(w => cmd.includes(w))) return;
 
+      console.log('[Voice] command word matched:', cmd, '| isFinal:', result.isFinal);
       scheduleCommand(raw, result.isFinal);
     };
 
@@ -459,6 +469,9 @@ export function useVoiceChecklist({
       stopRec();
       rec.onend = null;
       rec.onresult = null;
+      silentSource?.stop();
+      audioCtx?.close().catch(() => {});
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
       setIsListening(false);
       setCurrentItemId(null);
       setLastTranscript('');
