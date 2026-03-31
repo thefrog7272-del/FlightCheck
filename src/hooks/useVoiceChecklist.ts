@@ -95,6 +95,18 @@ export function useVoiceChecklist({
     typeof window !== 'undefined' &&
     'speechSynthesis' in window;
 
+  // Listen for hotkey toggle from the Chrome extension (works when browser is not focused)
+  useEffect(() => {
+    if (!isSupported) return;
+    function handleMessage(e: MessageEvent) {
+      if (e.data?.type === 'FLIGHTCHECK_TOGGLE_VOICE') {
+        setIsVoiceMode(prev => !prev);
+      }
+    }
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isSupported]);
+
   // ── Refs for volatile data (avoids stale closures inside recognition effect) ──
   const currentItemIdRef = useRef<string | null>(null);
   const checkedItemsRef = useRef(checkedItems);
