@@ -95,6 +95,31 @@ export function useVoiceChecklist({
     typeof window !== 'undefined' &&
     'speechSynthesis' in window;
 
+  // Listen for hotkey toggle from the Chrome extension (works when browser is not focused)
+  useEffect(() => {
+    if (!isSupported) return;
+    function handleMessage(e: MessageEvent) {
+      if (e.data?.type === 'FLIGHTCHECK_TOGGLE_VOICE') {
+        setIsVoiceMode(prev => !prev);
+      }
+    }
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isSupported]);
+
+  // Listen for hardware play/pause media key via Media Session API
+  // Works when the browser tab is in the background
+  useEffect(() => {
+    if (!isSupported || !('mediaSession' in navigator)) return;
+    const toggle = () => setIsVoiceMode(prev => !prev);
+    navigator.mediaSession.setActionHandler('play', toggle);
+    navigator.mediaSession.setActionHandler('pause', toggle);
+    return () => {
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+    };
+  }, [isSupported]);
+
   // ── Refs for volatile data (avoids stale closures inside recognition effect) ──
   const currentItemIdRef = useRef<string | null>(null);
   const checkedItemsRef = useRef(checkedItems);
