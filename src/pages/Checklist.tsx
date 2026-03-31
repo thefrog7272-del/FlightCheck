@@ -52,6 +52,8 @@ export function Checklist() {
     lastTranscript,
     recognitionError,
     toggleVoiceMode,
+    readExpectedState,
+    toggleReadExpectedState,
   } = useVoiceChecklist({
     phases: checklist?.phases ?? [],
     checkedItems,
@@ -536,6 +538,13 @@ export function Checklist() {
             {!recognitionError && lastTranscript && (
               <span className={styles.voiceTranscript}>"{lastTranscript}"</span>
             )}
+            <button
+              onClick={toggleReadExpectedState}
+              className={styles.readStateBtn}
+              title={readExpectedState ? 'Currently reading expected state — click to read item only' : 'Currently reading item only — click to also read expected state'}
+            >
+              {readExpectedState ? 'Label + state' : 'Label only'}
+            </button>
             <span className={styles.voiceHints}>
               "check" · "next" · "back" · "repeat" · "stop"
             </span>
