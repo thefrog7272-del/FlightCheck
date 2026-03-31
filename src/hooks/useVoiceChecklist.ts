@@ -258,21 +258,23 @@ export function useVoiceChecklist({
     }
 
     function navigateTo(itemId: string | null) {
+      const prevPhase = allItemsRef.current.find(
+        i => i.id === currentItemIdRef.current,
+      )?.phaseTitle;
+      const next = itemId ? allItemsRef.current.find(i => i.id === itemId) : null;
+
+      // Whenever we leave the current phase (including finishing the checklist),
+      // check off any items that were left unchecked in the departing phase.
+      if (prevPhase && (!next || prevPhase !== next.phaseTitle)) {
+        allItemsRef.current
+          .filter(i => i.phaseTitle === prevPhase && !checkedItemsRef.current[i.id])
+          .forEach(i => onCheckItemRef.current(i.id));
+      }
+
       if (!itemId) {
         setCurrentItemId(null);
         speakText('Checklist complete. Well done!');
         return;
-      }
-      const prevPhase = allItemsRef.current.find(
-        i => i.id === currentItemIdRef.current,
-      )?.phaseTitle;
-      const next = allItemsRef.current.find(i => i.id === itemId);
-
-      // When crossing a phase boundary, check off any remaining items in the departing phase
-      if (prevPhase && next && prevPhase !== next.phaseTitle) {
-        allItemsRef.current
-          .filter(i => i.phaseTitle === prevPhase && !checkedItemsRef.current[i.id])
-          .forEach(i => onCheckItemRef.current(i.id));
       }
 
       setCurrentItemId(itemId);
@@ -366,23 +368,11 @@ export function useVoiceChecklist({
         if (item) speakText(itemText(item));
 
       } else if (['check all', 'complete all', 'all complete', 'all checked'].some(w => cmd.includes(w))) {
-        // Check every unchecked item in the current phase then jump to next section
-        const curPhase = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
-        if (curPhase) {
-          allItemsRef.current
-            .filter(i => i.phaseTitle === curPhase && !checkedItemsRef.current[i.id])
-            .forEach(i => onCheckItemRef.current(i.id));
-        }
+        // navigateTo handles checking off remaining items in the departing phase
         navigateTo(getNextSection());
 
       } else if (['next section', 'next phase', 'go to next', 'jump'].some(w => cmd.includes(w))) {
-        // Also check remaining items in current phase before jumping
-        const curPhase2 = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
-        if (curPhase2) {
-          allItemsRef.current
-            .filter(i => i.phaseTitle === curPhase2 && !checkedItemsRef.current[i.id])
-            .forEach(i => onCheckItemRef.current(i.id));
-        }
+        // navigateTo handles checking off remaining items in the departing phase
         navigateTo(getNextSection());
 
       } else if (
