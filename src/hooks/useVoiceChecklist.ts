@@ -117,11 +117,15 @@ export function useVoiceChecklist({
 
   // Listen for hardware play/pause media key via Media Session API
   // Works when the browser tab is in the background.
-  // playbackState must be 'paused' or 'playing' (not the default 'none') for
-  // the browser to route media key events to this page.
+  // playbackState must be non-'none' AND metadata must be set for the browser
+  // to route hardware media key events to this page.
   useEffect(() => {
     if (!isSupported || !('mediaSession' in navigator)) return;
     const toggle = () => setIsVoiceMode(prev => !prev);
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'FlightCheck',
+      artist: 'Voice Checklist',
+    });
     navigator.mediaSession.playbackState = 'paused';
     navigator.mediaSession.setActionHandler('play', toggle);
     navigator.mediaSession.setActionHandler('pause', toggle);
@@ -129,6 +133,7 @@ export function useVoiceChecklist({
       navigator.mediaSession.setActionHandler('play', null);
       navigator.mediaSession.setActionHandler('pause', null);
       navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
     };
   }, [isSupported]);
 
@@ -316,13 +321,15 @@ export function useVoiceChecklist({
       if (e.error !== 'no-speech') console.warn('[Voice] recognition error:', e.error);
     };
     // All command keywords in one flat list for quick lookup
+    // NOTE: multi-word phrases must appear BEFORE their single-word substrings
+    // so the debounce captures the full phrase before the shorter one fires.
     const COMMAND_WORDS = [
       'stop', 'exit', 'quit', 'cancel', 'voice off',
       'repeat', 'again', 'say again', 'what',
       'check all', 'complete all', 'all complete', 'all checked',
       'check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
       'done', 'complete', 'correct', 'checked', 'good',
-      'next section', 'next phase', 'go to next',
+      'next section', 'next phase', 'go to next', 'jump',
       'next', 'skip', 'pass', 'continue', 'move on',
       'back', 'previous', 'go back',
     ];
@@ -353,8 +360,8 @@ export function useVoiceChecklist({
         }
         navigateTo(getNextSection());
 
-      } else if (['next section', 'next phase', 'go to next'].some(w => cmd.includes(w))) {
-        // Same as "check all" — tick remaining items in current phase then advance
+      } else if (['next section', 'next phase', 'go to next', 'jump'].some(w => cmd.includes(w))) {
+        // Also check remaining items in current phase before jumping
         const curPhase2 = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
         if (curPhase2) {
           allItemsRef.current
