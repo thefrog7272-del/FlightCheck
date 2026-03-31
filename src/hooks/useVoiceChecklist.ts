@@ -178,6 +178,21 @@ export function useVoiceChecklist({
 
     let shouldListen = true;
     let speaking = false;
+
+    // Play a silent looping audio so Chrome routes hardware media keys to this
+    // page. Without active audio Chrome ignores media key handlers.
+    let audioCtx: AudioContext | null = null;
+    let silentSource: AudioBufferSourceNode | null = null;
+    try {
+      audioCtx = new AudioContext();
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+      silentSource = audioCtx.createBufferSource();
+      silentSource.buffer = buf;
+      silentSource.loop = true;
+      silentSource.connect(audioCtx.destination);
+      silentSource.start();
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+    } catch { /* started outside a user gesture — media keys may not work */ }
     const rec = new RecognitionClass();
     rec.continuous = false; // non-continuous is more reliable; onend restart handles looping
     rec.interimResults = true;
@@ -394,8 +409,12 @@ export function useVoiceChecklist({
 
       const fire = () => {
         const now = Date.now();
-        if (now - lastCommandAt < 1500) return;
+        if (now - lastCommandAt < 1500) {
+          console.log('[Voice] command blocked by 1500ms cooldown:', raw);
+          return;
+        }
         lastCommandAt = now;
+        console.log('[Voice] executing command:', raw);
         executeCommand(raw);
       };
 
@@ -434,6 +453,7 @@ export function useVoiceChecklist({
 
       if (!COMMAND_WORDS.some(w => cmd.includes(w))) return;
 
+      console.log('[Voice] command word matched:', cmd, '| isFinal:', result.isFinal);
       scheduleCommand(raw, result.isFinal);
     };
 
@@ -459,6 +479,9 @@ export function useVoiceChecklist({
       stopRec();
       rec.onend = null;
       rec.onresult = null;
+      silentSource?.stop();
+      audioCtx?.close().catch(() => {});
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
       setIsListening(false);
       setCurrentItemId(null);
       setLastTranscript('');
