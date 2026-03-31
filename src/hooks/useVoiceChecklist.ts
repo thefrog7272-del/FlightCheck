@@ -294,6 +294,13 @@ export function useVoiceChecklist({
         navigateTo(getNextSection());
 
       } else if (['next section', 'next phase', 'go to next'].some(w => cmd.includes(w))) {
+        // Same as "check all" — tick remaining items in current phase then advance
+        const curPhase2 = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
+        if (curPhase2) {
+          allItemsRef.current
+            .filter(i => i.phaseTitle === curPhase2 && !checkedItemsRef.current[i.id])
+            .forEach(i => onCheckItemRef.current(i.id));
+        }
         navigateTo(getNextSection());
 
       } else if (
