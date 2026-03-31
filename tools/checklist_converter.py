@@ -140,7 +140,12 @@ class ParsedChecklist:
         # these are typically reference data or noise from PDF/text extraction.
         # Structured parsers (HTML, Excel, CSV) set skip_uncategorized=False so all
         # phases are included regardless of whether a category is set.
-        has_sections = any(p.category for p in self.phases)
+        # Exclude the synthetic "Reference Tables" phase from section detection —
+        # its category is set internally and should never cause real checklist
+        # phases (which have no category in PDF output) to be filtered out.
+        has_sections = any(
+            p.category for p in self.phases if p.title != "Reference Tables"
+        )
         for phase in self.phases:
             cat = phase.category if phase.category else self.category
             if self.skip_uncategorized and has_sections and not cat:
