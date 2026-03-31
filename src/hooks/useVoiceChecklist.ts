@@ -116,15 +116,19 @@ export function useVoiceChecklist({
   }, [isSupported]);
 
   // Listen for hardware play/pause media key via Media Session API
-  // Works when the browser tab is in the background
+  // Works when the browser tab is in the background.
+  // playbackState must be 'paused' or 'playing' (not the default 'none') for
+  // the browser to route media key events to this page.
   useEffect(() => {
     if (!isSupported || !('mediaSession' in navigator)) return;
     const toggle = () => setIsVoiceMode(prev => !prev);
+    navigator.mediaSession.playbackState = 'paused';
     navigator.mediaSession.setActionHandler('play', toggle);
     navigator.mediaSession.setActionHandler('pause', toggle);
     return () => {
       navigator.mediaSession.setActionHandler('play', null);
       navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.playbackState = 'none';
     };
   }, [isSupported]);
 
