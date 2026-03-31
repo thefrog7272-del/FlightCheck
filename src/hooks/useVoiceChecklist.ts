@@ -243,6 +243,14 @@ export function useVoiceChecklist({
         i => i.id === currentItemIdRef.current,
       )?.phaseTitle;
       const next = allItemsRef.current.find(i => i.id === itemId);
+
+      // When crossing a phase boundary, check off any remaining items in the departing phase
+      if (prevPhase && next && prevPhase !== next.phaseTitle) {
+        allItemsRef.current
+          .filter(i => i.phaseTitle === prevPhase && !checkedItemsRef.current[i.id])
+          .forEach(i => onCheckItemRef.current(i.id));
+      }
+
       setCurrentItemId(itemId);
       if (next && prevPhase !== next.phaseTitle) {
         speakText(`${next.phaseTitle}. ${itemText(next)}`);
@@ -384,8 +392,8 @@ export function useVoiceChecklist({
         // Final result — act immediately
         fire();
       } else {
-        // Interim result — wait 400 ms in case more words are coming
-        commandTimer = setTimeout(fire, 400);
+        // Interim result — wait 700 ms in case more words are coming
+        commandTimer = setTimeout(fire, 700);
       }
     }
 
