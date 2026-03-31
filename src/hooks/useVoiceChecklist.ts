@@ -116,15 +116,24 @@ export function useVoiceChecklist({
   }, [isSupported]);
 
   // Listen for hardware play/pause media key via Media Session API
-  // Works when the browser tab is in the background
+  // Works when the browser tab is in the background.
+  // playbackState must be non-'none' AND metadata must be set for the browser
+  // to route hardware media key events to this page.
   useEffect(() => {
     if (!isSupported || !('mediaSession' in navigator)) return;
     const toggle = () => setIsVoiceMode(prev => !prev);
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'FlightCheck',
+      artist: 'Voice Checklist',
+    });
+    navigator.mediaSession.playbackState = 'paused';
     navigator.mediaSession.setActionHandler('play', toggle);
     navigator.mediaSession.setActionHandler('pause', toggle);
     return () => {
       navigator.mediaSession.setActionHandler('play', null);
       navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
     };
   }, [isSupported]);
 
@@ -186,6 +195,10 @@ export function useVoiceChecklist({
     // begins, so the old timer never fires into a new utterance.
     let ttsTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // Debounce timer for voice commands — prevents multi-word commands like
+    // "check all" or "next phase" from firing on the first interim word alone.
+    let commandTimer: ReturnType<typeof setTimeout> | null = null;
+
     function speakText(text: string, onEnd?: () => void) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
@@ -239,6 +252,14 @@ export function useVoiceChecklist({
         i => i.id === currentItemIdRef.current,
       )?.phaseTitle;
       const next = allItemsRef.current.find(i => i.id === itemId);
+
+      // When crossing a phase boundary, check off any remaining items in the departing phase
+      if (prevPhase && next && prevPhase !== next.phaseTitle) {
+        allItemsRef.current
+          .filter(i => i.phaseTitle === prevPhase && !checkedItemsRef.current[i.id])
+          .forEach(i => onCheckItemRef.current(i.id));
+      }
+
       setCurrentItemId(itemId);
       if (next && prevPhase !== next.phaseTitle) {
         speakText(`${next.phaseTitle}. ${itemText(next)}`);
@@ -300,13 +321,15 @@ export function useVoiceChecklist({
       if (e.error !== 'no-speech') console.warn('[Voice] recognition error:', e.error);
     };
     // All command keywords in one flat list for quick lookup
+    // NOTE: multi-word phrases must appear BEFORE their single-word substrings
+    // so the debounce captures the full phrase before the shorter one fires.
     const COMMAND_WORDS = [
       'stop', 'exit', 'quit', 'cancel', 'voice off',
       'repeat', 'again', 'say again', 'what',
       'check all', 'complete all', 'all complete', 'all checked',
       'check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
       'done', 'complete', 'correct', 'checked', 'good',
-      'next section', 'next phase', 'go to next',
+      'next section', 'next phase', 'go to next', 'jump',
       'next', 'skip', 'pass', 'continue', 'move on',
       'back', 'previous', 'go back',
     ];
@@ -337,8 +360,8 @@ export function useVoiceChecklist({
         }
         navigateTo(getNextSection());
 
-      } else if (['next section', 'next phase', 'go to next'].some(w => cmd.includes(w))) {
-        // Same as "check all" — tick remaining items in current phase then advance
+      } else if (['next section', 'next phase', 'go to next', 'jump'].some(w => cmd.includes(w))) {
+        // Also check remaining items in current phase before jumping
         const curPhase2 = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
         if (curPhase2) {
           allItemsRef.current
@@ -365,6 +388,26 @@ export function useVoiceChecklist({
       }
     }
 
+    function scheduleCommand(raw: string, isFinal: boolean) {
+      // Always cancel any pending debounce — new audio is still arriving
+      if (commandTimer) { clearTimeout(commandTimer); commandTimer = null; }
+
+      const fire = () => {
+        const now = Date.now();
+        if (now - lastCommandAt < 1500) return;
+        lastCommandAt = now;
+        executeCommand(raw);
+      };
+
+      if (isFinal) {
+        // Final result — act immediately
+        fire();
+      } else {
+        // Interim result — wait 700 ms in case more words are coming
+        commandTimer = setTimeout(fire, 700);
+      }
+    }
+
     rec.onresult = (e: WSAEvent) => {
       const result = e.results[e.results.length - 1];
       const raw = result[0].transcript;
@@ -380,27 +423,18 @@ export function useVoiceChecklist({
       // matching a command word buried in a longer sentence.
       if (cmd.split(/\s+/).length > 6) return;
 
-      const now = Date.now();
-      if (now - lastCommandAt < 1500) return;
-
       // Check if the transcript matches the current item's expectedState —
       // e.g. saying "full" when the item expects "FULL" counts as a check.
       const currentItem = allItemsRef.current.find(i => i.id === currentItemIdRef.current);
       const expectedState = currentItem?.expectedState?.toLowerCase().trim();
       if (expectedState && cmd.includes(expectedState)) {
-        lastCommandAt = now;
-        executeCommand('check');
+        scheduleCommand('check', result.isFinal);
         return;
       }
 
-      // Fire as soon as a command word appears in the transcript — don't
-      // wait for isFinal (Chrome continuous mode often never sends it).
-      // The 1.5 s cooldown stops the same utterance firing twice when
-      // Chrome does emit both an interim and a final result.
       if (!COMMAND_WORDS.some(w => cmd.includes(w))) return;
 
-      lastCommandAt = now;
-      executeCommand(raw);
+      scheduleCommand(raw, result.isFinal);
     };
 
     // Find first unchecked item (or fall back to first item)
@@ -419,6 +453,7 @@ export function useVoiceChecklist({
     return () => {
       shouldListen = false;
       if (ttsTimer) clearTimeout(ttsTimer);
+      if (commandTimer) clearTimeout(commandTimer);
       clearInterval(keepAlive);
       window.speechSynthesis?.cancel();
       stopRec();
