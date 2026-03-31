@@ -186,6 +186,10 @@ export function useVoiceChecklist({
     // begins, so the old timer never fires into a new utterance.
     let ttsTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // Debounce timer for voice commands — prevents multi-word commands like
+    // "check all" or "next phase" from firing on the first interim word alone.
+    let commandTimer: ReturnType<typeof setTimeout> | null = null;
+
     function speakText(text: string, onEnd?: () => void) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
@@ -365,6 +369,26 @@ export function useVoiceChecklist({
       }
     }
 
+    function scheduleCommand(raw: string, isFinal: boolean) {
+      // Always cancel any pending debounce — new audio is still arriving
+      if (commandTimer) { clearTimeout(commandTimer); commandTimer = null; }
+
+      const fire = () => {
+        const now = Date.now();
+        if (now - lastCommandAt < 1500) return;
+        lastCommandAt = now;
+        executeCommand(raw);
+      };
+
+      if (isFinal) {
+        // Final result — act immediately
+        fire();
+      } else {
+        // Interim result — wait 400 ms in case more words are coming
+        commandTimer = setTimeout(fire, 400);
+      }
+    }
+
     rec.onresult = (e: WSAEvent) => {
       const result = e.results[e.results.length - 1];
       const raw = result[0].transcript;
@@ -380,27 +404,18 @@ export function useVoiceChecklist({
       // matching a command word buried in a longer sentence.
       if (cmd.split(/\s+/).length > 6) return;
 
-      const now = Date.now();
-      if (now - lastCommandAt < 1500) return;
-
       // Check if the transcript matches the current item's expectedState —
       // e.g. saying "full" when the item expects "FULL" counts as a check.
       const currentItem = allItemsRef.current.find(i => i.id === currentItemIdRef.current);
       const expectedState = currentItem?.expectedState?.toLowerCase().trim();
       if (expectedState && cmd.includes(expectedState)) {
-        lastCommandAt = now;
-        executeCommand('check');
+        scheduleCommand('check', result.isFinal);
         return;
       }
 
-      // Fire as soon as a command word appears in the transcript — don't
-      // wait for isFinal (Chrome continuous mode often never sends it).
-      // The 1.5 s cooldown stops the same utterance firing twice when
-      // Chrome does emit both an interim and a final result.
       if (!COMMAND_WORDS.some(w => cmd.includes(w))) return;
 
-      lastCommandAt = now;
-      executeCommand(raw);
+      scheduleCommand(raw, result.isFinal);
     };
 
     // Find first unchecked item (or fall back to first item)
@@ -419,6 +434,7 @@ export function useVoiceChecklist({
     return () => {
       shouldListen = false;
       if (ttsTimer) clearTimeout(ttsTimer);
+      if (commandTimer) clearTimeout(commandTimer);
       clearInterval(keepAlive);
       window.speechSynthesis?.cancel();
       stopRec();
