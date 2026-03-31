@@ -749,6 +749,25 @@
   flex: 1;
 }
 
+.readStateBtn {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.readStateBtn:hover {
+  background-color: var(--bg-secondary);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
 .voiceHints {
   margin-left: auto;
   font-size: 0.75rem;

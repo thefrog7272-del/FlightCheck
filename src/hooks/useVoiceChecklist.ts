@@ -56,6 +56,8 @@ export interface VoiceChecklistReturn {
   lastTranscript: string;
   recognitionError: string;
   toggleVoiceMode: () => void;
+  readExpectedState: boolean;
+  toggleReadExpectedState: () => void;
 }
 
 /** Returns the browser's SpeechRecognition constructor (handles webkit prefix). */
@@ -88,6 +90,12 @@ export function useVoiceChecklist({
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const [lastTranscript, setLastTranscript] = useState('');
   const [recognitionError, setRecognitionError] = useState('');
+  const [readExpectedState, setReadExpectedState] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('voice_read_expected_state');
+      return stored === null ? true : stored === 'true';
+    } catch { return true; }
+  });
 
   const RecognitionClass = useMemo(getRecognitionClass, []);
   const isSupported =
@@ -142,6 +150,17 @@ export function useVoiceChecklist({
   const toggleVoiceMode = useCallback(() => {
     setIsVoiceMode(prev => !prev);
   }, []);
+
+  const toggleReadExpectedState = useCallback(() => {
+    setReadExpectedState(prev => {
+      const next = !prev;
+      try { localStorage.setItem('voice_read_expected_state', String(next)); } catch { /* quota */ }
+      return next;
+    });
+  }, []);
+
+  const readExpectedStateRef = useRef(readExpectedState);
+  useEffect(() => { readExpectedStateRef.current = readExpectedState; }, [readExpectedState]);
 
   // ── Core effect: set up recognition + TTS whenever voice mode toggles ──────
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -205,7 +224,7 @@ export function useVoiceChecklist({
     }
 
     function itemText(item: PhaseItem): string {
-      return item.expectedState
+      return item.expectedState && readExpectedStateRef.current
         ? `${item.label}... ${item.expectedState}`
         : item.label;
     }
@@ -412,5 +431,5 @@ export function useVoiceChecklist({
     };
   }, [isVoiceMode]); // RecognitionClass is stable (memo on []); all volatile data via refs
 
-  return { isVoiceMode, isListening, isSupported, currentItemId, lastTranscript, recognitionError, toggleVoiceMode };
+  return { isVoiceMode, isListening, isSupported, currentItemId, lastTranscript, recognitionError, toggleVoiceMode, readExpectedState, toggleReadExpectedState };
 }
