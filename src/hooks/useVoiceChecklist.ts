@@ -203,6 +203,20 @@ export function useVoiceChecklist({
       }
     }
 
+    function getNextSection(): string | null {
+      const items = allItemsRef.current;
+      const cur = currentItemIdRef.current;
+      const checked = checkedItemsRef.current;
+      const curPhase = items.find(i => i.id === cur)?.phaseTitle;
+      const curIdx = cur ? items.findIndex(i => i.id === cur) : -1;
+      let pastCurrentPhase = false;
+      for (let i = curIdx + 1; i < items.length; i++) {
+        if (items[i].phaseTitle !== curPhase) pastCurrentPhase = true;
+        if (pastCurrentPhase && !checked[items[i].id]) return items[i].id;
+      }
+      return null;
+    }
+
     function getNext(): string | null {
       const items = allItemsRef.current;
       const cur = currentItemIdRef.current;
@@ -245,8 +259,10 @@ export function useVoiceChecklist({
     const COMMAND_WORDS = [
       'stop', 'exit', 'quit', 'cancel', 'voice off',
       'repeat', 'again', 'say again', 'what',
+      'check all', 'complete all', 'all complete', 'all checked',
       'check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
       'done', 'complete', 'correct', 'checked', 'good',
+      'next section', 'next phase', 'go to next',
       'next', 'skip', 'pass', 'continue', 'move on',
       'back', 'previous', 'go back',
     ];
@@ -266,6 +282,26 @@ export function useVoiceChecklist({
       } else if (['repeat', 'again', 'say again', 'what'].some(w => cmd.includes(w))) {
         const item = allItemsRef.current.find(i => i.id === cur);
         if (item) speakText(itemText(item));
+
+      } else if (['check all', 'complete all', 'all complete', 'all checked'].some(w => cmd.includes(w))) {
+        // Check every unchecked item in the current phase then jump to next section
+        const curPhase = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
+        if (curPhase) {
+          allItemsRef.current
+            .filter(i => i.phaseTitle === curPhase && !checkedItemsRef.current[i.id])
+            .forEach(i => onCheckItemRef.current(i.id));
+        }
+        navigateTo(getNextSection());
+
+      } else if (['next section', 'next phase', 'go to next'].some(w => cmd.includes(w))) {
+        // Same as "check all" — tick remaining items in current phase then advance
+        const curPhase2 = cur ? allItemsRef.current.find(i => i.id === cur)?.phaseTitle : undefined;
+        if (curPhase2) {
+          allItemsRef.current
+            .filter(i => i.phaseTitle === curPhase2 && !checkedItemsRef.current[i.id])
+            .forEach(i => onCheckItemRef.current(i.id));
+        }
+        navigateTo(getNextSection());
 
       } else if (
         ['check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
