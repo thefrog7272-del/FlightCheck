@@ -16,6 +16,7 @@ import { useToast } from '../hooks/useToast';
 import { useTimer } from '../hooks/useTimer';
 import { useDragReorder } from '../hooks/useDragReorder';
 import { VariantSelector } from '../components/VariantSelector';
+import { AddReferenceTableModal } from '../components/AddReferenceTableModal';
 import { Toast } from '../components/Toast';
 import { encodeChecklist } from '../utils/shareCodec';
 import type { PlaneChecklist } from '../data/types';
@@ -87,6 +88,7 @@ export function Checklist() {
   const [searchQuery, setSearchQuery] = useState('');
   const [addImagePhaseId, setAddImagePhaseId] = useState<string | null>(null);
   const [addImageLabel, setAddImageLabel] = useState('');
+  const [showAddTableModal, setShowAddTableModal] = useState(false);
   const plane = planes.find(p => p.id === planeId);
   const variants = planeId ? getVariants(planeId) : ['Standard'];
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
@@ -594,6 +596,16 @@ export function Checklist() {
                 {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
               </button>
             )}
+            {user && isReferenceVariant && (
+              <button
+                onClick={() => setShowAddTableModal(true)}
+                className={styles.resetButton}
+                title="Add a reference table to this section"
+              >
+                <Plus className={styles.resetIcon} />
+                Add Table
+              </button>
+            )}
           </div>
         </div>
 
@@ -880,6 +892,18 @@ export function Checklist() {
       <KeyboardHints />
       {ConfirmDialog}
       {toast && <Toast message={toast.message} action={toast.action} onDismiss={dismissToast} />}
+      {showAddTableModal && plane && (
+        <AddReferenceTableModal
+          planeName={plane.name}
+          planeId={plane.id}
+          existingChecklist={checklist}
+          onSave={updated => {
+            updateChecklist(checklistKey, updated);
+            setShowAddTableModal(false);
+          }}
+          onCancel={() => setShowAddTableModal(false)}
+        />
+      )}
     </div>
   );
 }
