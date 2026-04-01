@@ -49,6 +49,11 @@ export function Checklist() {
     voiceCompletePhaseRef.current(itemIds);
   }, []);
 
+  const voiceNavigateVariantRef = useRef<(variant: string) => void>(() => {});
+  const stableNavigateVariant = useCallback((variant: string) => {
+    voiceNavigateVariantRef.current(variant);
+  }, []);
+
   const {
     isVoiceMode,
     isListening,
@@ -64,9 +69,10 @@ export function Checklist() {
     checkedItems,
     onCheckItem: stableVoiceCheck,
     onCompletePhase: stableCompletePhase,
+    onNavigateVariant: stableNavigateVariant,
   });
 
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
@@ -293,6 +299,16 @@ export function Checklist() {
     if (!checkedItems[itemId]) toggleItem(itemId);
   };
 
+  // Wire voice variant navigation commands.
+  voiceNavigateVariantRef.current = (variant: string) => {
+    if (!planeId) return;
+    if (variant === 'Standard') {
+      navigate(`/checklist/${planeId}`);
+    } else {
+      navigate(`/checklist/${planeId}/${encodeURIComponent(variant)}`);
+    }
+  };
+
   // Wire voice "next phase" — bulk-checks all supplied IDs in one state update.
   voiceCompletePhaseRef.current = (itemIds: string[]) => {
     if (!planeId || itemIds.length === 0) return;
@@ -506,43 +522,54 @@ export function Checklist() {
                 if (v === activeVariant) navigate(`/checklist/${planeId}`);
               }}
               isEditing={isEditing}
-            />
+            >
+              {isVoiceSupported && (
+                <button
+                  onClick={toggleVoiceMode}
+                  className={isVoiceMode ? styles.voiceTabActive : styles.voiceTab}
+                  title={isVoiceMode ? 'Stop voice mode' : 'Start voice mode'}
+                >
+                  {isVoiceMode ? <MicOff size={12} /> : <Mic size={12} />}
+                  {isVoiceMode ? 'Voice On' : 'Voice'}
+                </button>
+              )}
+            </VariantSelector>
           </div>
           <div className={styles.headerActions}>
-            <button
-              onClick={() => { setIsEditing(!isEditing); setInsertAt(null); }}
-              className={isEditing ? styles.editButtonActive : styles.resetButton}
-            >
-              <Pencil className={styles.resetIcon} />
-              {isEditing ? 'Done' : 'Edit'}
-            </button>
-            <button onClick={handleShare} className={styles.resetButton} title="Share checklist">
-              <Share2 className={styles.resetIcon} />
-              Share
-            </button>
-            <button onClick={downloadCsv} className={styles.resetButton}>
-              <Download className={styles.resetIcon} />
-              Download CSV
-            </button>
-            <button onClick={() => window.print()} className={styles.resetButton}>
-              <Printer className={styles.resetIcon} />
-              Print
-            </button>
-            <button onClick={resetChecklist} className={styles.resetButton}>
-              <RotateCcw className={styles.resetIcon} />
-              Reset
-            </button>
-            <button onClick={toggleMute} className={styles.resetButton} title={isMuted ? 'Unmute sounds' : 'Mute sounds'}>
-              {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
-            </button>
-            {isVoiceSupported && !isReferenceVariant && (
+            {!isReferenceVariant && (
               <button
-                onClick={toggleVoiceMode}
-                className={isVoiceMode ? styles.micButtonActive : styles.micButton}
-                title={isVoiceMode ? 'Stop voice mode' : 'Start voice mode'}
+                onClick={() => { setIsEditing(!isEditing); setInsertAt(null); }}
+                className={isEditing ? styles.editButtonActive : styles.resetButton}
               >
-                {isVoiceMode ? <MicOff className={styles.resetIcon} /> : <Mic className={styles.resetIcon} />}
-                {isVoiceMode ? 'Voice On' : 'Voice'}
+                <Pencil className={styles.resetIcon} />
+                {isEditing ? 'Done' : 'Edit'}
+              </button>
+            )}
+            {user && (
+              <>
+                <button onClick={handleShare} className={styles.resetButton} title="Share checklist">
+                  <Share2 className={styles.resetIcon} />
+                  Share
+                </button>
+                <button onClick={downloadCsv} className={styles.resetButton}>
+                  <Download className={styles.resetIcon} />
+                  Download CSV
+                </button>
+                <button onClick={() => window.print()} className={styles.resetButton}>
+                  <Printer className={styles.resetIcon} />
+                  Print
+                </button>
+              </>
+            )}
+            {!isReferenceVariant && (
+              <button onClick={resetChecklist} className={styles.resetButton}>
+                <RotateCcw className={styles.resetIcon} />
+                Reset
+              </button>
+            )}
+            {!isReferenceVariant && (
+              <button onClick={toggleMute} className={styles.resetButton} title={isMuted ? 'Unmute sounds' : 'Mute sounds'}>
+                {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
               </button>
             )}
           </div>
@@ -577,7 +604,7 @@ export function Checklist() {
               {readExpectedState ? 'Label + state' : 'Label only'}
             </button>
             <span className={styles.voiceHints}>
-              "check" · "next" · "back" · "repeat" · "stop"
+              "check" · "next" · "back" · "repeat" · "stop" · "go normal/abnormal/emergency/reference"
             </span>
           </div>
         )}

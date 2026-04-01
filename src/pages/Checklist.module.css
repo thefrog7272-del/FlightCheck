@@ -651,6 +651,50 @@
   }
 }
 
+/* ── Voice tab pill (sits in the variant selector bar) ───────────────────── */
+
+.voiceTab {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.875rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.voiceTab:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.voiceTabActive {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.875rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  animation: voicePulse 1.4s ease-in-out infinite;
+}
+
+.voiceTabActive:hover {
+  opacity: 0.9;
+}
+
 /* ── Voice mode ──────────────────────────────────────────────────────────── */
 
 .micButton {

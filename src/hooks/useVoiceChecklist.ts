@@ -48,6 +48,8 @@ interface UseVoiceChecklistProps {
   onCheckItem: (itemId: string) => void;
   /** Called with all unchecked item IDs in the current phase when the user says "next phase". */
   onCompletePhase?: (itemIds: string[]) => void;
+  /** Called with a variant name ('Standard', 'Abnormal', 'Emergency', 'Reference Tables') when user says a navigation command. */
+  onNavigateVariant?: (variant: string) => void;
 }
 
 export interface VoiceChecklistReturn {
@@ -87,6 +89,7 @@ export function useVoiceChecklist({
   checkedItems,
   onCheckItem,
   onCompletePhase,
+  onNavigateVariant,
 }: UseVoiceChecklistProps): VoiceChecklistReturn {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -96,8 +99,8 @@ export function useVoiceChecklist({
   const [readExpectedState, setReadExpectedState] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('voice_read_expected_state');
-      return stored === null ? true : stored === 'true';
-    } catch { return true; }
+      return stored === null ? false : stored === 'true';
+    } catch { return false; }
   });
 
   const RecognitionClass = useMemo(getRecognitionClass, []);
@@ -146,6 +149,7 @@ export function useVoiceChecklist({
   const checkedItemsRef = useRef(checkedItems);
   const onCheckItemRef = useRef(onCheckItem);
   const onCompletePhaseRef = useRef(onCompletePhase);
+  const onNavigateVariantRef = useRef(onNavigateVariant);
   const phasesRef = useRef(phases);
   const allItemsRef = useRef<PhaseItem[]>([]);
 
@@ -161,6 +165,7 @@ export function useVoiceChecklist({
   useEffect(() => { checkedItemsRef.current = checkedItems; }, [checkedItems]);
   useEffect(() => { onCheckItemRef.current = onCheckItem; }, [onCheckItem]);
   useEffect(() => { onCompletePhaseRef.current = onCompletePhase; }, [onCompletePhase]);
+  useEffect(() => { onNavigateVariantRef.current = onNavigateVariant; }, [onNavigateVariant]);
   useEffect(() => { phasesRef.current = phases; }, [phases]);
   useEffect(() => { allItemsRef.current = allItems; }, [allItems]);
 
@@ -372,6 +377,11 @@ export function useVoiceChecklist({
       'next section', 'next phase', 'complete phase', 'finish phase', 'phase complete', 'jump',
       'next', 'skip', 'pass', 'continue', 'move on',
       'back', 'previous', 'go back',
+      // Variant navigation — multi-word before single-word so debounce captures full phrase
+      'normal checklist', 'go normal', 'open normal',
+      'abnormal checklist', 'go abnormal', 'open abnormal',
+      'emergency checklist', 'go emergency', 'open emergency',
+      'reference tables', 'go reference', 'open reference',
     ];
 
     // Timestamp of the last fired command — prevents double-firing when
@@ -408,6 +418,15 @@ export function useVoiceChecklist({
       } else if (['back', 'previous', 'go back'].some(w => cmd.includes(w))) {
         const p = getPrev();
         if (p) navigateTo(p);
+
+      } else if (['normal checklist', 'go normal', 'open normal'].some(w => cmd.includes(w))) {
+        onNavigateVariantRef.current?.('Standard');
+      } else if (['abnormal checklist', 'go abnormal', 'open abnormal'].some(w => cmd.includes(w))) {
+        onNavigateVariantRef.current?.('Abnormal');
+      } else if (['emergency checklist', 'go emergency', 'open emergency'].some(w => cmd.includes(w))) {
+        onNavigateVariantRef.current?.('Emergency');
+      } else if (['reference tables', 'go reference', 'open reference'].some(w => cmd.includes(w))) {
+        onNavigateVariantRef.current?.('Reference Tables');
       }
     }
 
@@ -430,8 +449,8 @@ export function useVoiceChecklist({
         // Final result — act immediately
         fire();
       } else {
-        // Interim result — wait 700 ms in case more words are coming
-        commandTimer = setTimeout(fire, 700);
+        // Interim result — wait 400 ms in case more words are coming
+        commandTimer = setTimeout(fire, 400);
       }
     }
 
