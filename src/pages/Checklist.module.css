@@ -239,6 +239,7 @@
 
 .items > * {
   animation: slideInItem var(--transition-speed) ease-out both;
+  min-width: 0; /* prevents grid items expanding to fit wide reference tables */
 }
 
 @keyframes slideInItem {
@@ -269,6 +270,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0; /* allows flex children to shrink, enabling overflow-x: auto on tables */
 }
 
 .editableRow > .dragHandle + * {
@@ -396,6 +398,31 @@
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 0.875rem;
+}
+
+/* Reference section image upload */
+
+.addRefImageRow {
+  margin-top: 0.5rem;
+}
+
+.addRefImageBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.875rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  transition: all 0.15s;
+}
+
+.addRefImageBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Phase management */

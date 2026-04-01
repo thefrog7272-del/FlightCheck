@@ -85,6 +85,8 @@ export function Checklist() {
   const [isAddingPhase, setIsAddingPhase] = useState(false);
   const [newPhaseTitle, setNewPhaseTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [addImagePhaseId, setAddImagePhaseId] = useState<string | null>(null);
+  const [addImageLabel, setAddImageLabel] = useState('');
   const plane = planes.find(p => p.id === planeId);
   const variants = planeId ? getVariants(planeId) : ['Standard'];
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
@@ -155,7 +157,9 @@ export function Checklist() {
   const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    const header = 'name,manufacturer,type,image,phase,item,expectedState';
+    // category is empty for Standard, otherwise the variant name (e.g. "Reference Tables")
+    const category = activeVariant === 'Standard' ? '' : activeVariant;
+    const header = 'name,manufacturer,type,image,phase,item,expectedState,notes,category';
     const rows = checklist.phases.flatMap(phase =>
       phase.items.map(item =>
         [
@@ -166,6 +170,8 @@ export function Checklist() {
           quote(phase.title),
           quote(item.label),
           quote(item.expectedState ?? ''),
+          quote(item.notes ?? ''),
+          quote(category),
         ].join(',')
       )
     );
@@ -371,6 +377,22 @@ export function Checklist() {
     setInsertAt(null);
     setNewLabel('');
     setNewState('');
+  };
+
+  const handleAddRefImage = (phaseId: string, label: string, dataUrl: string) => {
+    const itemId = `ref-img-${phaseId}-${Date.now()}`;
+    const updated: PlaneChecklist = {
+      ...checklist,
+      phases: checklist.phases.map(phase =>
+        phase.id !== phaseId ? phase : {
+          ...phase,
+          items: [...phase.items, { id: itemId, label: label || 'Reference Image', notes: dataUrl }],
+        }
+      ),
+    };
+    updateChecklist(checklistKey, updated);
+    setAddImagePhaseId(null);
+    setAddImageLabel('');
   };
 
   const deleteItem = (phaseId: string, itemId: string) => {
@@ -772,6 +794,54 @@ export function Checklist() {
                       {isEditing && insertionPoint(phase.id, idx + 1)}
                     </div>
                   ))}
+                {user && isReferenceVariant && !isCollapsed && (
+                  <div className={styles.addRefImageRow}>
+                    {addImagePhaseId === phase.id ? (
+                      <div className={styles.insertForm}>
+                        <input
+                          className={styles.insertInput}
+                          placeholder="Image label (e.g. Engine Diagram)"
+                          value={addImageLabel}
+                          onChange={e => setAddImageLabel(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.insertFormActions}>
+                          <label className={styles.insertSubmit}>
+                            Choose Image
+                            <input
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = ev => {
+                                  const dataUrl = ev.target?.result as string;
+                                  if (dataUrl) handleAddRefImage(phase.id, addImageLabel, dataUrl);
+                                };
+                                reader.readAsDataURL(file);
+                              }}
+                            />
+                          </label>
+                          <button
+                            className={styles.insertCancel}
+                            onClick={() => { setAddImagePhaseId(null); setAddImageLabel(''); }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        className={styles.addRefImageBtn}
+                        onClick={() => setAddImagePhaseId(phase.id)}
+                      >
+                        <Plus size={14} /> Add Image
+                      </button>
+                    )}
+                  </div>
+                )}
                 </div>
               )}
             </div>

@@ -4,12 +4,14 @@ import type { Plane, PlaneChecklist, ChecklistPhase, ChecklistItem } from '../da
  * Parses a CSV string and returns a Plane, PlaneChecklist, and any variant checklists.
  *
  * CSV Format expected:
- * name,manufacturer,type,image,phase,item,expectedState,category
- * "Cessna 182","Cessna","GA","https://...","Pre-Start","Battery","ON",""
- * "Cessna 182","Cessna","GA","https://...","Engine Fire","Mixture","CUTOFF","Emergency"
+ * name,manufacturer,type,image,phase,item,expectedState,notes,category
+ * "Cessna 182","Cessna","GA","https://...","Pre-Start","Battery","ON","",""
+ * "Cessna 182","Cessna","GA","https://...","Engine Fire","Mixture","CUTOFF","","Emergency"
+ * "Cessna 182","Cessna","GA","https://...","Reference Tables","Performance","","data:table/json,[[...]]","Reference Tables"
  *
- * Items with no category, "Normal Checklist", or "Standard" go into the main checklist.
- * Items with any other category become separate variant checklists.
+ * notes: optional — use "data:table/json,[[...]]" for reference tables, "data:image/..." for images.
+ * category: items with no category, "Normal Checklist", or "Standard" go into the main checklist.
+ *           Items with any other category become separate variant checklists (e.g. "Reference Tables", "Emergency").
  *
  * @param csvContent The raw CSV text content.
  */
