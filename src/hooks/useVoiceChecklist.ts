@@ -378,10 +378,11 @@ export function useVoiceChecklist({
       'next', 'skip', 'pass', 'continue', 'move on',
       'back', 'previous', 'go back',
       // Variant navigation — no "checklist" suffix (contains "check" substring, would match check handler)
-      'go normal', 'open normal',
-      'go abnormal', 'open abnormal',
-      'go emergency', 'open emergency',
-      'reference tables', 'go reference', 'open reference',
+      // Multi-word phrases listed before bare words so debounce captures full phrase first
+      'go normal', 'open normal', 'normal',
+      'go abnormal', 'open abnormal', 'abnormal',
+      'go emergency', 'open emergency', 'emergency',
+      'reference tables', 'go reference', 'open reference', 'reference',
     ];
 
     // Timestamp of the last fired command — prevents double-firing when
@@ -403,14 +404,15 @@ export function useVoiceChecklist({
       } else if (['next section', 'next phase', 'complete phase', 'finish phase', 'phase complete', 'jump'].some(w => cmd.includes(w))) {
         jumpToNextPhase();
 
-      // Variant navigation — checked before 'check'/'go back' to avoid substring matches
-      } else if (['go normal', 'open normal'].some(w => cmd.includes(w))) {
-        onNavigateVariantRef.current?.('Standard');
-      } else if (['go abnormal', 'open abnormal'].some(w => cmd.includes(w))) {
+      // Variant navigation — checked before 'check'/'go back' to avoid substring matches.
+      // 'abnormal' before 'normal' because 'abnormal'.includes('normal') === true.
+      } else if (['abnormal', 'go abnormal', 'open abnormal'].some(w => cmd.includes(w))) {
         onNavigateVariantRef.current?.('Abnormal');
-      } else if (['go emergency', 'open emergency'].some(w => cmd.includes(w))) {
+      } else if (['normal', 'go normal', 'open normal'].some(w => cmd.includes(w))) {
+        onNavigateVariantRef.current?.('Standard');
+      } else if (['emergency', 'go emergency', 'open emergency'].some(w => cmd.includes(w))) {
         onNavigateVariantRef.current?.('Emergency');
-      } else if (['reference tables', 'go reference', 'open reference'].some(w => cmd.includes(w))) {
+      } else if (['reference', 'reference tables', 'go reference', 'open reference'].some(w => cmd.includes(w))) {
         onNavigateVariantRef.current?.('Reference Tables');
 
       } else if (
