@@ -111,6 +111,7 @@ export function useVoiceChecklist({
     if (!isSupported) return;
     function handleMessage(e: MessageEvent) {
       if (e.data?.type === 'FLIGHTCHECK_TOGGLE_VOICE') {
+        console.log('[FlightCheck] postMessage received — toggling voice mode');
         setIsVoiceMode(prev => !prev);
       }
     }
