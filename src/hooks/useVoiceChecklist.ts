@@ -46,6 +46,8 @@ interface UseVoiceChecklistProps {
   }>;
   checkedItems: Record<string, boolean>;
   onCheckItem: (itemId: string) => void;
+  /** Called with all unchecked item IDs in the current phase when the user says "next phase". */
+  onCompletePhase?: (itemIds: string[]) => void;
 }
 
 export interface VoiceChecklistReturn {
@@ -84,6 +86,7 @@ export function useVoiceChecklist({
   phases,
   checkedItems,
   onCheckItem,
+  onCompletePhase,
 }: UseVoiceChecklistProps): VoiceChecklistReturn {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -141,6 +144,8 @@ export function useVoiceChecklist({
   const currentItemIdRef = useRef<string | null>(null);
   const checkedItemsRef = useRef(checkedItems);
   const onCheckItemRef = useRef(onCheckItem);
+  const onCompletePhaseRef = useRef(onCompletePhase);
+  const phasesRef = useRef(phases);
   const allItemsRef = useRef<PhaseItem[]>([]);
 
   const allItems = useMemo(
@@ -154,6 +159,8 @@ export function useVoiceChecklist({
   useEffect(() => { currentItemIdRef.current = currentItemId; }, [currentItemId]);
   useEffect(() => { checkedItemsRef.current = checkedItems; }, [checkedItems]);
   useEffect(() => { onCheckItemRef.current = onCheckItem; }, [onCheckItem]);
+  useEffect(() => { onCompletePhaseRef.current = onCompletePhase; }, [onCompletePhase]);
+  useEffect(() => { phasesRef.current = phases; }, [phases]);
   useEffect(() => { allItemsRef.current = allItems; }, [allItems]);
 
   const toggleVoiceMode = useCallback(() => {
@@ -285,20 +292,6 @@ export function useVoiceChecklist({
       }
     }
 
-    function getNextSection(): string | null {
-      const items = allItemsRef.current;
-      const cur = currentItemIdRef.current;
-      const checked = checkedItemsRef.current;
-      const curPhase = items.find(i => i.id === cur)?.phaseTitle;
-      const curIdx = cur ? items.findIndex(i => i.id === cur) : -1;
-      let pastCurrentPhase = false;
-      for (let i = curIdx + 1; i < items.length; i++) {
-        if (items[i].phaseTitle !== curPhase) pastCurrentPhase = true;
-        if (pastCurrentPhase && !checked[items[i].id]) return items[i].id;
-      }
-      return null;
-    }
-
     function getNext(): string | null {
       const items = allItemsRef.current;
       const cur = currentItemIdRef.current;
@@ -319,6 +312,36 @@ export function useVoiceChecklist({
         if (!checked[items[i].id]) return items[i].id;
       }
       return null;
+    }
+
+    function jumpToNextPhase() {
+      const cur = currentItemIdRef.current;
+      const phasesList = phasesRef.current;
+      const currentPhase = phasesList.find(p => p.items.some(i => i.id === cur));
+      if (!currentPhase) return;
+
+      // Bulk-check all unchecked items in the current phase in one state update.
+      // We bypass navigateTo here to avoid its per-item onCheckItemRef loop, which
+      // reads a stale checkedItems snapshot and causes only the last item to be saved.
+      const unchecked = currentPhase.items
+        .filter(i => !checkedItemsRef.current[i.id])
+        .map(i => i.id);
+      if (unchecked.length > 0 && onCompletePhaseRef.current) {
+        onCompletePhaseRef.current(unchecked);
+      }
+
+      // Navigate directly — set state + speak without going through navigateTo
+      const phaseIdx = phasesList.findIndex(p => p.id === currentPhase.id);
+      const nextPhase = phasesList[phaseIdx + 1];
+      if (nextPhase && nextPhase.items.length > 0) {
+        const nextItemId = nextPhase.items[0].id;
+        const nextItem = allItemsRef.current.find(i => i.id === nextItemId);
+        setCurrentItemId(nextItemId);
+        if (nextItem) speakText(`${nextItem.phaseTitle}. ${itemText(nextItem)}`);
+      } else {
+        setCurrentItemId(null);
+        speakText('Checklist complete. Well done!');
+      }
     }
 
     // Chrome silently pauses speechSynthesis after ~15 s; resume() keeps it alive.
@@ -343,10 +366,9 @@ export function useVoiceChecklist({
     const COMMAND_WORDS = [
       'stop', 'exit', 'quit', 'cancel', 'voice off',
       'repeat', 'again', 'say again', 'what',
-      'check all', 'complete all', 'all complete', 'all checked',
       'check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
       'done', 'complete', 'correct', 'checked', 'good',
-      'next section', 'next phase', 'go to next', 'jump',
+      'next section', 'next phase', 'complete phase', 'finish phase', 'phase complete', 'jump',
       'next', 'skip', 'pass', 'continue', 'move on',
       'back', 'previous', 'go back',
     ];
@@ -367,13 +389,8 @@ export function useVoiceChecklist({
         const item = allItemsRef.current.find(i => i.id === cur);
         if (item) speakText(itemText(item));
 
-      } else if (['check all', 'complete all', 'all complete', 'all checked'].some(w => cmd.includes(w))) {
-        // navigateTo handles checking off remaining items in the departing phase
-        navigateTo(getNextSection());
-
-      } else if (['next section', 'next phase', 'go to next', 'jump'].some(w => cmd.includes(w))) {
-        // navigateTo handles checking off remaining items in the departing phase
-        navigateTo(getNextSection());
+      } else if (['next section', 'next phase', 'complete phase', 'finish phase', 'phase complete', 'jump'].some(w => cmd.includes(w))) {
+        jumpToNextPhase();
 
       } else if (
         ['check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',

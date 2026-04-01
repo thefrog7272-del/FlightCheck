@@ -44,6 +44,11 @@ export function Checklist() {
     voiceCheckCallbackRef.current(id);
   }, []);
 
+  const voiceCompletePhaseRef = useRef<(itemIds: string[]) => void>(() => {});
+  const stableCompletePhase = useCallback((itemIds: string[]) => {
+    voiceCompletePhaseRef.current(itemIds);
+  }, []);
+
   const {
     isVoiceMode,
     isListening,
@@ -58,6 +63,7 @@ export function Checklist() {
     phases: checklist?.phases ?? [],
     checkedItems,
     onCheckItem: stableVoiceCheck,
+    onCompletePhase: stableCompletePhase,
   });
 
   const { isAdmin } = useAuth();
@@ -203,11 +209,28 @@ export function Checklist() {
   }), [isEditing, downloadCsv]));
 
   // Auto-scroll the currently active voice item into view (must be before guard clause).
+  // Also ensures the containing phase is expanded so the item is actually in the DOM.
   useEffect(() => {
     if (!voiceItemId) return;
-    document.querySelector(`[data-voice-id="${voiceItemId}"]`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [voiceItemId]);
+    // Expand the phase containing this item before scrolling.
+    if (checklist) {
+      const phase = checklist.phases.find(p => p.items.some(i => i.id === voiceItemId));
+      if (phase) {
+        setCollapsedPhases(prev => {
+          if (!prev[phase.id]) return prev; // already expanded — no state change
+          const next = { ...prev };
+          delete next[phase.id];
+          return next;
+        });
+      }
+    }
+    // Delay scroll so the phase expand can re-render first.
+    const t = setTimeout(() => {
+      document.querySelector(`[data-voice-id="${voiceItemId}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    return () => clearTimeout(t);
+  }, [voiceItemId, checklist]);
 
   if (loading) {
     return <div className={styles.container}><p>Loading...</p></div>;
@@ -268,6 +291,14 @@ export function Checklist() {
   // Wire voice "check" to the real toggleItem (only checks, never unchecks).
   voiceCheckCallbackRef.current = (itemId: string) => {
     if (!checkedItems[itemId]) toggleItem(itemId);
+  };
+
+  // Wire voice "next phase" — bulk-checks all supplied IDs in one state update.
+  voiceCompletePhaseRef.current = (itemIds: string[]) => {
+    if (!planeId || itemIds.length === 0) return;
+    const updated = { ...checkedItems };
+    for (const id of itemIds) updated[id] = true;
+    setProgress(planeId, updated, activeVariant);
   };
 
   const togglePhase = (phaseId: string) => {
