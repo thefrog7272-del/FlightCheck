@@ -161,14 +161,11 @@ export function Checklist() {
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
     // category is empty for Standard, otherwise the variant name (e.g. "Reference Tables")
     const category = activeVariant === 'Standard' ? '' : activeVariant;
-    const header = 'name,manufacturer,type,image,phase,item,expectedState,notes,category';
+    const header = 'name,phase,item,expectedState,notes,category';
     const rows = checklist.phases.flatMap(phase =>
       phase.items.map(item =>
         [
           quote(plane.name),
-          quote(plane.manufacturer),
-          quote(plane.type),
-          quote(plane.image),
           quote(phase.title),
           quote(item.label),
           quote(item.expectedState ?? ''),
