@@ -20,6 +20,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
@@ -28,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session) {
+      if (!session || !supabase) {
         setUser(null);
         setIsAdmin(false);
         setLoading(false);
@@ -44,6 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleSignIn = useCallback(async (email: string, password: string) => {
+    if (!supabase) {
+      setError('Backend not configured');
+      throw new Error('Backend not configured');
+    }
     setError(null);
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
@@ -53,13 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(signInError.message);
       throw signInError;
     }
-    // Fetch full user to get user_metadata
     const { data: { user: fullUser } } = await supabase.auth.getUser();
     setUser(fullUser);
     setIsAdmin(!!fullUser?.user_metadata?.is_admin);
   }, []);
 
   const handleSignOut = useCallback(async () => {
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
     setIsAdmin(false);

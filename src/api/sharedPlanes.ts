@@ -31,6 +31,7 @@ export interface PendingSubmissionRecord {
 }
 
 export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
+  if (!supabase) return [];
   try {
     const { data, error } = await supabase
       .from('shared_planes')
@@ -45,6 +46,7 @@ export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
 }
 
 export async function getSharedChecklist(planeId: string): Promise<SharedChecklistRecord | null> {
+  if (!supabase) return null;
   try {
     const { data, error } = await supabase
       .from('shared_checklists')
@@ -61,6 +63,7 @@ export async function getSharedChecklist(planeId: string): Promise<SharedCheckli
 }
 
 export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]> {
+  if (!supabase) return [];
   try {
     const { data, error } = await supabase
       .from('shared_checklists')
@@ -74,6 +77,7 @@ export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]
 }
 
 export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): Promise<SharedPlaneRecord | null> {
+  if (!supabase) return null;
   try {
     const { data, error } = await supabase
       .from('shared_planes')
@@ -97,6 +101,7 @@ export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): P
 }
 
 export async function createSharedChecklist(checklist: Omit<SharedChecklistRecord, 'id'>): Promise<SharedChecklistRecord | null> {
+  if (!supabase) return null;
   try {
     const { data, error } = await supabase
       .from('shared_checklists')
@@ -115,6 +120,7 @@ export async function createSharedChecklist(checklist: Omit<SharedChecklistRecor
 }
 
 export async function deleteSharedPlane(id: string): Promise<boolean> {
+  if (!supabase) return false;
   try {
     const { error } = await supabase.from('shared_planes').delete().eq('id', id);
     if (error) throw error;
@@ -126,6 +132,7 @@ export async function deleteSharedPlane(id: string): Promise<boolean> {
 }
 
 export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPlaneRecord, 'id'>>): Promise<boolean> {
+  if (!supabase) return false;
   try {
     const { error } = await supabase
       .from('shared_planes')
@@ -148,6 +155,7 @@ export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPl
 }
 
 export async function updateSharedChecklist(id: string, phases: string): Promise<boolean> {
+  if (!supabase) return false;
   try {
     const { error } = await supabase.from('shared_checklists').update({ phases }).eq('id', id);
     if (error) throw error;
@@ -159,6 +167,7 @@ export async function updateSharedChecklist(id: string, phases: string): Promise
 }
 
 export async function deleteSharedChecklist(id: string): Promise<boolean> {
+  if (!supabase) return false;
   try {
     const { error } = await supabase.from('shared_checklists').delete().eq('id', id);
     if (error) throw error;
@@ -179,6 +188,7 @@ export async function createPendingSubmission(submission: {
   submitted_by?: string | null;
   status: string;
 }): Promise<boolean> {
+  if (!supabase) return false;
   try {
     const { error } = await supabase.from('pending_submissions').insert([{
       name: submission.name,
@@ -199,6 +209,7 @@ export async function createPendingSubmission(submission: {
 }
 
 export async function listPendingSubmissions(): Promise<PendingSubmissionRecord[]> {
+  if (!supabase) return [];
   try {
     const { data, error } = await supabase
       .from('pending_submissions')
@@ -213,6 +224,7 @@ export async function listPendingSubmissions(): Promise<PendingSubmissionRecord[
 }
 
 export async function deletePendingSubmission(id: string): Promise<boolean> {
+  if (!supabase) return false;
   try {
     const { error } = await supabase.from('pending_submissions').delete().eq('id', id);
     if (error) throw error;
