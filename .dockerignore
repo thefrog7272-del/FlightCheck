@@ -6,3 +6,6 @@ dist-ssr
 .DS_Store
 .vscode
 .idea
+Dockerfile
+docker-compose.yaml
+nginx.conf

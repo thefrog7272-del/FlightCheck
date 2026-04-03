@@ -70,20 +70,21 @@ npm test -- --run    # Vitest
 ## Branching Strategy
 
 - **`main`** is the production branch — Amplify auto-deploys from it.
+- **Direct pushes to `main` are blocked** (branch protection enforced for all users, including admins). All changes MUST go through a pull request.
 - All work goes on **feature branches** off `main`: `feature/<short-name>`, `fix/<short-name>`, etc.
-- When ready, merge to main and push.
+- PRs require the GitHub Actions CI check (`build` job) to pass before merging.
 - After merge, delete the feature branch.
 
-## Pre-Push Gate (MANDATORY)
+## Pre-PR Gate (MANDATORY)
 
-**Before EVERY push to `main`** (direct push or merge), you MUST run and pass ALL of these:
+**Before pushing a branch and opening a PR**, you MUST run and pass ALL of these locally:
 
 ```bash
 npm run build        # TypeScript compilation + Vite build — catches unused imports, type errors
 npm run lint         # ESLint — catches code quality issues
 ```
 
-If either command fails, DO NOT push. Fix the errors first. This is a hard gate — no exceptions. Amplify auto-deploys from `main`, so a broken push = broken production.
+If either command fails, DO NOT push or open a PR. Fix the errors first. This catches issues locally before CI runs, saving time. GitHub Actions CI will run the same checks — a failing PR cannot be merged.
 
 ## Development Workflow (QA Loop)
 
@@ -94,9 +95,9 @@ All non-trivial changes must follow this pipeline:
 3. **Plan** — Define the implementation approach. List files to change, identify risks, align with conventions above.
 4. **Implement** — Make changes via agents in isolated worktrees where possible. One feature per agent to avoid conflicts.
 5. **Security Review** — Check for XSS, injection, unsafe `dangerouslySetInnerHTML`, unvalidated user input, exposed secrets. Review any new dependencies.
-6. **QA (Build + Lint + Test)** — Run `npm run build` (TypeScript + Vite). Run `npm run lint`. Run `npm test` if applicable. **All must pass — no exceptions.**
+6. **QA (Build + Lint + Test)** — Run `npm run build` and `npm run lint`. Run `npm test` if applicable. **All must pass — no exceptions.** Do not proceed until clean.
 7. **UI Review** — Verify the change renders correctly: check dark/light themes, mobile/tablet/desktop breakpoints, keyboard accessibility, no console errors.
-8. **Merge to main** — Only after all above steps pass. Re-run the pre-push gate after merge.
+8. **PR to main** — Push the feature branch and open a PR. CI must pass before merging. Never push directly to `main`.
 
 If any step fails, loop back to **Implement** and fix before re-running the pipeline.
 
