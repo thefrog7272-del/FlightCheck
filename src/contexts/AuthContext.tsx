@@ -61,11 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // getUser() returns the full user with metadata
     try {
       const { data: { user: fullUser } } = await supabase.auth.getUser();
-      console.log('[Auth] getUser returned:', JSON.stringify(fullUser?.user_metadata));
       setUser(fullUser);
       setIsAdmin(!!fullUser?.user_metadata?.is_admin);
     } catch {
-      console.log('[Auth] getUser failed, falling back to onAuthStateChange');
+      // If getUser fails, the onAuthStateChange will handle it
     }
   }, []);
 
