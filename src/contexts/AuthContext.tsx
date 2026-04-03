@@ -27,10 +27,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setIsAdmin(!!currentUser?.user_metadata?.is_admin);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session) {
+        setUser(null);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+      const { data: { user: fullUser } } = await supabase.auth.getUser();
+      setUser(fullUser);
+      setIsAdmin(!!fullUser?.user_metadata?.is_admin);
       setLoading(false);
     });
 
@@ -39,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignIn = useCallback(async (email: string, password: string) => {
     setError(null);
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -47,8 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(signInError.message);
       throw signInError;
     }
-    setUser(data.user);
-    setIsAdmin(!!data.user?.user_metadata?.is_admin);
+    // Fetch full user to get user_metadata
+    const { data: { user: fullUser } } = await supabase.auth.getUser();
+    setUser(fullUser);
+    setIsAdmin(!!fullUser?.user_metadata?.is_admin);
   }, []);
 
   const handleSignOut = useCallback(async () => {
