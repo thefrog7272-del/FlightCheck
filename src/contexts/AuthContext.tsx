@@ -29,18 +29,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
       setIsAdmin(!!currentUser?.user_metadata?.is_admin);
       setLoading(false);
+    }).catch(() => {
+      setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session || !supabase) {
-        setUser(null);
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-      const { data: { user: fullUser } } = await supabase.auth.getUser();
-      setUser(fullUser);
-      setIsAdmin(!!fullUser?.user_metadata?.is_admin);
+    // Listen for auth changes but don't block on async calls
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setIsAdmin(!!currentUser?.user_metadata?.is_admin);
       setLoading(false);
     });
 
@@ -61,9 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(signInError.message);
       throw signInError;
     }
-    const { data: { user: fullUser } } = await supabase.auth.getUser();
-    setUser(fullUser);
-    setIsAdmin(!!fullUser?.user_metadata?.is_admin);
+    // getUser() returns the full user with metadata
+    try {
+      const { data: { user: fullUser } } = await supabase.auth.getUser();
+      setUser(fullUser);
+      setIsAdmin(!!fullUser?.user_metadata?.is_admin);
+    } catch {
+      // If getUser fails, the onAuthStateChange will handle it
+    }
   }, []);
 
   const handleSignOut = useCallback(async () => {
