@@ -22,7 +22,7 @@ export function AdminPlaneList({ planes, checklists, onEdit, onDelete }: AdminPl
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const getItemCount = (planeId: string): number => {
-    const cl = checklists.find(c => c.planeId === planeId);
+    const cl = checklists.find(c => c.plane_id === planeId);
     if (!cl) return 0;
     try {
       const phases = JSON.parse(cl.phases);
@@ -48,7 +48,7 @@ export function AdminPlaneList({ planes, checklists, onEdit, onDelete }: AdminPl
             <div className={styles.info}>
               <span className={styles.name}>{plane.name}</span>
               <span className={styles.meta}>
-                {plane.manufacturer} &middot; {plane.type} &middot; {getItemCount(plane.planeId)} items
+                {plane.manufacturer} &middot; {plane.type} &middot; {getItemCount(plane.plane_id)} items
               </span>
             </div>
             <div className={styles.actions}>

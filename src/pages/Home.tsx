@@ -31,15 +31,15 @@ export function Home() {
   const [showFileImport, setShowFileImport] = useState(false);
   const [importCategory, setImportCategory] = useState('');
 
-  // When admin, imports go to DynamoDB. Otherwise localStorage.
+  // When admin, imports go to Supabase. Otherwise localStorage.
   const importPlane = useCallback(async (plane: Plane, checklist: PlaneChecklist) => {
     console.log(`[FlightCheck Import] isAdmin=${isAdmin}, plane=${plane.id} "${plane.name}", phases=${checklist.phases.length}, items=${checklist.phases.reduce((s, p) => s + p.items.length, 0)}`);
     if (isAdmin) {
-      console.log('[FlightCheck Import] Admin path → saving to DynamoDB...');
+      console.log('[FlightCheck Import] Admin path → saving to Supabase...');
 
       // Check if plane already exists to avoid duplicates
       const existingPlanes = await listSharedPlanes();
-      const existing = existingPlanes.find(p => p.planeId === plane.id);
+      const existing = existingPlanes.find(p => p.plane_id === plane.id);
 
       if (existing) {
         console.log('[FlightCheck Import] Plane already exists, updating...');
@@ -52,26 +52,26 @@ export function Home() {
         });
         // Update checklist too
         const existingChecklists = await listAllSharedChecklists();
-        const existingCl = existingChecklists.find(c => c.planeId === plane.id);
+        const existingCl = existingChecklists.find(c => c.plane_id === plane.id);
         if (existingCl) {
           await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
         } else {
-          await createSharedChecklist({ planeId: plane.id, phases: JSON.stringify(checklist.phases) });
+          await createSharedChecklist({ plane_id: plane.id, phases: JSON.stringify(checklist.phases) });
         }
       } else {
         const planeResult = await createSharedPlane({
-          planeId: plane.id,
+          plane_id: plane.id,
           name: plane.name,
           manufacturer: plane.manufacturer,
           image: plane.image,
           type: plane.type,
           sim: plane.sim || null,
-          sortOrder: null,
+          sort_order: null,
         });
         if (planeResult) {
           console.log('[FlightCheck Import] Plane created, saving checklist...');
           await createSharedChecklist({
-            planeId: plane.id,
+            plane_id: plane.id,
             phases: JSON.stringify(checklist.phases),
           });
         } else {
@@ -124,7 +124,7 @@ export function Home() {
     if (!addTablePlaneId) return;
     if (isAdmin) {
       const checklistRecords = await listAllSharedChecklists();
-      const record = checklistRecords.find(c => c.planeId === addTablePlaneId);
+      const record = checklistRecords.find(c => c.plane_id === addTablePlaneId);
       if (record) {
         await updateSharedChecklist(record.id, JSON.stringify(updatedChecklist.phases));
         try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
@@ -165,10 +165,10 @@ export function Home() {
     if (!confirmed) return;
 
     if (isAdmin) {
-      // Delete from shared database (AppSync/DynamoDB)
+      // Delete from shared database (Supabase)
       const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
-      const planeRecord = planeRecords.find(p => p.planeId === planeId);
-      const checklistRecord = checklistRecords.find(c => c.planeId === planeId);
+      const planeRecord = planeRecords.find(p => p.plane_id === planeId);
+      const checklistRecord = checklistRecords.find(c => c.plane_id === planeId);
       if (planeRecord) await deleteSharedPlane(planeRecord.id);
       if (checklistRecord) await deleteSharedChecklist(checklistRecord.id);
       try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
@@ -279,7 +279,7 @@ export function Home() {
               type: plane.type,
               sim: plane.sim || null,
               phases: JSON.stringify(checklist.phases),
-              submittedBy: null,
+              submitted_by: null,
               status: 'pending',
             });
             alert('Submitted for review! An admin will approve it shortly.');
@@ -295,13 +295,13 @@ export function Home() {
             const variantPlaneId = `${plane.id}::${variantName}`;
             // Check if this variant checklist already exists
             const allCl = await listAllSharedChecklists();
-            const existingVariant = allCl.find(c => c.planeId === variantPlaneId);
+            const existingVariant = allCl.find(c => c.plane_id === variantPlaneId);
             if (existingVariant) {
               console.log(`[FlightCheck Import] Variant "${variantName}" exists, updating...`);
               await updateSharedChecklist(existingVariant.id, JSON.stringify(variantChecklist.phases));
             } else {
               await createSharedChecklist({
-                planeId: variantPlaneId,
+                plane_id: variantPlaneId,
                 phases: JSON.stringify(variantChecklist.phases),
               });
             }
@@ -403,7 +403,7 @@ export function Home() {
                   type: plane.type,
                   sim: undefined,
                   phases: JSON.stringify(phases),
-                  submittedBy: null,
+                  submitted_by: null,
                   status: 'pending',
                 });
                 setImportSummary(prev => (prev || '') + ' Submitted for community review!');
@@ -636,11 +636,11 @@ export function Home() {
                 if (isAdmin) {
                   const variantPlaneId = `${plane.id}::${variantName}`;
                   const allCl = await listAllSharedChecklists();
-                  const existing = allCl.find(c => c.planeId === variantPlaneId);
+                  const existing = allCl.find(c => c.plane_id === variantPlaneId);
                   if (existing) {
                     await updateSharedChecklist(existing.id, JSON.stringify(variantChecklist.phases));
                   } else {
-                    await createSharedChecklist({ planeId: variantPlaneId, phases: JSON.stringify(variantChecklist.phases) });
+                    await createSharedChecklist({ plane_id: variantPlaneId, phases: JSON.stringify(variantChecklist.phases) });
                   }
                 } else {
                   addVariant(plane.id, variantName, variantChecklist);
@@ -658,7 +658,7 @@ export function Home() {
                   type: plane.type,
                   sim: plane.sim || null,
                   phases: JSON.stringify(checklist.phases),
-                  submittedBy: null,
+                  submitted_by: null,
                   status: 'pending',
                 });
                 alert('Submitted for review! An admin will approve it shortly.');

@@ -51,18 +51,18 @@ export function AdminDashboard() {
 
   const handleAdd = async (plane: Plane, checklist: PlaneChecklist) => {
     const created = await createSharedPlane({
-      planeId: plane.id,
+      plane_id: plane.id,
       name: plane.name,
       manufacturer: plane.manufacturer,
       image: plane.image,
       type: plane.type,
       sim: plane.sim || null,
-      sortOrder: planes.length,
+      sort_order: planes.length,
     });
     if (!created) throw new Error('Failed to create plane record.');
 
     const clCreated = await createSharedChecklist({
-      planeId: plane.id,
+      plane_id: plane.id,
       phases: JSON.stringify(checklist.phases),
     });
     if (!clCreated) throw new Error('Plane created but failed to create checklist record.');
@@ -75,7 +75,7 @@ export function AdminDashboard() {
     if (!editingPlane) return;
 
     const planeOk = await updateSharedPlane(editingPlane.id, {
-      planeId: plane.id,
+      plane_id: plane.id,
       name: plane.name,
       manufacturer: plane.manufacturer,
       image: plane.image,
@@ -84,13 +84,13 @@ export function AdminDashboard() {
     });
     if (!planeOk) throw new Error('Failed to update plane record.');
 
-    const existingCl = checklists.find(c => c.planeId === editingPlane.planeId);
+    const existingCl = checklists.find(c => c.plane_id === editingPlane.plane_id);
     if (existingCl) {
       const clOk = await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
       if (!clOk) throw new Error('Plane updated but failed to update checklist.');
     } else {
       const clCreated = await createSharedChecklist({
-        planeId: plane.id,
+        plane_id: plane.id,
         phases: JSON.stringify(checklist.phases),
       });
       if (!clCreated) throw new Error('Plane updated but failed to create checklist.');
@@ -103,11 +103,11 @@ export function AdminDashboard() {
   };
 
   const handleStartEdit = (plane: SharedPlaneRecord) => {
-    const cl = checklists.find(c => c.planeId === plane.planeId);
+    const cl = checklists.find(c => c.plane_id === plane.plane_id);
     let parsedChecklist: PlaneChecklist | null = null;
     if (cl) {
       try {
-        parsedChecklist = { planeId: cl.planeId, phases: JSON.parse(cl.phases) };
+        parsedChecklist = { planeId: cl.plane_id, phases: JSON.parse(cl.phases) };
       } catch { /* ignore parse error */ }
     }
     setEditingPlane(plane);
@@ -123,7 +123,7 @@ export function AdminDashboard() {
     );
     if (!confirmed) return;
 
-    const cl = checklists.find(c => c.planeId === plane.planeId);
+    const cl = checklists.find(c => c.plane_id === plane.plane_id);
     if (cl) {
       await deleteSharedChecklist(cl.id);
     }
@@ -137,7 +137,7 @@ export function AdminDashboard() {
 
     try {
       const existing = await listSharedPlanes();
-      const existingIds = new Set(existing.map(p => p.planeId));
+      const existingIds = new Set(existing.map(p => p.plane_id));
 
       let created = 0;
       for (let i = 0; i < staticPlanes.length; i++) {
@@ -150,19 +150,19 @@ export function AdminDashboard() {
         setSeedProgress(`Creating ${plane.name}... ${i + 1}/${staticPlanes.length}`);
 
         await createSharedPlane({
-          planeId: plane.id,
+          plane_id: plane.id,
           name: plane.name,
           manufacturer: plane.manufacturer,
           image: plane.image,
           type: plane.type,
           sim: plane.sim || null,
-          sortOrder: i,
+          sort_order: i,
         });
 
         const checklist = staticChecklists[plane.id];
         if (checklist) {
           await createSharedChecklist({
-            planeId: plane.id,
+            plane_id: plane.id,
             phases: JSON.stringify(checklist.phases),
           });
         }
@@ -182,17 +182,17 @@ export function AdminDashboard() {
   const handleApproveSubmission = async (submission: PendingSubmissionRecord) => {
     const planeId = submission.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const planeResult = await createSharedPlane({
-      planeId,
+      plane_id: planeId,
       name: submission.name,
       manufacturer: submission.manufacturer,
       image: submission.image || '',
       type: submission.type,
       sim: submission.sim || null,
-      sortOrder: null,
+      sort_order: null,
     });
     if (planeResult) {
       await createSharedChecklist({
-        planeId,
+        plane_id: planeId,
         phases: submission.phases,
       });
     }
@@ -203,7 +203,7 @@ export function AdminDashboard() {
   const handleRejectSubmission = async (submission: PendingSubmissionRecord) => {
     const confirmed = await confirm(
       'Reject Submission',
-      `Reject "${submission.name}" submitted by ${submission.submittedBy || 'anonymous'}?`,
+      `Reject "${submission.name}" submitted by ${submission.submitted_by || 'anonymous'}?`,
       { destructive: true, confirmLabel: 'Reject' }
     );
     if (!confirmed) return;
@@ -289,8 +289,8 @@ export function AdminDashboard() {
                           <span className={styles.pendingMeta}>
                             {sub.manufacturer} &middot; {sub.type} &middot; {phaseCount} phase{phaseCount !== 1 ? 's' : ''}
                           </span>
-                          {sub.submittedBy && (
-                            <span className={styles.pendingMeta}>by {sub.submittedBy}</span>
+                          {sub.submitted_by && (
+                            <span className={styles.pendingMeta}>by {sub.submitted_by}</span>
                           )}
                         </div>
                         <div className={styles.pendingActions}>
@@ -338,7 +338,7 @@ export function AdminDashboard() {
           <h1 className={styles.title}>Admin Dashboard</h1>
         </div>
         <div className={styles.userInfo}>
-          <span className={styles.email}>{user?.signInDetails?.loginId}</span>
+          <span className={styles.email}>{user?.email}</span>
           <button className={styles.signOut} onClick={handleSignOut}>
             <LogOut size={16} /> Sign Out
           </button>

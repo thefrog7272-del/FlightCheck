@@ -4,7 +4,7 @@ import type { Plane, PlaneChecklist } from '../../data/types';
 import styles from './AdminPlaneForm.module.css';
 
 interface AdminPlaneFormProps {
-  initialPlane?: { planeId: string; name: string; manufacturer: string; image: string; type: string; sim?: string | null };
+  initialPlane?: { plane_id: string; name: string; manufacturer: string; image: string; type: string; sim?: string | null };
   initialChecklist?: PlaneChecklist;
   onSubmit: (plane: Plane, checklist: PlaneChecklist) => Promise<void>;
   onCancel: () => void;
@@ -82,7 +82,7 @@ export function AdminPlaneForm({ initialPlane, initialChecklist, onSubmit, onCan
       return;
     }
 
-    const planeId = initialPlane?.planeId || name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const planeId = initialPlane?.plane_id || name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const plane: Plane = { id: planeId, name: name.trim(), manufacturer: manufacturer.trim(), image: image.trim(), type, sim: sim as Plane['sim'] };
     const finalChecklist: PlaneChecklist = { ...checklist, planeId };
 

@@ -1,220 +1,21 @@
-import { fetchAuthSession } from 'aws-amplify/auth';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GqlResult = { data: Record<string, any> };
-
-const ENDPOINT = 'https://ep3mvuopvbh6rbznjkguq7i5b4.appsync-api.eu-west-2.amazonaws.com/graphql';
-const API_KEY = 'da2-fk7wwxhihfhcfimzsma5gnsvxq';
-
-async function gql(query: string, variables?: Record<string, unknown>, useUserPool = false): Promise<GqlResult> {
-  const body = JSON.stringify({ query, variables });
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
-
-  if (useUserPool) {
-    // Admin writes: use Cognito ID token
-    const session = await fetchAuthSession();
-    const token = session.tokens?.idToken?.toString();
-    if (token) headers['Authorization'] = token;
-  } else {
-    // Guest reads: use API key (no signing needed)
-    headers['x-api-key'] = API_KEY;
-  }
-
-  const res = await fetch(ENDPOINT, { method: 'POST', headers, body });
-  const json = await res.json();
-  if (json.errors) {
-    console.error('[FlightCheck API] GraphQL errors:', JSON.stringify(json.errors));
-  }
-  if (!res.ok && !json.data) throw new Error(`GraphQL request failed: ${res.status}`);
-  return json;
-}
-
-function log(action: string, ...args: unknown[]) {
-  console.log(`[FlightCheck API] ${action}`, ...args);
-}
-
-function logError(action: string, err: unknown) {
-  console.error(`[FlightCheck API] ${action} FAILED:`, err);
-}
+import { supabase } from '../lib/supabase';
 
 export interface SharedPlaneRecord {
   id: string;
-  planeId: string;
+  plane_id: string;
   name: string;
   manufacturer: string;
   image: string;
   type: string;
   sim?: string | null;
-  sortOrder?: number | null;
+  sort_order?: number | null;
 }
 
 export interface SharedChecklistRecord {
   id: string;
-  planeId: string;
-  phases: string; // JSON-stringified ChecklistPhase[]
+  plane_id: string;
+  phases: string;
 }
-
-export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
-  log('listSharedPlanes', 'fetching...');
-  try {
-    const result = await gql(`query ListSharedPlanes {
-      listSharedPlanes(limit: 100) {
-        items {
-          id planeId name manufacturer image type sim sortOrder
-        }
-      }
-    }`);
-    const items = result.data?.listSharedPlanes?.items ?? [];
-    log('listSharedPlanes', `fetched ${items.length} planes`);
-    return items;
-  } catch (err) {
-    logError('listSharedPlanes', err);
-    return [];
-  }
-}
-
-export async function getSharedChecklist(planeId: string): Promise<SharedChecklistRecord | null> {
-  try {
-    const result = await gql(
-      `query ListSharedChecklists($filter: ModelSharedChecklistFilterInput) {
-        listSharedChecklists(filter: $filter, limit: 1) {
-          items { id planeId phases }
-        }
-      }`,
-      { filter: { planeId: { eq: planeId } } },
-    );
-    const items = result.data.listSharedChecklists.items;
-    return items.length > 0 ? items[0] : null;
-  } catch (err) {
-    console.error('Failed to fetch shared checklist:', err);
-    return null;
-  }
-}
-
-export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]> {
-  try {
-    const result = await gql(`query ListSharedChecklists {
-      listSharedChecklists(limit: 100) {
-        items { id planeId phases }
-      }
-    }`);
-    const items = result.data?.listSharedChecklists?.items ?? [];
-    log('listAllSharedChecklists', `fetched ${items.length} checklists`);
-    return items;
-  } catch (err) {
-    logError('listAllSharedChecklists', err);
-    return [];
-  }
-}
-
-// Admin-only mutations (requires Cognito auth)
-export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): Promise<SharedPlaneRecord | null> {
-  log('createSharedPlane', plane.planeId, plane.name);
-  try {
-    const result = await gql(
-      `mutation CreateSharedPlane($input: CreateSharedPlaneInput!) {
-        createSharedPlane(input: $input) {
-          id planeId name manufacturer image type sim sortOrder
-        }
-      }`,
-      { input: plane },
-      true,
-    );
-    const created = result.data.createSharedPlane;
-    log('createSharedPlane', 'SUCCESS', created.id);
-    return created;
-  } catch (err) {
-    logError('createSharedPlane', err);
-    return null;
-  }
-}
-
-export async function createSharedChecklist(checklist: Omit<SharedChecklistRecord, 'id'>): Promise<SharedChecklistRecord | null> {
-  log('createSharedChecklist', checklist.planeId, `phases: ${checklist.phases.length} chars`);
-  try {
-    const result = await gql(
-      `mutation CreateSharedChecklist($input: CreateSharedChecklistInput!) {
-        createSharedChecklist(input: $input) {
-          id planeId phases
-        }
-      }`,
-      { input: checklist },
-      true,
-    );
-    const created = result.data.createSharedChecklist;
-    log('createSharedChecklist', 'SUCCESS', created.id);
-    return created;
-  } catch (err) {
-    logError('createSharedChecklist', err);
-    return null;
-  }
-}
-
-export async function deleteSharedPlane(id: string): Promise<boolean> {
-  try {
-    await gql(
-      `mutation DeleteSharedPlane($input: DeleteSharedPlaneInput!) {
-        deleteSharedPlane(input: $input) { id }
-      }`,
-      { input: { id } },
-      true,
-    );
-    return true;
-  } catch (err) {
-    console.error('Failed to delete shared plane:', err);
-    return false;
-  }
-}
-
-export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPlaneRecord, 'id'>>): Promise<boolean> {
-  try {
-    await gql(
-      `mutation UpdateSharedPlane($input: UpdateSharedPlaneInput!) {
-        updateSharedPlane(input: $input) { id }
-      }`,
-      { input: { id, ...plane } },
-      true,
-    );
-    return true;
-  } catch (err) {
-    console.error('Failed to update shared plane:', err);
-    return false;
-  }
-}
-
-export async function updateSharedChecklist(id: string, phases: string): Promise<boolean> {
-  try {
-    await gql(
-      `mutation UpdateSharedChecklist($input: UpdateSharedChecklistInput!) {
-        updateSharedChecklist(input: $input) { id }
-      }`,
-      { input: { id, phases } },
-      true,
-    );
-    return true;
-  } catch (err) {
-    console.error('Failed to update shared checklist:', err);
-    return false;
-  }
-}
-
-export async function deleteSharedChecklist(id: string): Promise<boolean> {
-  try {
-    await gql(
-      `mutation DeleteSharedChecklist($input: DeleteSharedChecklistInput!) {
-        deleteSharedChecklist(input: $input) { id }
-      }`,
-      { input: { id } },
-      true,
-    );
-    return true;
-  } catch (err) {
-    console.error('Failed to delete shared checklist:', err);
-    return false;
-  }
-}
-
-// Pending submissions
 
 export interface PendingSubmissionRecord {
   id: string;
@@ -224,9 +25,148 @@ export interface PendingSubmissionRecord {
   type: string;
   sim?: string | null;
   phases: string;
-  submittedBy?: string | null;
+  submitted_by?: string | null;
   status: string;
-  createdAt?: string;
+  created_at?: string;
+}
+
+export async function listSharedPlanes(): Promise<SharedPlaneRecord[]> {
+  try {
+    const { data, error } = await supabase
+      .from('shared_planes')
+      .select('*')
+      .order('sort_order', { ascending: true, nullsFirst: false });
+    if (error) throw error;
+    return data ?? [];
+  } catch (err) {
+    console.error('[FlightCheck API] listSharedPlanes FAILED:', err);
+    return [];
+  }
+}
+
+export async function getSharedChecklist(planeId: string): Promise<SharedChecklistRecord | null> {
+  try {
+    const { data, error } = await supabase
+      .from('shared_checklists')
+      .select('*')
+      .eq('plane_id', planeId)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('[FlightCheck API] getSharedChecklist FAILED:', err);
+    return null;
+  }
+}
+
+export async function listAllSharedChecklists(): Promise<SharedChecklistRecord[]> {
+  try {
+    const { data, error } = await supabase
+      .from('shared_checklists')
+      .select('*');
+    if (error) throw error;
+    return data ?? [];
+  } catch (err) {
+    console.error('[FlightCheck API] listAllSharedChecklists FAILED:', err);
+    return [];
+  }
+}
+
+export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): Promise<SharedPlaneRecord | null> {
+  try {
+    const { data, error } = await supabase
+      .from('shared_planes')
+      .insert([{
+        plane_id: plane.plane_id,
+        name: plane.name,
+        manufacturer: plane.manufacturer,
+        image: plane.image,
+        type: plane.type,
+        sim: plane.sim,
+        sort_order: plane.sort_order,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('[FlightCheck API] createSharedPlane FAILED:', err);
+    return null;
+  }
+}
+
+export async function createSharedChecklist(checklist: Omit<SharedChecklistRecord, 'id'>): Promise<SharedChecklistRecord | null> {
+  try {
+    const { data, error } = await supabase
+      .from('shared_checklists')
+      .insert([{
+        plane_id: checklist.plane_id,
+        phases: checklist.phases,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('[FlightCheck API] createSharedChecklist FAILED:', err);
+    return null;
+  }
+}
+
+export async function deleteSharedPlane(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('shared_planes').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[FlightCheck API] deleteSharedPlane FAILED:', err);
+    return false;
+  }
+}
+
+export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPlaneRecord, 'id'>>): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('shared_planes')
+      .update({
+        ...(plane.plane_id !== undefined && { plane_id: plane.plane_id }),
+        ...(plane.name !== undefined && { name: plane.name }),
+        ...(plane.manufacturer !== undefined && { manufacturer: plane.manufacturer }),
+        ...(plane.image !== undefined && { image: plane.image }),
+        ...(plane.type !== undefined && { type: plane.type }),
+        ...(plane.sim !== undefined && { sim: plane.sim }),
+        ...(plane.sort_order !== undefined && { sort_order: plane.sort_order }),
+      })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[FlightCheck API] updateSharedPlane FAILED:', err);
+    return false;
+  }
+}
+
+export async function updateSharedChecklist(id: string, phases: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('shared_checklists').update({ phases }).eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[FlightCheck API] updateSharedChecklist FAILED:', err);
+    return false;
+  }
+}
+
+export async function deleteSharedChecklist(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('shared_checklists').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[FlightCheck API] deleteSharedChecklist FAILED:', err);
+    return false;
+  }
 }
 
 export async function createPendingSubmission(submission: {
@@ -236,71 +176,49 @@ export async function createPendingSubmission(submission: {
   type: string;
   sim?: string | null;
   phases: string;
-  submittedBy?: string | null;
+  submitted_by?: string | null;
   status: string;
 }): Promise<boolean> {
   try {
-    await gql(
-      `mutation CreatePendingSubmission($input: CreatePendingSubmissionInput!) {
-        createPendingSubmission(input: $input) { id }
-      }`,
-      { input: submission },
-    );
+    const { error } = await supabase.from('pending_submissions').insert([{
+      name: submission.name,
+      manufacturer: submission.manufacturer,
+      image: submission.image,
+      type: submission.type,
+      sim: submission.sim,
+      phases: submission.phases,
+      submitted_by: submission.submitted_by,
+      status: submission.status,
+    }]);
+    if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Failed to create submission:', err);
+    console.error('[FlightCheck API] createPendingSubmission FAILED:', err);
     return false;
   }
 }
 
 export async function listPendingSubmissions(): Promise<PendingSubmissionRecord[]> {
   try {
-    const result = await gql(
-      `query ListPendingSubmissions($filter: ModelPendingSubmissionFilterInput) {
-        listPendingSubmissions(filter: $filter, limit: 100) {
-          items {
-            id name manufacturer image type sim phases submittedBy status createdAt
-          }
-        }
-      }`,
-      { filter: { status: { eq: 'pending' } } },
-      true,
-    );
-    return result.data.listPendingSubmissions.items;
+    const { data, error } = await supabase
+      .from('pending_submissions')
+      .select('*')
+      .eq('status', 'pending');
+    if (error) throw error;
+    return data ?? [];
   } catch (err) {
-    console.error('Failed to list submissions:', err);
+    console.error('[FlightCheck API] listPendingSubmissions FAILED:', err);
     return [];
-  }
-}
-
-export async function updatePendingSubmission(id: string, status: string): Promise<boolean> {
-  try {
-    await gql(
-      `mutation UpdatePendingSubmission($input: UpdatePendingSubmissionInput!) {
-        updatePendingSubmission(input: $input) { id }
-      }`,
-      { input: { id, status } },
-      true,
-    );
-    return true;
-  } catch (err) {
-    console.error('Failed to update submission:', err);
-    return false;
   }
 }
 
 export async function deletePendingSubmission(id: string): Promise<boolean> {
   try {
-    await gql(
-      `mutation DeletePendingSubmission($input: DeletePendingSubmissionInput!) {
-        deletePendingSubmission(input: $input) { id }
-      }`,
-      { input: { id } },
-      true,
-    );
+    const { error } = await supabase.from('pending_submissions').delete().eq('id', id);
+    if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Failed to delete submission:', err);
+    console.error('[FlightCheck API] deletePendingSubmission FAILED:', err);
     return false;
   }
 }

@@ -31,7 +31,7 @@ function saveCache(data: CachedData) {
 
 function mapToPlane(record: SharedPlaneRecord): Plane {
   return {
-    id: record.planeId,
+    id: record.plane_id,
     name: record.name,
     manufacturer: record.manufacturer,
     image: record.image,
@@ -42,7 +42,7 @@ function mapToPlane(record: SharedPlaneRecord): Plane {
 
 function mapToChecklist(record: SharedChecklistRecord): PlaneChecklist {
   return {
-    planeId: record.planeId,
+    planeId: record.plane_id,
     phases: JSON.parse(record.phases),
   };
 }
@@ -77,7 +77,7 @@ export function useSharedPlanes() {
         const checklists: Record<string, PlaneChecklist> = {};
         for (const record of checklistRecords) {
           try {
-            checklists[record.planeId] = mapToChecklist(record);
+            checklists[record.plane_id] = mapToChecklist(record);
           } catch { /* skip invalid JSON */ }
         }
 
