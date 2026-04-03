@@ -43,7 +43,7 @@ export function Layout() {
               </Link>
             )}
             <a
-              href="https://buymeacoffee.com/samwmarsh"
+              href="https://buymeacoffee.com/thefrog7272"
               target="_blank"
               rel="noopener noreferrer"
               className={styles.coffeeLink}
