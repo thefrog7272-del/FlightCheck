@@ -61,7 +61,7 @@ export function Layout() {
       <footer className={styles.footer}>
         <span>FlightCheck — Interactive Flight Simulator Checklists</span>
         <a
-          href="https://github.com/samwmarsh/flightcheck"
+          href="https://github.com/thefrog7272-del/FlightCheck"
           target="_blank"
           rel="noopener noreferrer"
           className={styles.footerLink}
