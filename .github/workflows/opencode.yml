@@ -23,6 +23,6 @@ jobs:
       - name: Run OpenCode
         uses: anomalyco/opencode/github@latest
         env:
-          OPENROUTER_API_KEY: ${{ secrets. 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}}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY}}
         with:
           model: openrouter/qwen/qwen3.6-plus:free
