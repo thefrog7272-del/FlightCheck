@@ -159,19 +159,28 @@ export function Checklist() {
   const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    // category is empty for Standard, otherwise the variant name (e.g. "Reference Tables")
-    const category = activeVariant === 'Standard' ? '' : activeVariant;
     const header = 'name,phase,item,expectedState,notes,category';
-    const rows = checklist.phases.flatMap(phase =>
-      phase.items.map(item =>
-        [
-          quote(plane.name),
-          quote(phase.title),
-          quote(item.label),
-          quote(item.expectedState ?? ''),
-          quote(item.notes ?? ''),
-          quote(category),
-        ].join(',')
+    const allChecklists: Array<{ checklist: PlaneChecklist; category: string }> = [
+      { checklist, category: activeVariant === 'Standard' ? '' : activeVariant },
+    ];
+    for (const v of variants) {
+      if (v === activeVariant) continue;
+      const key = v === 'Standard' ? planeId! : `${planeId}::${v}`;
+      const cl = checklists[key];
+      if (cl) allChecklists.push({ checklist: cl, category: v === 'Standard' ? '' : v });
+    }
+    const rows = allChecklists.flatMap(({ checklist: cl, category }) =>
+      cl.phases.flatMap(phase =>
+        phase.items.map(item =>
+          [
+            quote(plane.name),
+            quote(phase.title),
+            quote(item.label),
+            quote(item.expectedState ?? ''),
+            quote(item.notes ?? ''),
+            quote(category),
+          ].join(',')
+        )
       )
     );
     const csv = [header, ...rows].join('\n');
@@ -182,7 +191,7 @@ export function Checklist() {
     a.download = `${plane.id}-checklist.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [plane, checklist]);
+  }, [plane, checklist, activeVariant, planeId, checklists, variants]);
 
   const handleShare = async () => {
     if (!plane || !checklist) return;
