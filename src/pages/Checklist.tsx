@@ -7,7 +7,6 @@ import styles from './Checklist.module.css';
 import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff } from 'lucide-react';
 import { useVoiceChecklist } from '../hooks/useVoiceChecklist';
 import { useFleet } from '../hooks/useFleet';
-import { useAuth } from '../contexts/AuthContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useChecklistNavigation } from '../hooks/useChecklistNavigation';
 import { useConfirm } from '../hooks/useConfirm';
@@ -73,7 +72,6 @@ export function Checklist() {
     onNavigateVariant: stableNavigateVariant,
   });
 
-  const { user, isAdmin } = useAuth();
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
@@ -575,22 +573,18 @@ export function Checklist() {
                 {isEditing ? 'Done' : 'Edit'}
               </button>
             )}
-            {user && (
-              <>
-                <button onClick={handleShare} className={styles.resetButton} title="Share checklist">
-                  <Share2 className={styles.resetIcon} />
-                  Share
-                </button>
-                <button onClick={downloadCsv} className={styles.resetButton}>
-                  <Download className={styles.resetIcon} />
-                  Download CSV
-                </button>
-                <button onClick={() => window.print()} className={styles.resetButton}>
-                  <Printer className={styles.resetIcon} />
-                  Print
-                </button>
-              </>
-            )}
+            <button onClick={handleShare} className={styles.resetButton} title="Share checklist">
+              <Share2 className={styles.resetIcon} />
+              Share
+            </button>
+            <button onClick={downloadCsv} className={styles.resetButton}>
+              <Download className={styles.resetIcon} />
+              Download CSV
+            </button>
+            <button onClick={() => window.print()} className={styles.resetButton}>
+              <Printer className={styles.resetIcon} />
+              Print
+            </button>
             {!isReferenceVariant && (
               <button onClick={resetChecklist} className={styles.resetButton}>
                 <RotateCcw className={styles.resetIcon} />
@@ -602,7 +596,7 @@ export function Checklist() {
                 {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
               </button>
             )}
-            {user && isReferenceVariant && (
+            {isReferenceVariant && (
               <button
                 onClick={() => setShowAddTableModal(true)}
                 className={styles.resetButton}
@@ -787,7 +781,7 @@ export function Checklist() {
                           note={getNote(item.id)}
                           onNoteChange={(text) => setNote(item.id, text)}
                           onDeleteTable={
-                            isAdmin && item.notes?.startsWith('data:table/json,')
+                            item.notes?.startsWith('data:table/json,')
                               ? async () => {
                                   const ok = await confirm(
                                     `Delete "${item.label}"?`,
@@ -812,7 +806,7 @@ export function Checklist() {
                       {isEditing && insertionPoint(phase.id, idx + 1)}
                     </div>
                   ))}
-                {user && isReferenceVariant && !isCollapsed && (
+                {isReferenceVariant && !isCollapsed && (
                   <div className={styles.addRefImageRow}>
                     {addImagePhaseId === phase.id ? (
                       <div className={styles.insertForm}>

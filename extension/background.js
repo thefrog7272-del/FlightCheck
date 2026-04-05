@@ -9,7 +9,7 @@ chrome.commands.onCommand.addListener(async (command) => {
     if (!tab.id) continue;
     const url = tab.url ?? '';
     if (
-      url.includes('main.d2m1s5v9i0w5nr.amplifyapp.com') ||
+      url.includes('flightcheck.thefrog7272.workers.dev') ||
       url.includes('localhost:5173')
     ) {
       console.log('[FlightCheck ext] injecting into tab', tab.id, url);

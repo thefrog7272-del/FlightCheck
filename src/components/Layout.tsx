@@ -1,7 +1,6 @@
-import { Plane, Coffee, Sun, Moon, Lock, Shield } from 'lucide-react';
+import { Plane, Coffee, Sun, Moon } from 'lucide-react';
 import { Link, Outlet } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
-import { useAuth } from '../contexts/AuthContext';
 import { OfflineIndicator } from './OfflineIndicator';
 import styles from './Layout.module.css';
 
@@ -15,7 +14,6 @@ function GitHubIcon() {
 
 export function Layout() {
   const { theme, toggleTheme } = useTheme();
-  const { isAdmin } = useAuth();
 
   return (
     <div className={styles.container}>
@@ -36,12 +34,6 @@ export function Layout() {
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            {isAdmin && (
-              <Link to="/admin" className={styles.adminBadge} title="Admin Dashboard">
-                <Shield size={14} />
-                Admin
-              </Link>
-            )}
             <a
               href="https://buymeacoffee.com/thefrog7272"
               target="_blank"
@@ -69,12 +61,6 @@ export function Layout() {
           <GitHubIcon />
           <span>GitHub</span>
         </a>
-        {!isAdmin && (
-          <Link to="/admin" className={styles.footerLink}>
-            <Lock size={14} />
-            Admin
-          </Link>
-        )}
       </footer>
     </div>
   );
