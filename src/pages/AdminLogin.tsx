@@ -12,7 +12,7 @@ export function AdminLogin() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!loading && user && isAdmin) {
-    navigate('/admin', { replace: true });
+    navigate('/', { replace: true });
     return null;
   }
 
@@ -21,7 +21,7 @@ export function AdminLogin() {
     setSubmitting(true);
     try {
       await handleSignIn(email, password);
-      navigate('/admin', { replace: true });
+      navigate('/', { replace: true });
     } catch {
       // error is set in context
     } finally {
