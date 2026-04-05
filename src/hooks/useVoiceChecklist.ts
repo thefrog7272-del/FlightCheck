@@ -487,6 +487,37 @@ export function useVoiceChecklist({
       scheduleCommand(raw, result.isFinal);
     };
 
+    // Voices load asynchronously in Chrome — wait for them before the first
+    // utterance, otherwise the browser default (often en-US) is used.
+    let voicesChangedHandler: (() => void) | null = null;
+    let voicesFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function speakFirst(text: string) {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        speakText(text);
+        return;
+      }
+      // Voices not ready yet — wait for the voiceschanged event
+      voicesChangedHandler = () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', voicesChangedHandler!);
+        voicesChangedHandler = null;
+        if (voicesFallbackTimer) { clearTimeout(voicesFallbackTimer); voicesFallbackTimer = null; }
+        speakText(text);
+      };
+      window.speechSynthesis.addEventListener('voiceschanged', voicesChangedHandler);
+      // Safety net: if voiceschanged never fires, speak after 2s anyway
+      voicesFallbackTimer = setTimeout(() => {
+        if (voicesChangedHandler) {
+          window.speechSynthesis.removeEventListener('voiceschanged', voicesChangedHandler);
+          voicesChangedHandler = null;
+        }
+        voicesFallbackTimer = null;
+        if (speaking) return; // already spoken
+        speakText(text);
+      }, 2000);
+    }
+
     // Find first unchecked item (or fall back to first item)
     const first =
       allItemsRef.current.find(i => !checkedItemsRef.current[i.id]) ??
@@ -498,12 +529,16 @@ export function useVoiceChecklist({
     const intro = first
       ? `Voice checklist active. ${first.phaseTitle}. ${itemText(first)}`
       : 'Voice checklist active. No items found.';
-    speakText(intro);
+    speakFirst(intro);
 
     return () => {
       shouldListen = false;
       if (ttsTimer) clearTimeout(ttsTimer);
       if (commandTimer) clearTimeout(commandTimer);
+      if (voicesFallbackTimer) clearTimeout(voicesFallbackTimer);
+      if (voicesChangedHandler) {
+        window.speechSynthesis.removeEventListener('voiceschanged', voicesChangedHandler);
+      }
       clearInterval(keepAlive);
       window.speechSynthesis?.cancel();
       stopRec();
