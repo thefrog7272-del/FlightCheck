@@ -159,41 +159,6 @@ export function Checklist() {
   const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    const TABLE_PREFIX = 'data:table/json,';
-
-    function itemRows(name: string, phase: string, item: { label: string; expectedState?: string; notes?: string }, category: string): string[] {
-      const notes = item.notes ?? '';
-      if (notes.startsWith(TABLE_PREFIX)) {
-        try {
-          const raw = notes.slice(TABLE_PREFIX.length);
-          const parsed: unknown = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            // Expand each row of the table into its own CSV line
-            return (parsed as string[][]).map(row =>
-              [quote(name), quote(phase), quote(item.label), '', ...row.map(c => quote(c)), quote(category)].join(',')
-            );
-          }
-          if (parsed && typeof parsed === 'object') {
-            const t = parsed as { headers?: string[]; rows?: string[][]; preNote?: string; postNote?: string };
-            const out: string[] = [];
-            if (t.preNote) out.push([quote(name), quote(phase), quote(item.label), '', quote(t.preNote), quote(category)].join(','));
-            if (t.headers?.length) {
-              out.push([quote(name), quote(phase), quote(item.label), '', ...t.headers.map(c => quote(c)), quote(category)].join(','));
-            }
-            if (t.rows) {
-              for (const row of t.rows) {
-                out.push([quote(name), quote(phase), quote(item.label), '', ...row.map(c => quote(c)), quote(category)].join(','));
-              }
-            }
-            if (t.postNote) out.push([quote(name), quote(phase), quote(item.label), '', quote(t.postNote), quote(category)].join(','));
-            return out;
-          }
-        } catch { /* fall through to raw notes */ }
-      }
-      // Normal item — single row
-      return [[quote(name), quote(phase), quote(item.label), quote(item.expectedState ?? ''), quote(notes), quote(category)].join(',')];
-    }
-
     const header = 'name,phase,item,expectedState,notes,category';
     const allChecklists: Array<{ checklist: PlaneChecklist; category: string }> = [
       { checklist, category: activeVariant === 'Standard' ? '' : activeVariant },
@@ -206,7 +171,16 @@ export function Checklist() {
     }
     const rows = allChecklists.flatMap(({ checklist: cl, category }) =>
       cl.phases.flatMap(phase =>
-        phase.items.flatMap(item => itemRows(plane.name, phase.title, item, category))
+        phase.items.map(item =>
+          [
+            quote(plane.name),
+            quote(phase.title),
+            quote(item.label),
+            quote(item.expectedState ?? ''),
+            quote(item.notes ?? ''),
+            quote(category),
+          ].join(',')
+        )
       )
     );
     const csv = [header, ...rows].join('\n');
