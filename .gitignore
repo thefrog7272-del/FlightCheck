@@ -29,3 +29,10 @@ amplify_outputs.d.ts
 
 # Claude Code internals
 .claude/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
