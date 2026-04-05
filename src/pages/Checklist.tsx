@@ -7,6 +7,7 @@ import styles from './Checklist.module.css';
 import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff } from 'lucide-react';
 import { useVoiceChecklist } from '../hooks/useVoiceChecklist';
 import { useFleet } from '../hooks/useFleet';
+import { useAuth } from '../contexts/AuthContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useChecklistNavigation } from '../hooks/useChecklistNavigation';
 import { useConfirm } from '../hooks/useConfirm';
@@ -72,6 +73,7 @@ export function Checklist() {
     onNavigateVariant: stableNavigateVariant,
   });
 
+  const { user, isAdmin } = useAuth();
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
@@ -157,6 +159,41 @@ export function Checklist() {
   const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const TABLE_PREFIX = 'data:table/json,';
+
+    function itemRows(name: string, phase: string, item: { label: string; expectedState?: string; notes?: string }, category: string): string[] {
+      const notes = item.notes ?? '';
+      if (notes.startsWith(TABLE_PREFIX)) {
+        try {
+          const raw = notes.slice(TABLE_PREFIX.length);
+          const parsed: unknown = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            // Expand each row of the table into its own CSV line
+            return (parsed as string[][]).map(row =>
+              [quote(name), quote(phase), quote(item.label), '', ...row.map(c => quote(c)), quote(category)].join(',')
+            );
+          }
+          if (parsed && typeof parsed === 'object') {
+            const t = parsed as { headers?: string[]; rows?: string[][]; preNote?: string; postNote?: string };
+            const out: string[] = [];
+            if (t.preNote) out.push([quote(name), quote(phase), quote(item.label), '', quote(t.preNote), quote(category)].join(','));
+            if (t.headers?.length) {
+              out.push([quote(name), quote(phase), quote(item.label), '', ...t.headers.map(c => quote(c)), quote(category)].join(','));
+            }
+            if (t.rows) {
+              for (const row of t.rows) {
+                out.push([quote(name), quote(phase), quote(item.label), '', ...row.map(c => quote(c)), quote(category)].join(','));
+              }
+            }
+            if (t.postNote) out.push([quote(name), quote(phase), quote(item.label), '', quote(t.postNote), quote(category)].join(','));
+            return out;
+          }
+        } catch { /* fall through to raw notes */ }
+      }
+      // Normal item — single row
+      return [[quote(name), quote(phase), quote(item.label), quote(item.expectedState ?? ''), quote(notes), quote(category)].join(',')];
+    }
+
     const header = 'name,phase,item,expectedState,notes,category';
     const allChecklists: Array<{ checklist: PlaneChecklist; category: string }> = [
       { checklist, category: activeVariant === 'Standard' ? '' : activeVariant },
@@ -169,16 +206,7 @@ export function Checklist() {
     }
     const rows = allChecklists.flatMap(({ checklist: cl, category }) =>
       cl.phases.flatMap(phase =>
-        phase.items.map(item =>
-          [
-            quote(plane.name),
-            quote(phase.title),
-            quote(item.label),
-            quote(item.expectedState ?? ''),
-            quote(item.notes ?? ''),
-            quote(category),
-          ].join(',')
-        )
+        phase.items.flatMap(item => itemRows(plane.name, phase.title, item, category))
       )
     );
     const csv = [header, ...rows].join('\n');
@@ -573,18 +601,22 @@ export function Checklist() {
                 {isEditing ? 'Done' : 'Edit'}
               </button>
             )}
-            <button onClick={handleShare} className={styles.resetButton} title="Share checklist">
-              <Share2 className={styles.resetIcon} />
-              Share
-            </button>
-            <button onClick={downloadCsv} className={styles.resetButton}>
-              <Download className={styles.resetIcon} />
-              Download CSV
-            </button>
-            <button onClick={() => window.print()} className={styles.resetButton}>
-              <Printer className={styles.resetIcon} />
-              Print
-            </button>
+            {user && (
+              <>
+                <button onClick={handleShare} className={styles.resetButton} title="Share checklist">
+                  <Share2 className={styles.resetIcon} />
+                  Share
+                </button>
+                <button onClick={downloadCsv} className={styles.resetButton}>
+                  <Download className={styles.resetIcon} />
+                  Download CSV
+                </button>
+                <button onClick={() => window.print()} className={styles.resetButton}>
+                  <Printer className={styles.resetIcon} />
+                  Print
+                </button>
+              </>
+            )}
             {!isReferenceVariant && (
               <button onClick={resetChecklist} className={styles.resetButton}>
                 <RotateCcw className={styles.resetIcon} />
@@ -596,7 +628,7 @@ export function Checklist() {
                 {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
               </button>
             )}
-            {isReferenceVariant && (
+            {user && isReferenceVariant && (
               <button
                 onClick={() => setShowAddTableModal(true)}
                 className={styles.resetButton}
@@ -781,7 +813,7 @@ export function Checklist() {
                           note={getNote(item.id)}
                           onNoteChange={(text) => setNote(item.id, text)}
                           onDeleteTable={
-                            item.notes?.startsWith('data:table/json,')
+                            isAdmin && item.notes?.startsWith('data:table/json,')
                               ? async () => {
                                   const ok = await confirm(
                                     `Delete "${item.label}"?`,
@@ -806,7 +838,7 @@ export function Checklist() {
                       {isEditing && insertionPoint(phase.id, idx + 1)}
                     </div>
                   ))}
-                {isReferenceVariant && !isCollapsed && (
+                {user && isReferenceVariant && !isCollapsed && (
                   <div className={styles.addRefImageRow}>
                     {addImagePhaseId === phase.id ? (
                       <div className={styles.insertForm}>

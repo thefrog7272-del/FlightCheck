@@ -5,8 +5,7 @@
   "description": "Global hotkey to toggle FlightCheck voice checklist mode. Change the shortcut at chrome://extensions/shortcuts",
   "permissions": ["tabs", "scripting"],
   "host_permissions": [
-    "*://*.flightcheck.thefrog7272.workers.dev/*",
-    "*://flightcheck.thefrog7272.workers.dev/*",
+    "*://main.d2m1s5v9i0w5nr.amplifyapp.com/*",
     "http://localhost:5173/*"
   ],
   "background": {

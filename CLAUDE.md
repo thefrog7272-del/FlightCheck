@@ -2,10 +2,11 @@
 
 ## Deployment
 
-- **Live site**: Cloudflare Workers (via `wrangler deploy`)
-- **Hosting**: Cloudflare Workers with static assets, auto-deploys from `main` branch via GitHub Actions
-- **Build**: `npm run build` produces `dist/` — served via Wrangler `"assets"` config
-- **Peer dep conflict**: `vite-plugin-pwa` doesn't officially support Vite 8. The `.npmrc` file has `legacy-peer-deps=true` to handle this.
+- **Live site**: https://main.d2m1s5v9i0w5nr.amplifyapp.com/
+- **Hosting**: AWS Amplify (static SPA, auto-deploys from `main` branch)
+- **Build**: `npm run build` produces `dist/` — Amplify serves this as static files
+- **Backend**: AWS Amplify Gen 2 — Cognito (auth), AppSync (GraphQL API), DynamoDB (shared planes)
+- **Peer dep conflict**: `vite-plugin-pwa` doesn't officially support Vite 8. The `.npmrc` file has `legacy-peer-deps=true` to handle this. Do not remove it or Amplify builds will fail.
 
 ## Architecture
 
@@ -23,7 +24,7 @@
 - Dark theme is default; respects `prefers-color-scheme` on first visit. Light theme via `[data-theme="light"]` CSS override
 - Right-click context menu on plane cards for hide/delete/change image
 - Confirmation modals via `useConfirm` hook (not browser `confirm()`)
-- `useRef<T | null>(null)` — always pass initial value, never `useRef<T>()`
+- `useRef<T | null>(null)` — always pass initial value, never `useRef<T>()` (Amplify's stricter TS rejects it)
 
 ## AWS Backend
 
@@ -68,7 +69,7 @@ npm test -- --run    # Vitest
 
 ## Branching Strategy
 
-- **`main`** is the production branch — Cloudflare auto-deploys from it.
+- **`main`** is the production branch — Amplify auto-deploys from it.
 - **Direct pushes to `main` are blocked** (branch protection enforced for all users, including admins). All changes MUST go through a pull request.
 - All work goes on **feature branches** off `main`: `feature/<short-name>`, `fix/<short-name>`, etc.
 - PRs require the GitHub Actions CI check (`build` job) to pass before merging.
@@ -103,7 +104,7 @@ If any step fails, loop back to **Implement** and fix before re-running the pipe
 ## CI / Deploy Monitoring
 
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs `npm run build` + `npm run lint` on every push to `main` and every PR. Check status at the repo's Actions tab or via `gh run list`.
-- **Cloudflare Workers** auto-deploys from `main` after CI via `.github/workflows/deploy.yml`.
+- **Amplify** auto-deploys from `main` after CI. If CI passes but Amplify fails, repo admins can check with `aws amplify list-jobs --app-id d2m1s5v9i0w5nr --branch-name main --region eu-west-2`.
 
 ## Import Flow
 
