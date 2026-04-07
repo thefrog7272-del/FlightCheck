@@ -14,7 +14,6 @@ export interface SharedPlaneRecord {
 export interface SharedChecklistRecord {
   id: string;
   plane_id: string;
-  variant_name: string;
   category: string;
   phases: string;
 }
@@ -109,7 +108,6 @@ export async function createSharedChecklist(checklist: Omit<SharedChecklistRecor
       .from('shared_checklists')
       .insert([{
         plane_id: checklist.plane_id,
-        variant_name: checklist.variant_name,
         category: checklist.category,
         phases: checklist.phases,
       }])

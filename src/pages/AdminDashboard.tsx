@@ -63,7 +63,6 @@ export function AdminDashboard() {
 
     const clCreated = await createSharedChecklist({
       plane_id: plane.id,
-      variant_name: 'Standard',
       category: 'normal',
       phases: JSON.stringify(checklist.phases),
     });
@@ -86,14 +85,13 @@ export function AdminDashboard() {
     });
     if (!planeOk) throw new Error('Failed to update plane record.');
 
-    const existingCl = checklists.find(c => c.plane_id === editingPlane.plane_id && c.variant_name === 'Standard');
+    const existingCl = checklists.find(c => c.plane_id === editingPlane.plane_id && c.category === 'normal');
     if (existingCl) {
       const clOk = await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
       if (!clOk) throw new Error('Plane updated but failed to update checklist.');
     } else {
       const clCreated = await createSharedChecklist({
         plane_id: plane.id,
-        variant_name: 'Standard',
         category: 'normal',
         phases: JSON.stringify(checklist.phases),
       });
@@ -107,7 +105,7 @@ export function AdminDashboard() {
   };
 
   const handleStartEdit = (plane: SharedPlaneRecord) => {
-    const cl = checklists.find(c => c.plane_id === plane.plane_id && c.variant_name === 'Standard');
+    const cl = checklists.find(c => c.plane_id === plane.plane_id && c.category === 'normal');
     let parsedChecklist: PlaneChecklist | null = null;
     if (cl) {
       try {
@@ -144,8 +142,8 @@ export function AdminDashboard() {
       const existingIds = new Set(existing.map(p => p.plane_id));
       const existingChecklists = await listAllSharedChecklists();
       const existingClKeys = new Set(existingChecklists.map(c => {
-        if (c.variant_name && c.variant_name !== 'Standard') {
-          return `${c.plane_id}::${c.variant_name}`;
+        if (c.category && c.category !== 'normal') {
+          return `${c.plane_id}::${c.category}`;
         }
         return c.plane_id;
       }));
@@ -183,17 +181,11 @@ export function AdminDashboard() {
           setSeedProgress(`Creating checklist ${clKey}...`);
 
           const parts = clKey.split('::');
-          const variantName = parts[1] || 'Standard';
-          let category = 'normal';
-          const variantLower = variantName.toLowerCase();
-          if (variantLower === 'emergency') category = 'emergency';
-          else if (variantLower === 'abnormal') category = 'abnormal';
-          else if (variantLower === 'reference tables') category = 'reference_table';
+          const categoryName = parts[1] || 'normal';
 
           await createSharedChecklist({
             plane_id: plane.id,
-            variant_name: variantName,
-            category,
+            category: categoryName,
             phases: JSON.stringify(checklist.phases),
           });
           checklistsCreated++;
@@ -223,7 +215,6 @@ export function AdminDashboard() {
     if (planeResult) {
       await createSharedChecklist({
         plane_id: planeId,
-        variant_name: 'Standard',
         category: 'normal',
         phases: submission.phases,
       });
