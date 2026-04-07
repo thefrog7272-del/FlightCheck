@@ -48,7 +48,7 @@ function mapToChecklist(record: SharedChecklistRecord): PlaneChecklist {
 }
 
 function checklistKey(record: SharedChecklistRecord): string {
-  if (record.category && record.category !== 'normal') {
+  if (record.category && record.category.toLowerCase() !== 'normal') {
     return `${record.plane_id}::${record.category}`;
   }
   return record.plane_id;

@@ -85,7 +85,7 @@ export function AdminDashboard() {
     });
     if (!planeOk) throw new Error('Failed to update plane record.');
 
-    const existingCl = checklists.find(c => c.plane_id === editingPlane.plane_id && c.category === 'normal');
+    const existingCl = checklists.find(c => c.plane_id === editingPlane.plane_id && c.category.toLowerCase() === 'normal');
     if (existingCl) {
       const clOk = await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
       if (!clOk) throw new Error('Plane updated but failed to update checklist.');
@@ -105,7 +105,7 @@ export function AdminDashboard() {
   };
 
   const handleStartEdit = (plane: SharedPlaneRecord) => {
-    const cl = checklists.find(c => c.plane_id === plane.plane_id && c.category === 'normal');
+    const cl = checklists.find(c => c.plane_id === plane.plane_id && c.category.toLowerCase() === 'normal');
     let parsedChecklist: PlaneChecklist | null = null;
     if (cl) {
       try {

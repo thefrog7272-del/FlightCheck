@@ -52,7 +52,7 @@ export function Home() {
         });
         // Update checklist too
         const existingChecklists = await listAllSharedChecklists();
-        const existingCl = existingChecklists.find(c => c.plane_id === plane.id && c.category === 'normal');
+        const existingCl = existingChecklists.find(c => c.plane_id === plane.id && c.category.toLowerCase() === 'normal');
         if (existingCl) {
           await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
         } else {
