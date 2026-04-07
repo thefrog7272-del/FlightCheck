@@ -1,0 +1,47 @@
+name: Sync Static Data
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Sync static data from Supabase
+        run: node scripts/sync-static-data.cjs
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      - name: Check for changes
+        id: git-check
+        run: |
+          if git diff --quiet src/data/planes.ts src/data/checklists.ts; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create Pull Request
+        if: steps.git-check.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'chore: sync static planes and checklists from Supabase'
+          title: 'chore: sync static planes and checklists from Supabase'
+          body: |
+            Auto-generated PR to update static fallback data with the latest from Supabase.
+
+            This keeps `src/data/planes.ts` and `src/data/checklists.ts` in sync so new visitors get the most recent data if Supabase is unreachable.
+          branch: chore/sync-static-data
+          delete-branch: true
+          base: main

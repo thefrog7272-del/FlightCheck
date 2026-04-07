@@ -148,7 +148,7 @@ export function useFleet() {
   const getVariants = useCallback((planeId: string): string[] => {
     const variants = ['Standard'];
     const seen = new Set<string>();
-    // Check both shared (DynamoDB) and custom (localStorage) checklists
+    // Check both shared (Supabase) and custom (localStorage) checklists
     for (const source of [sharedChecklists, customChecklists]) {
       for (const key of Object.keys(source)) {
         if (key.startsWith(`${planeId}::`) && !seen.has(key)) {
