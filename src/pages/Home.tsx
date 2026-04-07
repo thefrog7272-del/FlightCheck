@@ -52,11 +52,11 @@ export function Home() {
         });
         // Update checklist too
         const existingChecklists = await listAllSharedChecklists();
-        const existingCl = existingChecklists.find(c => c.plane_id === plane.id);
+        const existingCl = existingChecklists.find(c => c.plane_id === plane.id && c.variant_name === 'Standard');
         if (existingCl) {
           await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
         } else {
-          await createSharedChecklist({ plane_id: plane.id, phases: JSON.stringify(checklist.phases) });
+          await createSharedChecklist({ plane_id: plane.id, variant_name: 'Standard', category: 'normal', phases: JSON.stringify(checklist.phases) });
         }
       } else {
         const planeResult = await createSharedPlane({
@@ -72,6 +72,8 @@ export function Home() {
           console.log('[FlightCheck Import] Plane created, saving checklist...');
           await createSharedChecklist({
             plane_id: plane.id,
+            variant_name: 'Standard',
+            category: 'normal',
             phases: JSON.stringify(checklist.phases),
           });
         } else {
@@ -292,16 +294,17 @@ export function Home() {
         console.log(`[FlightCheck Import] Importing ${Object.keys(variants).length} variant(s): ${Object.keys(variants).join(', ')}`);
         for (const [variantName, variantChecklist] of Object.entries(variants)) {
           if (isAdmin) {
-            const variantPlaneId = `${plane.id}::${variantName}`;
             // Check if this variant checklist already exists
             const allCl = await listAllSharedChecklists();
-            const existingVariant = allCl.find(c => c.plane_id === variantPlaneId);
+            const existingVariant = allCl.find(c => c.plane_id === plane.id && c.variant_name === variantName);
             if (existingVariant) {
               console.log(`[FlightCheck Import] Variant "${variantName}" exists, updating...`);
               await updateSharedChecklist(existingVariant.id, JSON.stringify(variantChecklist.phases));
             } else {
               await createSharedChecklist({
-                plane_id: variantPlaneId,
+                plane_id: plane.id,
+                variant_name: variantName,
+                category: variantName.toLowerCase() === 'emergency' ? 'emergency' : variantName.toLowerCase() === 'abnormal' ? 'abnormal' : variantName.toLowerCase() === 'reference tables' ? 'reference_table' : 'normal',
                 phases: JSON.stringify(variantChecklist.phases),
               });
             }
@@ -634,13 +637,12 @@ export function Home() {
             if (variants && Object.keys(variants).length > 0) {
               for (const [variantName, variantChecklist] of Object.entries(variants)) {
                 if (isAdmin) {
-                  const variantPlaneId = `${plane.id}::${variantName}`;
                   const allCl = await listAllSharedChecklists();
-                  const existing = allCl.find(c => c.plane_id === variantPlaneId);
+                  const existing = allCl.find(c => c.plane_id === plane.id && c.variant_name === variantName);
                   if (existing) {
                     await updateSharedChecklist(existing.id, JSON.stringify(variantChecklist.phases));
                   } else {
-                    await createSharedChecklist({ plane_id: variantPlaneId, phases: JSON.stringify(variantChecklist.phases) });
+                    await createSharedChecklist({ plane_id: plane.id, variant_name: variantName, category: variantName.toLowerCase() === 'emergency' ? 'emergency' : variantName.toLowerCase() === 'abnormal' ? 'abnormal' : variantName.toLowerCase() === 'reference tables' ? 'reference_table' : 'normal', phases: JSON.stringify(variantChecklist.phases) });
                   }
                 } else {
                   addVariant(plane.id, variantName, variantChecklist);

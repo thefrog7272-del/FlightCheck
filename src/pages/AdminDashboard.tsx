@@ -63,6 +63,8 @@ export function AdminDashboard() {
 
     const clCreated = await createSharedChecklist({
       plane_id: plane.id,
+      variant_name: 'Standard',
+      category: 'normal',
       phases: JSON.stringify(checklist.phases),
     });
     if (!clCreated) throw new Error('Plane created but failed to create checklist record.');
@@ -84,13 +86,15 @@ export function AdminDashboard() {
     });
     if (!planeOk) throw new Error('Failed to update plane record.');
 
-    const existingCl = checklists.find(c => c.plane_id === editingPlane.plane_id);
+    const existingCl = checklists.find(c => c.plane_id === editingPlane.plane_id && c.variant_name === 'Standard');
     if (existingCl) {
       const clOk = await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
       if (!clOk) throw new Error('Plane updated but failed to update checklist.');
     } else {
       const clCreated = await createSharedChecklist({
         plane_id: plane.id,
+        variant_name: 'Standard',
+        category: 'normal',
         phases: JSON.stringify(checklist.phases),
       });
       if (!clCreated) throw new Error('Plane updated but failed to create checklist.');
@@ -103,7 +107,7 @@ export function AdminDashboard() {
   };
 
   const handleStartEdit = (plane: SharedPlaneRecord) => {
-    const cl = checklists.find(c => c.plane_id === plane.plane_id);
+    const cl = checklists.find(c => c.plane_id === plane.plane_id && c.variant_name === 'Standard');
     let parsedChecklist: PlaneChecklist | null = null;
     if (cl) {
       try {
@@ -118,13 +122,13 @@ export function AdminDashboard() {
   const handleDelete = async (plane: SharedPlaneRecord) => {
     const confirmed = await confirm(
       'Delete Plane',
-      `Are you sure you want to delete "${plane.name}"? This will also remove its checklist. This action cannot be undone.`,
+      `Are you sure you want to delete "${plane.name}"? This will also remove its checklists. This action cannot be undone.`,
       { destructive: true, confirmLabel: 'Delete' }
     );
     if (!confirmed) return;
 
-    const cl = checklists.find(c => c.plane_id === plane.plane_id);
-    if (cl) {
+    const planeChecklists = checklists.filter(c => c.plane_id === plane.plane_id);
+    for (const cl of planeChecklists) {
       await deleteSharedChecklist(cl.id);
     }
     await deleteSharedPlane(plane.id);
@@ -138,39 +142,65 @@ export function AdminDashboard() {
     try {
       const existing = await listSharedPlanes();
       const existingIds = new Set(existing.map(p => p.plane_id));
+      const existingChecklists = await listAllSharedChecklists();
+      const existingClKeys = new Set(existingChecklists.map(c => {
+        if (c.variant_name && c.variant_name !== 'Standard') {
+          return `${c.plane_id}::${c.variant_name}`;
+        }
+        return c.plane_id;
+      }));
 
       let created = 0;
+      let checklistsCreated = 0;
+
       for (let i = 0; i < staticPlanes.length; i++) {
         const plane = staticPlanes[i];
         if (existingIds.has(plane.id)) {
           setSeedProgress(`Skipping ${plane.name} (already exists)... ${i + 1}/${staticPlanes.length}`);
-          continue;
+        } else {
+          setSeedProgress(`Creating ${plane.name}... ${i + 1}/${staticPlanes.length}`);
+
+          await createSharedPlane({
+            plane_id: plane.id,
+            name: plane.name,
+            manufacturer: plane.manufacturer,
+            image: plane.image,
+            type: plane.type,
+            sim: plane.sim || null,
+            sort_order: i,
+          });
+          created++;
         }
 
-        setSeedProgress(`Creating ${plane.name}... ${i + 1}/${staticPlanes.length}`);
+        // Find all checklists for this plane (including variants like ::Emergency)
+        for (const [clKey, checklist] of Object.entries(staticChecklists)) {
+          if (!clKey.startsWith(plane.id)) continue;
+          if (existingClKeys.has(clKey)) {
+            setSeedProgress(`Skipping checklist ${clKey} (already exists)...`);
+            continue;
+          }
 
-        await createSharedPlane({
-          plane_id: plane.id,
-          name: plane.name,
-          manufacturer: plane.manufacturer,
-          image: plane.image,
-          type: plane.type,
-          sim: plane.sim || null,
-          sort_order: i,
-        });
+          setSeedProgress(`Creating checklist ${clKey}...`);
 
-        const checklist = staticChecklists[plane.id];
-        if (checklist) {
+          const parts = clKey.split('::');
+          const variantName = parts[1] || 'Standard';
+          let category = 'normal';
+          const variantLower = variantName.toLowerCase();
+          if (variantLower === 'emergency') category = 'emergency';
+          else if (variantLower === 'abnormal') category = 'abnormal';
+          else if (variantLower === 'reference tables') category = 'reference_table';
+
           await createSharedChecklist({
             plane_id: plane.id,
+            variant_name: variantName,
+            category,
             phases: JSON.stringify(checklist.phases),
           });
+          checklistsCreated++;
         }
-
-        created++;
       }
 
-      setSeedProgress(`Done! Created ${created} new plane(s). ${existingIds.size} already existed.`);
+      setSeedProgress(`Done! Created ${created} new plane(s) and ${checklistsCreated} checklist(s).`);
       await refreshData();
     } catch (err) {
       setSeedProgress(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -193,6 +223,8 @@ export function AdminDashboard() {
     if (planeResult) {
       await createSharedChecklist({
         plane_id: planeId,
+        variant_name: 'Standard',
+        category: 'normal',
         phases: submission.phases,
       });
     }

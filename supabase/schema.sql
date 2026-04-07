@@ -44,6 +44,8 @@ CREATE POLICY "Admins can delete shared planes"
 CREATE TABLE IF NOT EXISTS shared_checklists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plane_id TEXT NOT NULL REFERENCES shared_planes(plane_id) ON DELETE CASCADE,
+  variant_name TEXT NOT NULL DEFAULT 'Standard',
+  category TEXT NOT NULL DEFAULT 'normal' CHECK(category IN ('normal', 'abnormal', 'emergency', 'reference_table')),
   phases TEXT NOT NULL
 );
 

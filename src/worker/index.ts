@@ -1,5 +1,3 @@
-mkdir -p src/worker
-cat > src/worker/index.ts << 'EOF'
 export interface Env {
   DB: D1Database;
 }
@@ -32,9 +30,9 @@ export default {
       }
 
       return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers });
-    } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      return new Response(JSON.stringify({ error: message }), { status: 500, headers });
     }
   },
 };
-EOF

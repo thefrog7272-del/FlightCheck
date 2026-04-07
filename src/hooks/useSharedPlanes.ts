@@ -47,6 +47,13 @@ function mapToChecklist(record: SharedChecklistRecord): PlaneChecklist {
   };
 }
 
+function checklistKey(record: SharedChecklistRecord): string {
+  if (record.variant_name && record.variant_name !== 'Standard') {
+    return `${record.plane_id}::${record.variant_name}`;
+  }
+  return record.plane_id;
+}
+
 export function useSharedPlanes() {
   // Read cache fresh on each mount so newly imported planes are visible
   // immediately without waiting for the API round-trip.
@@ -77,7 +84,7 @@ export function useSharedPlanes() {
         const checklists: Record<string, PlaneChecklist> = {};
         for (const record of checklistRecords) {
           try {
-            checklists[record.plane_id] = mapToChecklist(record);
+            checklists[checklistKey(record)] = mapToChecklist(record);
           } catch { /* skip invalid JSON */ }
         }
 
