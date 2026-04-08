@@ -285,8 +285,8 @@ export function Home() {
       // Always import the plane directly to localStorage (skip Supabase which fails)
       console.log('[FlightCheck Import] Adding plane to localStorage:', plane.id);
       addPlane(plane, checklist);
-      console.log('[FlightCheck Import] After importPlane, planes now:', planes.map(p => p.id));
-
+      console.log('[FlightCheck Import] After addPlane, planes now:', planes.map(p => p.id));
+      
       // Import categories/variants from the CSV
       const categoryKeys = Object.keys(variants);
       console.log('[FlightCheck Import] Adding categories:', categoryKeys);
@@ -296,7 +296,7 @@ export function Home() {
         addCategory(plane.id, categoryName, categoryChecklist);
       }
 
-const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (variants[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
+      const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (variants[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
       
       // Delay alert and close to let state update
       setTimeout(() => {
