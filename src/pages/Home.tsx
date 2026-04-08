@@ -290,10 +290,10 @@ export function Home() {
       
       // Import categories from the CSV
       const categoryKeys = Object.keys(categories);
-      console.log('[FlightCheck Import] Adding categories:', categoryKeys);
+      console.log('[FlightCheck Import] Adding categories:', categoryKeys, 'for plane:', plane.id);
       for (const categoryName of categoryKeys) {
         const categoryChecklist = categories[categoryName];
-        console.log('[FlightCheck Import] Adding category:', categoryName, 'phases:', categoryChecklist.phases.map(p => p.title));
+        console.log('[FlightCheck Import] Adding category:', categoryName, 'for plane:', plane.id, 'phases:', categoryChecklist.phases.map(p => p.title));
         addCategory(plane.id, categoryName, categoryChecklist);
       }
 

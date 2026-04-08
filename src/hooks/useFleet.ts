@@ -169,8 +169,9 @@ export function useFleet() {
 
   const addCategory = useCallback((planeId: string, categoryName: string, checklist: PlaneChecklist) => {
     const categoryKey = `${planeId}::${categoryName}`;
-    console.log('[useFleet addCategory] Adding category:', categoryName, 'for plane:', planeId, 'phases:', checklist.phases.length);
+    console.log('[useFleet addCategory] Adding category:', categoryName, 'for plane:', planeId, 'categoryKey:', categoryKey, 'current customChecklists keys:', Object.keys(customChecklists));
     updateKey('custom_checklists', { ...customChecklists, [categoryKey]: { ...checklist, planeId: categoryKey } });
+    console.log('[useFleet addCategory] After update, customChecklists keys:', Object.keys({ ...customChecklists, [categoryKey]: { ...checklist, planeId: categoryKey } }));
   }, [customChecklists, updateKey]);
 
   const deleteCategory = useCallback((planeId: string, categoryName: string) => {
