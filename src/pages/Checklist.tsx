@@ -175,11 +175,11 @@ export function Checklist() {
         phase.items.map(item =>
           [
             quote(plane.name),
+            quote(category),
             quote(phase.title),
             quote(item.label),
             quote(item.expectedState ?? ''),
             quote(item.reference ?? ''),
-            quote(category),
           ].join(',')
         )
       )
