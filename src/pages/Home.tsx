@@ -194,7 +194,7 @@ export function Home() {
     
     if (!deleted) {
       console.log('[FlightCheck] Deleting from localStorage:', planeId);
-      deletePlane(planeId);
+      await deletePlane(planeId);
     }
   }, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
 
