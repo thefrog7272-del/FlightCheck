@@ -255,11 +255,14 @@ export function Checklist() {
     return () => clearTimeout(t);
   }, [voiceItemId, checklist]);
 
+  console.log('[Checklist] loading:', loading, 'plane:', !!plane, 'checklist:', !!checklist);
+
   if (loading) {
     return <div className={styles.container}><p>Loading...</p></div>;
   }
 
   if (!plane || !checklist) {
+    console.log('[Checklist] Redirecting - !plane:', !plane, '!checklist:', !checklist);
     return <Navigate to="/" replace />;
   }
 
