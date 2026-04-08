@@ -103,6 +103,7 @@ export function useVoiceChecklist({
     } catch { return false; }
   });
 
+  // eslint-disable-next-line react-hooks/use-memo
   const RecognitionClass = useMemo(getRecognitionClass, []);
   const isSupported =
     !!RecognitionClass &&
