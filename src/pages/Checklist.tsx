@@ -22,6 +22,7 @@ import { encodeChecklist } from '../utils/shareCodec';
 import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
+  console.log('>>>> CHECKLIST COMPONENT MOUNTED, planeId from params:', typeof window !== 'undefined' ? window.location.pathname : 'unknown');
   const { planeId, variantName: rawVariantName } = useParams();
   const activeVariant = rawVariantName ?? 'Standard';
   const navigate = useNavigate();
