@@ -48,6 +48,10 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
   // Data extraction
   let planeData: Partial<Plane> = {};
   const categoryPhaseMaps: Map<string, Map<string, ChecklistPhase>> = new Map();
+  let planeName = '';
+  let planeManufacturer = 'Unknown';
+  let planeType = 'GA';
+  let planeImage = '';
 
   for (let i = 1; i < lines.length; i++) {
     const values = parseCsvRow(lines[i]);
@@ -55,10 +59,10 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     const minCols = Math.max(col.name, col.phase, col.item) + 1;
     if (values.length < minCols) continue;
 
-    const name = values[col.name]?.trim() || '';
-    const manufacturer = col.manufacturer !== -1 && values[col.manufacturer] ? values[col.manufacturer].trim() : 'Unknown';
-    const type = col.type !== -1 && values[col.type] ? values[col.type].trim() : 'GA';
-    const image = col.image !== -1 && values[col.image] ? values[col.image].trim() : '';
+    const name = values[col.name]?.trim() || planeName;
+    const manufacturer = col.manufacturer !== -1 && values[col.manufacturer] ? values[col.manufacturer].trim() : planeManufacturer;
+    const type = col.type !== -1 && values[col.type] ? values[col.type].trim() : planeType;
+    const image = col.image !== -1 && values[col.image] ? values[col.image].trim() : planeImage;
     const category = col.category !== -1 && values[col.category] ? values[col.category].trim() : '';
     const phaseTitle = values[col.phase]?.trim();
     const itemLabel = values[col.item]?.trim();
@@ -71,8 +75,12 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
 
     if (!phaseTitle || !itemLabel) continue;
 
-    // Use first row to define the plane
-    if (i === 1) {
+    // Track plane info from first non-empty row
+    if (!planeName && name) {
+      planeName = name;
+      planeManufacturer = manufacturer;
+      planeType = type;
+      planeImage = image;
       const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
       planeData = { id: planeId, name, manufacturer, type, image };
     }
