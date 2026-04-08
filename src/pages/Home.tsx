@@ -274,14 +274,16 @@ export function Home() {
       const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
 
       // Always import the plane (check already handled in importPlane)
-      console.log('[FlightCheck Import] About to import plane:', plane.id);
+      console.log('[FlightCheck Import] About to import plane:', plane.id, 'checklist phases:', checklist.phases.map(p => p.title));
       await importPlane(plane, checklist);
       console.log('[FlightCheck Import] After importPlane, planes now:', planes.map(p => p.id));
 
       // Import categories/variants from the CSV
       const categoryKeys = Object.keys(variants);
+      console.log('[FlightCheck Import] Adding categories:', categoryKeys);
       for (const categoryName of categoryKeys) {
         const categoryChecklist = variants[categoryName];
+        console.log('[FlightCheck Import] Adding category:', categoryName, 'phases:', categoryChecklist.phases.map(p => p.title));
         addCategory(plane.id, categoryName, categoryChecklist);
       }
 
