@@ -77,7 +77,7 @@ export function AddReferenceTableModal({
     const newItem: ChecklistItem = {
       id: `ref-table-${Date.now()}`,
       label: tableLabel.trim() || 'Reference Table',
-      notes: `${TABLE_PREFIX}${JSON.stringify(rows)}`,
+      reference: `${TABLE_PREFIX}${JSON.stringify(rows)}`,
     };
 
     const updatedPhases = phases.map(p => ({ ...p, items: [...p.items] }));

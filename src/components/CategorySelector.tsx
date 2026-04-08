@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
-import styles from './VariantSelector.module.css';
+import styles from './CategorySelector.module.css';
 
 const FIXED_TABS = [
   { label: 'Normal',    variant: 'Standard',        color: styles.colorGreen },
@@ -10,19 +10,19 @@ const FIXED_TABS = [
   { label: 'Reference', variant: 'Reference Tables', color: styles.colorBlue  },
 ] as const;
 
-interface VariantSelectorProps {
+interface CategorySelectorProps {
   planeId: string;
-  variants: string[];
-  activeVariant: string;
+  categories: string[];
+  activeCategory: string;
   onDuplicate: () => void;
-  onDelete: (variant: string) => void;
+  onDelete: (category: string) => void;
   isEditing: boolean;
   children?: ReactNode;
 }
 
-export function VariantSelector({ planeId, variants, activeVariant, onDelete, isEditing, children }: VariantSelectorProps) {
+export function CategorySelector({ planeId, categories, activeCategory, onDelete, isEditing, children }: CategorySelectorProps) {
   const visibleTabs = FIXED_TABS.filter(
-    tab => tab.variant === 'Standard' || variants.includes(tab.variant),
+    tab => tab.variant === 'Standard' || categories.includes(tab.variant),
   );
 
   // Hide the bar when only Normal exists, not editing, and no extra children (e.g. voice button)
@@ -31,7 +31,7 @@ export function VariantSelector({ planeId, variants, activeVariant, onDelete, is
   return (
     <div className={styles.tabBar}>
       {visibleTabs.map(({ label, variant, color }) => {
-        const isActive = activeVariant === variant;
+        const isActive = activeCategory === variant;
         const href =
           variant === 'Standard'
             ? `/checklist/${planeId}`

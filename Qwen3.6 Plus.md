@@ -31,9 +31,17 @@
 ## Supabase Backend
 
 ### Schema
-- **`shared_planes`**: planeId, name, manufacturer, image, type, sim, sortOrder, variant_name, category — **public read, admin write**
-- **`shared_checklists`**: planeId, phases (JSON string), variant_name, category — **public read, admin write**
+- **`shared_planes`**: planeId, name, manufacturer, image, type, sim, sortOrder — **public read, admin write**
+- **`shared_checklists`**: planeId, category, phases, variant_name (nullable) — **public read, admin write**
+  - **`category`**: determines which checklist type is served — `normal` (case-insensitive), `emergency`, `abnormal`, `reference tables`, or any other variant name. Case-insensitive for `normal`; exact match for `reference tables` (controls read-only UI).
+  - **`phases`**: JSON string array of checklist subsections (e.g., "Pre-Flight", "Before Start", "Takeoff"). Each phase contains items with labels and expected states.
+  - Multiple rows per `planeId` — one per category/variant (e.g., one row for `normal`, one for `emergency`, etc.).
 - **`pending_submissions`**: name, manufacturer, image, type, sim, phases, submittedBy, status — **guest create+read, admin full access**
+
+### Terminology
+- **Category**: The type of checklist — Normal, Emergency, Abnormal, or Reference Tables. Stored in the `category` column of `shared_checklists`.
+- **Phases**: Subsections within a checklist (e.g., "Pre-Flight", "Before Start", "Takeoff"). Stored as JSON in the `phases` column.
+- **Variant**: A variant of a plane type (e.g., "G1000" vs "Steam Gauge" avionics, or "Professional" vs "Basic" edition). Variants are separate entries in `shared_planes` with their own `planeId`.
 
 ### Auth Rules
 - Unauthenticated users: can read shared planes, submit pending planes

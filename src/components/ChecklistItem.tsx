@@ -90,7 +90,7 @@ function ReferenceTable({ data, label }: { data: string; label: string }) {
 export function ChecklistItem({ item, checked, onToggle, note, onNoteChange, onDeleteTable }: ChecklistItemProps) {
   const [showNote, setShowNote] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const hasTableNote = item.notes?.startsWith(TABLE_PREFIX) ?? false;
+  const hasTableNote = item.reference?.startsWith(TABLE_PREFIX) ?? false;
 
   useEffect(() => {
     if (!menuPos) return;
@@ -118,7 +118,7 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange, onD
             <div className={styles.labelRow}>
               <span className={styles.label}>{item.label}</span>
             </div>
-            <ReferenceTable data={item.notes!} label={item.label} />
+            <ReferenceTable data={item.reference!} label={item.label} />
           </div>
         </div>
 
@@ -167,11 +167,11 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange, onD
               {item.expectedState && (
                 <span className={styles.state}>{item.expectedState}</span>
               )}
-              {item.notes?.startsWith('data:image/') && (
-                <img src={item.notes} className={styles.referenceImage} alt={item.label} />
+              {item.reference?.startsWith('data:image/') && (
+                <img src={item.reference} className={styles.referenceImage} alt={item.label} />
               )}
-              {item.notes && !item.notes.startsWith('data:image/') && !hasTableNote && (
-                <span className={styles.importedNote}>{item.notes}</span>
+              {item.reference && !item.reference.startsWith('data:image/') && !hasTableNote && (
+                <span className={styles.importedNote}>{item.reference}</span>
               )}
             </div>
           </div>

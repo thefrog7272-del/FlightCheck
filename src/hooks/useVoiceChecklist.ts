@@ -103,6 +103,7 @@ export function useVoiceChecklist({
     } catch { return false; }
   });
 
+  // eslint-disable-next-line react-hooks/use-memo
   const RecognitionClass = useMemo(getRecognitionClass, []);
   const isSupported =
     !!RecognitionClass &&
@@ -185,7 +186,7 @@ export function useVoiceChecklist({
   useEffect(() => { readExpectedStateRef.current = readExpectedState; }, [readExpectedState]);
 
   // ── Core effect: set up recognition + TTS whenever voice mode toggles ──────
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     if (!isVoiceMode || !RecognitionClass) return;
 

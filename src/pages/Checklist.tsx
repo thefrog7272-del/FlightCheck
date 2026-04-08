@@ -15,7 +15,7 @@ import { useSound } from '../hooks/useSound';
 import { useToast } from '../hooks/useToast';
 import { useTimer } from '../hooks/useTimer';
 import { useDragReorder } from '../hooks/useDragReorder';
-import { VariantSelector } from '../components/VariantSelector';
+import { CategorySelector } from '../components/CategorySelector';
 import { AddReferenceTableModal } from '../components/AddReferenceTableModal';
 import { Toast } from '../components/Toast';
 import { encodeChecklist } from '../utils/shareCodec';
@@ -25,7 +25,7 @@ export function Checklist() {
   const { planeId, variantName: rawVariantName } = useParams();
   const activeVariant = rawVariantName ?? 'Standard';
   const navigate = useNavigate();
-  const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getVariants, addVariant, deleteVariant } = useFleet();
+  const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getCategories, addCategory, deleteCategory } = useFleet();
 
   useEffect(() => {
     if (planeId) trackRecentUse(planeId);
@@ -90,7 +90,7 @@ export function Checklist() {
   const [addImageLabel, setAddImageLabel] = useState('');
   const [showAddTableModal, setShowAddTableModal] = useState(false);
   const plane = planes.find(p => p.id === planeId);
-  const variants = planeId ? getVariants(planeId) : ['Standard'];
+  const categories = planeId ? getCategories(planeId) : ['Standard'];
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
     if (!planeId) return;
     const newValue = typeof updater === 'function' ? updater(checkedItems) : updater;
@@ -101,7 +101,7 @@ export function Checklist() {
     if (!planeId || !checklist) return;
     const name = prompt('Enter sub-checklist name:');
     if (!name?.trim()) return;
-    addVariant(planeId, name.trim(), checklist);
+    addCategory(planeId, name.trim(), checklist);
     navigate(`/checklist/${planeId}/${encodeURIComponent(name.trim())}`);
   };
 
@@ -159,26 +159,27 @@ export function Checklist() {
   const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    const header = 'name,phase,item,expectedState,notes,category';
+    const header = 'name,category,phase,item,expectedState,reference';
     const allChecklists: Array<{ checklist: PlaneChecklist; category: string }> = [
       { checklist, category: activeVariant === 'Standard' ? '' : activeVariant },
     ];
-    for (const v of variants) {
-      if (v === activeVariant) continue;
-      const key = v === 'Standard' ? planeId! : `${planeId}::${v}`;
+    const planeCategories = planeId ? getCategories(planeId) : ['Standard'];
+    for (const c of planeCategories) {
+      if (c === activeVariant) continue;
+      const key = c === 'Standard' ? planeId! : `${planeId}::${c}`;
       const cl = checklists[key];
-      if (cl) allChecklists.push({ checklist: cl, category: v === 'Standard' ? '' : v });
+      if (cl) allChecklists.push({ checklist: cl, category: c === 'Standard' ? '' : c });
     }
     const rows = allChecklists.flatMap(({ checklist: cl, category }) =>
       cl.phases.flatMap(phase =>
         phase.items.map(item =>
           [
             quote(plane.name),
+            quote(category),
             quote(phase.title),
             quote(item.label),
             quote(item.expectedState ?? ''),
-            quote(item.notes ?? ''),
-            quote(category),
+            quote(item.reference ?? ''),
           ].join(',')
         )
       )
@@ -191,7 +192,7 @@ export function Checklist() {
     a.download = `${plane.id}-checklist.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [plane, checklist, activeVariant, planeId, checklists, variants]);
+  }, [plane, checklist, activeVariant, planeId, checklists, getCategories]);
 
   const handleShare = async () => {
     if (!plane || !checklist) return;
@@ -260,7 +261,7 @@ export function Checklist() {
     return <Navigate to="/" replace />;
   }
 
-  if (rawVariantName && !variants.includes(rawVariantName)) {
+  if (rawVariantName && !categories.includes(rawVariantName)) {
     return <Navigate to={`/checklist/${planeId}`} replace />;
   }
 
@@ -394,7 +395,7 @@ export function Checklist() {
       phases: checklist.phases.map(phase =>
         phase.id !== phaseId ? phase : {
           ...phase,
-          items: [...phase.items, { id: itemId, label: label || 'Reference Image', notes: dataUrl }],
+          items: [...phase.items, { id: itemId, label: label || 'Reference Image', reference: dataUrl }],
         }
       ),
     };
@@ -542,13 +543,13 @@ export function Checklist() {
               {plane.name} {activeVariant !== 'Standard' ? `— ${activeVariant}` : 'Checklist'}
             </h1>
             <span className={styles.subtitle}>{plane.manufacturer}</span>
-            <VariantSelector
+            <CategorySelector
               planeId={planeId!}
-              variants={variants}
-              activeVariant={activeVariant}
+              categories={categories}
+              activeCategory={activeVariant}
               onDuplicate={handleDuplicateVariant}
               onDelete={(v) => {
-                if (planeId) deleteVariant(planeId, v);
+                if (planeId) deleteCategory(planeId, v);
                 if (v === activeVariant) navigate(`/checklist/${planeId}`);
               }}
               isEditing={isEditing}
@@ -563,7 +564,7 @@ export function Checklist() {
                   {isVoiceMode ? 'Voice On' : 'Voice'}
                 </button>
               )}
-            </VariantSelector>
+            </CategorySelector>
           </div>
           <div className={styles.headerActions}>
             {!isReferenceVariant && (
@@ -787,7 +788,7 @@ export function Checklist() {
                           note={getNote(item.id)}
                           onNoteChange={(text) => setNote(item.id, text)}
                           onDeleteTable={
-                            isAdmin && item.notes?.startsWith('data:table/json,')
+                            isAdmin && item.reference?.startsWith('data:table/json,')
                               ? async () => {
                                   const ok = await confirm(
                                     `Delete "${item.label}"?`,

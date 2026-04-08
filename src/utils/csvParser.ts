@@ -1,17 +1,17 @@
 import type { Plane, PlaneChecklist, ChecklistPhase, ChecklistItem } from '../data/types';
 
 /**
- * Parses a CSV string and returns a Plane, PlaneChecklist, and any variant checklists.
+ * Parses a CSV string and returns a Plane, PlaneChecklist, and any category checklists.
  *
  * CSV Format expected:
- * name,manufacturer,type,image,phase,item,expectedState,notes,category
- * "Cessna 182","Cessna","GA","https://...","Pre-Start","Battery","ON","",""
- * "Cessna 182","Cessna","GA","https://...","Engine Fire","Mixture","CUTOFF","","Emergency"
- * "Cessna 182","Cessna","GA","https://...","Reference Tables","Performance","","data:table/json,[[...]]","Reference Tables"
+ * name,category,phase,item,expectedState,reference
+ * "Cessna 182","","Pre-Start","Battery","ON",""
+ * "Cessna 182","","Engine Fire","Mixture","CUTOFF",""
+ * "Cessna 182","Reference Tables","Performance","","data:table/json,[[...]]"
  *
- * notes: optional — use "data:table/json,[[...]]" for reference tables, "data:image/..." for images.
+ * reference: optional — use "data:table/json,[[...]]" for reference tables, "data:image/..." for images.
  * category: items with no category, "Normal Checklist", or "Standard" go into the main checklist.
- *           Items with any other category become separate variant checklists (e.g. "Reference Tables", "Emergency").
+ *           Items with any other category become separate category checklists (e.g. "Reference Tables", "Emergency").
  *
  * @param csvContent The raw CSV text content.
  */
@@ -28,19 +28,19 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     manufacturer: headers.indexOf('manufacturer'),
     type: headers.indexOf('type'),
     image: headers.indexOf('image'),
+    category: headers.indexOf('category'),
     phase: headers.indexOf('phase'),
     item: headers.indexOf('item'),
     expectedState: headers.indexOf('expectedstate'),
-    notes: headers.indexOf('notes'),
-    category: Math.max(headers.indexOf('category'), headers.indexOf('checklist category'), headers.indexOf('checklistcategory')),
+    reference: headers.indexOf('reference'),
   };
 
   console.log('[FlightCheck CSV] Detected columns:', Object.entries(col).filter(([,v]) => v !== -1).map(([k,v]) => `${k}=${v}`).join(', '));
   console.log('[FlightCheck CSV] Headers found:', headers.join(', '));
 
   // Check required headers
-  if (col.name === -1 || col.manufacturer === -1 || col.phase === -1 || col.item === -1) {
-    throw new Error('CSV missing required headers: name, manufacturer, phase, item');
+  if (col.name === -1 || col.phase === -1 || col.item === -1) {
+    throw new Error('CSV missing required headers: name, phase, item');
   }
 
   const MAIN_KEY = '__main__';
@@ -48,31 +48,39 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
   // Data extraction
   let planeData: Partial<Plane> = {};
   const categoryPhaseMaps: Map<string, Map<string, ChecklistPhase>> = new Map();
+  let planeName = '';
+  let planeManufacturer = 'Unknown';
+  let planeType = 'GA';
+  let planeImage = '';
 
   for (let i = 1; i < lines.length; i++) {
     const values = parseCsvRow(lines[i]);
     // Require at least the mandatory columns (name, manufacturer, phase, item)
-    const minCols = Math.max(col.name, col.manufacturer, col.phase, col.item) + 1;
+    const minCols = Math.max(col.name, col.phase, col.item) + 1;
     if (values.length < minCols) continue;
 
-    const name = values[col.name].trim();
-    const manufacturer = values[col.manufacturer].trim();
-    const type = col.type !== -1 && values[col.type] ? values[col.type].trim() : 'GA';
-    const image = col.image !== -1 && values[col.image] ? values[col.image].trim() : '';
+    const name = values[col.name]?.trim() || planeName;
+    const manufacturer = col.manufacturer !== -1 && values[col.manufacturer] ? values[col.manufacturer].trim() : planeManufacturer;
+    const type = col.type !== -1 && values[col.type] ? values[col.type].trim() : planeType;
+    const image = col.image !== -1 && values[col.image] ? values[col.image].trim() : planeImage;
+    const category = col.category !== -1 && values[col.category] ? values[col.category].trim() : '';
     const phaseTitle = values[col.phase]?.trim();
     const itemLabel = values[col.item]?.trim();
     const expectedState = col.expectedState !== -1 && values[col.expectedState] ? values[col.expectedState].trim() : undefined;
-    const notes = col.notes !== -1 && values[col.notes] ? values[col.notes].trim() : undefined;
+    const reference = col.reference !== -1 && values[col.reference] ? values[col.reference].trim() : undefined;
 
     // Determine category
-    const category = col.category !== -1 && values[col.category] ? values[col.category].trim() : '';
     const isMain = !category || category.toLowerCase() === 'normal checklist' || category.toLowerCase() === 'standard';
     const mapKey = isMain ? MAIN_KEY : category;
 
     if (!phaseTitle || !itemLabel) continue;
 
-    // Use first row to define the plane
-    if (i === 1) {
+    // Track plane info from first non-empty row
+    if (!planeName && name) {
+      planeName = name;
+      planeManufacturer = manufacturer;
+      planeType = type;
+      planeImage = image;
       const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
       planeData = { id: planeId, name, manufacturer, type, image };
     }
@@ -96,7 +104,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
       id: `${currentPhase.id}-${itemId}-${currentPhase.items.length}`,
       label: itemLabel,
       expectedState,
-      notes,
+      reference,
     };
 
     currentPhase.items.push(newItem);

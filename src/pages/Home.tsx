@@ -16,7 +16,7 @@ import type { Plane, PlaneChecklist } from '../data/types';
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
-  const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, addCategory, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,64 +29,74 @@ export function Home() {
   const [addTablePlaneId, setAddTablePlaneId] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [showFileImport, setShowFileImport] = useState(false);
-  const [importCategory, setImportCategory] = useState('');
+  
 
   // When admin, imports go to Supabase. Otherwise localStorage.
   const importPlane = useCallback(async (plane: Plane, checklist: PlaneChecklist) => {
     console.log(`[FlightCheck Import] isAdmin=${isAdmin}, plane=${plane.id} "${plane.name}", phases=${checklist.phases.length}, items=${checklist.phases.reduce((s, p) => s + p.items.length, 0)}`);
+    
+    // Try admin path first, but catch errors and fall back to local storage
+    let supabaseSuccess = false;
     if (isAdmin) {
       console.log('[FlightCheck Import] Admin path → saving to Supabase...');
+      try {
+        // Check if plane already exists to avoid duplicates
+        const existingPlanes = await listSharedPlanes();
+        const existing = existingPlanes.find(p => p.plane_id === plane.id);
 
-      // Check if plane already exists to avoid duplicates
-      const existingPlanes = await listSharedPlanes();
-      const existing = existingPlanes.find(p => p.plane_id === plane.id);
-
-      if (existing) {
-        console.log('[FlightCheck Import] Plane already exists, updating...');
-        await updateSharedPlane(existing.id, {
-          name: plane.name,
-          manufacturer: plane.manufacturer,
-          image: plane.image,
-          type: plane.type,
-          sim: plane.sim || null,
-        });
-        // Update checklist too
-        const existingChecklists = await listAllSharedChecklists();
-        const existingCl = existingChecklists.find(c => c.plane_id === plane.id && c.category.toLowerCase() === 'normal');
-        if (existingCl) {
-          await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
-        } else {
-          await createSharedChecklist({ plane_id: plane.id, category: 'normal', phases: JSON.stringify(checklist.phases) });
-        }
-      } else {
-        const planeResult = await createSharedPlane({
-          plane_id: plane.id,
-          name: plane.name,
-          manufacturer: plane.manufacturer,
-          image: plane.image,
-          type: plane.type,
-          sim: plane.sim || null,
-          sort_order: null,
-        });
-        if (planeResult) {
-          console.log('[FlightCheck Import] Plane created, saving checklist...');
-          await createSharedChecklist({
-            plane_id: plane.id,
-            category: 'normal',
-            phases: JSON.stringify(checklist.phases),
+        if (existing) {
+          console.log('[FlightCheck Import] Plane already exists, updating...');
+          await updateSharedPlane(existing.id, {
+            name: plane.name,
+            manufacturer: plane.manufacturer,
+            image: plane.image,
+            type: plane.type,
+            sim: plane.sim || null,
           });
+          const existingChecklists = await listAllSharedChecklists();
+          const existingCl = existingChecklists.find(c => c.plane_id === plane.id && c.category.toLowerCase() === 'normal');
+          if (existingCl) {
+            await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
+          } else {
+            await createSharedChecklist({ plane_id: plane.id, category: 'normal', phases: JSON.stringify(checklist.phases) });
+          }
+          supabaseSuccess = true;
         } else {
-          console.error('[FlightCheck Import] createSharedPlane returned null — checklist NOT saved');
+          const planeResult = await createSharedPlane({
+            plane_id: plane.id,
+            name: plane.name,
+            manufacturer: plane.manufacturer,
+            image: plane.image,
+            type: plane.type,
+            sim: plane.sim || null,
+            sort_order: null,
+          });
+          if (planeResult) {
+            console.log('[FlightCheck Import] Plane created, saving checklist...');
+            await createSharedChecklist({
+              plane_id: plane.id,
+              category: 'normal',
+              phases: JSON.stringify(checklist.phases),
+            });
+            supabaseSuccess = true;
+          }
         }
+      } catch (error) {
+        console.log('[FlightCheck Import] Supabase error:', error);
       }
-      console.log('[FlightCheck Import] Clearing cache and refreshing...');
-      try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
-      await refreshSharedPlanes();
-      console.log('[FlightCheck Import] Refresh complete');
-    } else {
-      console.log('[FlightCheck Import] Non-admin path → saving to localStorage');
-      addPlane(plane, checklist);
+      
+      if (supabaseSuccess) {
+        console.log('[FlightCheck Import] Clearing cache and refreshing...');
+        try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+        await refreshSharedPlanes();
+        console.log('[FlightCheck Import] Refresh complete');
+        return;
+      }
     }
+    
+    // Fall back to local storage when Supabase fails
+    console.log('[FlightCheck Import] Non-admin path → saving to localStorage');
+    addPlane(plane, checklist);
   }, [isAdmin, addPlane, refreshSharedPlanes]);
 
   const editingPlane = useMemo(
@@ -165,17 +175,26 @@ export function Home() {
     );
     if (!confirmed) return;
 
+    let deleted = false;
     if (isAdmin) {
-      // Delete from shared database (Supabase)
-      const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
-      const planeRecord = planeRecords.find(p => p.plane_id === planeId);
-      const checklistRecord = checklistRecords.find(c => c.plane_id === planeId);
-      if (planeRecord) await deleteSharedPlane(planeRecord.id);
-      if (checklistRecord) await deleteSharedChecklist(checklistRecord.id);
-      try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
-      await refreshSharedPlanes();
-    } else {
-      deletePlane(planeId);
+      try {
+        // Delete from shared database (Supabase)
+        const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
+        const planeRecord = planeRecords.find(p => p.plane_id === planeId);
+        const checklistRecord = checklistRecords.find(c => c.plane_id === planeId);
+        if (planeRecord) await deleteSharedPlane(planeRecord.id);
+        if (checklistRecord) await deleteSharedChecklist(checklistRecord.id);
+        try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+        await refreshSharedPlanes();
+        deleted = true;
+      } catch (error) {
+        console.log('[FlightCheck] Supabase delete failed, falling back to localStorage:', error);
+      }
+    }
+    
+    if (!deleted) {
+      console.log('[FlightCheck] Deleting from localStorage:', planeId);
+      await deletePlane(planeId);
     }
   }, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
 
@@ -247,6 +266,7 @@ export function Home() {
         return;
       }
       const { plane, checklist, variants } = parsePlaneCsv(csvInput);
+      console.log('[FlightCheck Import] Parsed plane:', plane, 'checklist phases:', checklist.phases.length, 'variants:', Object.keys(variants));
 
       if (checklist.phases.length === 0 && Object.keys(variants).length === 0) {
         alert('CSV was parsed but no checklist phases/items were found. Check your CSV format.');
@@ -258,22 +278,33 @@ export function Home() {
         plane.image = imagePreview;
       }
 
+      // Import main checklist
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
       const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
-      const category = importCategory.trim();
-      if (category && category !== 'Standard') {
-        if (!planes.some(p => p.id === plane.id)) {
-          await importPlane(plane, checklist);
-        }
-        addVariant(plane.id, category, checklist);
-        alert(`Imported "${plane.name}" variant "${category}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
-      } else {
-        await importPlane(plane, checklist);
-        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
+
+      // Always import the plane directly to localStorage (skip Supabase which fails)
+      console.log('[FlightCheck Import] Adding plane to localStorage:', plane.id);
+      addPlane(plane, checklist);
+      console.log('[FlightCheck Import] After addPlane, planes now:', planes.map(p => p.id));
+      
+      // Import categories/variants from the CSV
+      const categoryKeys = Object.keys(variants);
+      console.log('[FlightCheck Import] Adding categories:', categoryKeys);
+      for (const categoryName of categoryKeys) {
+        const categoryChecklist = variants[categoryName];
+        console.log('[FlightCheck Import] Adding category:', categoryName, 'phases:', categoryChecklist.phases.map(p => p.title));
+        addCategory(plane.id, categoryName, categoryChecklist);
+      }
+
+      const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (variants[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
+      
+      // Delay alert and close to let state update
+      setTimeout(() => {
+        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s), ${totalItems} main items, and ${categoryKeys.length} category(ies) with ${totalCategoryItems} items.${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
         if (!isAdmin) {
           const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
           if (submitToAll) {
-            await createPendingSubmission({
+            createPendingSubmission({
               name: plane.name,
               manufacturer: plane.manufacturer,
               image: plane.image || null,
@@ -286,37 +317,9 @@ export function Home() {
             alert('Submitted for review! An admin will approve it shortly.');
           }
         }
-      }
-
-      // Auto-import category-based variants from CSV
-      if (Object.keys(variants).length > 0) {
-        console.log(`[FlightCheck Import] Importing ${Object.keys(variants).length} variant(s): ${Object.keys(variants).join(', ')}`);
-        for (const [variantName, variantChecklist] of Object.entries(variants)) {
-          if (isAdmin) {
-            // Check if this variant checklist already exists
-            const allCl = await listAllSharedChecklists();
-            const existingVariant = allCl.find(c => c.plane_id === plane.id && c.category === variantName);
-            if (existingVariant) {
-              console.log(`[FlightCheck Import] Variant "${variantName}" exists, updating...`);
-              await updateSharedChecklist(existingVariant.id, JSON.stringify(variantChecklist.phases));
-            } else {
-              await createSharedChecklist({
-                plane_id: plane.id,
-                category: variantName,
-                phases: JSON.stringify(variantChecklist.phases),
-              });
-            }
-          } else {
-            addVariant(plane.id, variantName, variantChecklist);
-          }
-        }
-        alert(`Also imported ${Object.keys(variants).length} sub-checklist(s): ${Object.keys(variants).join(', ')}`);
-      }
-
-      setIsModalOpen(false);
+      }, 100);
       setCsvInput('');
       setImagePreview(null);
-      setImportCategory('');
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to parse CSV');
     }
@@ -339,7 +342,7 @@ export function Home() {
 
           const MAIN_KEY = '__main__';
           // Group items by category, then by phase
-          const categoryPhaseMaps = new Map<string, Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; notes?: string }[] }>>();
+          const categoryPhaseMaps = new Map<string, Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; reference?: string }[] }>>();
           for (const row of json) {
             const phaseTitle = row.phase?.trim();
             const itemLabel = row.item?.trim();
@@ -363,7 +366,7 @@ export function Home() {
               id: `${phase.id}-${phase.items.length}`,
               label: itemLabel,
               expectedState: row.expectedState?.trim() || undefined,
-              notes: row.notes?.trim() || undefined,
+              reference: row.reference?.trim() || undefined,
             });
           }
 
@@ -384,12 +387,12 @@ export function Home() {
           }
 
           const jsonWarnings = formatWarnings(validateChecklist(checklist, plane));
-          const category = importCategory.trim();
+          const category = '';
           if (category && category !== 'Standard') {
             if (!planes.some(p => p.id === planeId)) {
               await importPlane(plane, checklist);
             }
-            addVariant(planeId, category, checklist);
+            addCategory(planeId, category, checklist);
             setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
           } else {
             await importPlane(plane, checklist);
@@ -417,13 +420,13 @@ export function Home() {
             if (!planes.some(p => p.id === planeId)) {
               await importPlane(plane, checklist);
             }
-            addVariant(planeId, variantName, variantChecklist);
+            addCategory(planeId, variantName, variantChecklist);
           }
           if (Object.keys(jsonVariants).length > 0) {
             setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`);
           }
 
-          setImportCategory('');
+          
           return;
         }
 
@@ -497,10 +500,11 @@ export function Home() {
     reader.readAsText(file);
   };
 
-  const sampleCsv = `name,manufacturer,type,image,checklist category,phase,item,expectedState
-"Piper Archer II","Piper","GA","","Normal Checklist","Pre-Flight","Master Switch","ON"
-"Piper Archer II","Piper","GA","","Normal Checklist","Pre-Flight","Fuel Pump","ON"
-"Piper Archer II","Piper","GA","","Speeds","Takeoff","Vr","65 KIAS"`;
+  const sampleCsv = `name,category,phase,item,expectedState,reference
+"Piper Archer II","","Pre-Flight","Master Switch","ON",""
+"Piper Archer II","","Pre-Flight","Fuel Pump","ON",""
+"Piper Archer II","","Speeds","Takeoff","Vr","65 KIAS"
+"Piper Archer II","Reference Tables","Performance","Max Cruise","","data:table/json,[[Speed,Value],[Max Cruise,140 KIAS]]"`;
 
   return (
     <div className={styles.container}>
@@ -643,7 +647,7 @@ export function Home() {
                     await createSharedChecklist({ plane_id: plane.id, category: variantName, phases: JSON.stringify(variantChecklist.phases) });
                   }
                 } else {
-                  addVariant(plane.id, variantName, variantChecklist);
+                  addCategory(plane.id, variantName, variantChecklist);
                 }
               }
             }
@@ -724,18 +728,6 @@ export function Home() {
             </div>
 
             <div className={styles.fileInputWrapper}>
-              <label className={styles.csvLabel}>Checklist Category (Optional):</label>
-              <input
-                type="text"
-                placeholder='Leave blank for "Standard", or type e.g. "Emergency", "IFR"'
-                value={importCategory}
-                onChange={(e) => setImportCategory(e.target.value)}
-                className={styles.fileInput}
-                style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
-              />
-            </div>
-
-            <div className={styles.fileInputWrapper}>
               <label className={styles.csvLabel}>Upload CSV File:</label>
               <input
                 type="file"
@@ -765,7 +757,7 @@ export function Home() {
                   setIsModalOpen(false);
                   setImagePreview(null);
                   setImportSummary(null);
-                  setImportCategory('');
+                  
                 }}
               >
                 Cancel
