@@ -71,8 +71,8 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
       <div
         className={styles.card}
         onContextMenu={handleContextMenu}
-        onClick={() => {
-          console.log('>>>> CLICK on card, navigating to:', `/checklist/${plane.id}`);
+        onMouseDown={(e) => {
+          console.log('>>>> onMouseDown fired for:', plane.id);
           window.location.href = `/checklist/${plane.id}`;
         }}
         role="button"
