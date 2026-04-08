@@ -65,14 +65,14 @@ export function useFleet() {
   const allPlanes = useMemo(() => {
     const active = sharedPlanes.filter(p => !deletedStaticIds.includes(p.id));
     const result = [...active, ...customPlanes];
-    console.log('>>>> [useFleet allPlanes] sharedPlanes.length:', sharedPlanes.length, 'customPlanes.length:', customPlanes.length, 'total result.length:', result.length);
+    console.log('>>>> [useFleet allPlanes] sharedPlanes:', sharedPlanes.length, 'customPlanes:', customPlanes.length, 'total:', result.length);
     return result;
   }, [sharedPlanes, customPlanes, deletedStaticIds]);
 
   const allChecklists = useMemo(
     () => {
       const result = { ...staticChecklists, ...sharedChecklists, ...customChecklists };
-      console.log('>>>> [useFleet allChecklists] staticChecklists:', Object.keys(staticChecklists).length, 'sharedChecklists:', Object.keys(sharedChecklists).length, 'customChecklists:', Object.keys(customChecklists).length);
+      console.log('>>>> [useFleet allChecklists] static:', Object.keys(staticChecklists).length, 'shared:', Object.keys(sharedChecklists).length, 'custom:', Object.keys(customChecklists).length);
       return result;
     },
     [staticChecklists, sharedChecklists, customChecklists],
@@ -86,15 +86,18 @@ export function useFleet() {
     }
 
     const exists = customPlanes.some(p => p.id === newPlane.id);
-    console.log('[useFleet addPlane] Plane exists in customPlanes:', exists, 'current customPlanes:', customPlanes.map(p => p.id));
+    console.log('>>>> [useFleet addPlane] Plane exists in customPlanes:', exists, 'customPlanes length:', customPlanes.length);
     if (exists) {
       updateKey('custom_planes', customPlanes.map(p => p.id === newPlane.id ? newPlane : p));
     } else {
-      updateKey('custom_planes', [...customPlanes, newPlane]);
+      const newCustomPlanes = [...customPlanes, newPlane];
+      console.log('>>>> [useFleet addPlane] New customPlanes will be:', newCustomPlanes.map(p => p.id));
+      updateKey('custom_planes', newCustomPlanes);
     }
-    console.log('[useFleet addPlane] Saving checklist for:', newPlane.id, 'current customChecklists keys:', Object.keys(customChecklists));
-    updateKey('custom_checklists', { ...customChecklists, [newPlane.id]: newChecklist });
-    console.log('[useFleet addPlane] After saving, new customChecklists keys:', Object.keys({ ...customChecklists, [newPlane.id]: newChecklist }));
+    console.log('>>>> [useFleet addPlane] Saving checklist for:', newPlane.id, 'current customChecklists length:', Object.keys(customChecklists).length);
+    const newChecklists = { ...customChecklists, [newPlane.id]: newChecklist };
+    console.log('>>>> [useFleet addPlane] New customChecklists will have keys:', Object.keys(newChecklists));
+    updateKey('custom_checklists', newChecklists);
   }, [customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
   const updateChecklist = useCallback((planeId: string, checklist: PlaneChecklist) => {
