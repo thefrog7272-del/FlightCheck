@@ -65,14 +65,14 @@ export function useFleet() {
   const allPlanes = useMemo(() => {
     const active = sharedPlanes.filter(p => !deletedStaticIds.includes(p.id));
     const result = [...active, ...customPlanes];
-    console.log('[useFleet allPlanes] computed, sharedPlanes:', sharedPlanes.length, 'customPlanes:', customPlanes.length, 'result:', result.map(p => p.id));
+    console.log('>>>> [useFleet allPlanes] sharedPlanes.length:', sharedPlanes.length, 'customPlanes.length:', customPlanes.length, 'total result.length:', result.length);
     return result;
   }, [sharedPlanes, customPlanes, deletedStaticIds]);
 
   const allChecklists = useMemo(
     () => {
       const result = { ...staticChecklists, ...sharedChecklists, ...customChecklists };
-      console.log('[useFleet allChecklists] computed, static:', Object.keys(staticChecklists).length, 'shared:', Object.keys(sharedChecklists).length, 'custom:', Object.keys(customChecklists).length, 'total:', Object.keys(result).length);
+      console.log('>>>> [useFleet allChecklists] staticChecklists:', Object.keys(staticChecklists).length, 'sharedChecklists:', Object.keys(sharedChecklists).length, 'customChecklists:', Object.keys(customChecklists).length);
       return result;
     },
     [staticChecklists, sharedChecklists, customChecklists],

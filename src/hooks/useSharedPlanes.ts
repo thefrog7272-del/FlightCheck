@@ -124,5 +124,10 @@ export function useSharedPlanes() {
     return () => { cancelled = true; };
   }, [fetchFromApi]);
 
-  return { sharedPlanes, sharedChecklists, sharedLoading: loading, refreshSharedPlanes: fetchFromApi };
+  return { 
+    sharedPlanes, 
+    sharedChecklists, 
+    sharedLoading: loading, 
+    refreshSharedPlanes: fetchFromApi 
+  };
 }
