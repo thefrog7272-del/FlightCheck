@@ -247,6 +247,7 @@ export function Home() {
         return;
       }
       const { plane, checklist, variants } = parsePlaneCsv(csvInput);
+      console.log('[FlightCheck Import] Parsed plane:', plane, 'checklist phases:', checklist.phases.length, 'variants:', Object.keys(variants));
 
       if (checklist.phases.length === 0 && Object.keys(variants).length === 0) {
         alert('CSV was parsed but no checklist phases/items were found. Check your CSV format.');
