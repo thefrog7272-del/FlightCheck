@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
-import styles from './VariantSelector.module.css';
+import styles from './CategorySelector.module.css';
 
 const FIXED_TABS = [
   { label: 'Normal',    variant: 'Standard',        color: styles.colorGreen },
@@ -10,7 +10,7 @@ const FIXED_TABS = [
   { label: 'Reference', variant: 'Reference Tables', color: styles.colorBlue  },
 ] as const;
 
-interface VariantSelectorProps {
+interface CategorySelectorProps {
   planeId: string;
   categories: string[];
   activeCategory: string;
@@ -20,7 +20,7 @@ interface VariantSelectorProps {
   children?: ReactNode;
 }
 
-export function VariantSelector({ planeId, categories, activeCategory, onDelete, isEditing, children }: VariantSelectorProps) {
+export function CategorySelector({ planeId, categories, activeCategory, onDelete, isEditing, children }: CategorySelectorProps) {
   const visibleTabs = FIXED_TABS.filter(
     tab => tab.variant === 'Standard' || categories.includes(tab.variant),
   );

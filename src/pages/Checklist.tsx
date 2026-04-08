@@ -15,7 +15,7 @@ import { useSound } from '../hooks/useSound';
 import { useToast } from '../hooks/useToast';
 import { useTimer } from '../hooks/useTimer';
 import { useDragReorder } from '../hooks/useDragReorder';
-import { VariantSelector } from '../components/VariantSelector';
+import { CategorySelector } from '../components/CategorySelector';
 import { AddReferenceTableModal } from '../components/AddReferenceTableModal';
 import { Toast } from '../components/Toast';
 import { encodeChecklist } from '../utils/shareCodec';
@@ -543,7 +543,7 @@ export function Checklist() {
               {plane.name} {activeVariant !== 'Standard' ? `— ${activeVariant}` : 'Checklist'}
             </h1>
             <span className={styles.subtitle}>{plane.manufacturer}</span>
-            <VariantSelector
+            <CategorySelector
               planeId={planeId!}
               categories={categories}
               activeCategory={activeVariant}
@@ -564,7 +564,7 @@ export function Checklist() {
                   {isVoiceMode ? 'Voice On' : 'Voice'}
                 </button>
               )}
-            </VariantSelector>
+            </CategorySelector>
           </div>
           <div className={styles.headerActions}>
             {!isReferenceVariant && (
