@@ -66,15 +66,23 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
     onDelete?.(plane.id);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      console.log('>>>> handleKeyDown fired for:', plane.id);
+      window.location.href = `/checklist/${plane.id}`;
+    }
+  };
+
   return (
     <>
       <div
         className={styles.card}
         onContextMenu={handleContextMenu}
-        onMouseDown={(e) => {
-          console.log('>>>> onMouseDown fired for:', plane.id);
+        onClick={() => {
+          console.log('>>>> CLICK fired for:', plane.id);
           window.location.href = `/checklist/${plane.id}`;
         }}
+        onKeyDown={handleKeyDown}
         role="button"
         tabIndex={0}
         aria-label={`Open ${plane.name} checklist`}
