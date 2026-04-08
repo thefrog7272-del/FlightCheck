@@ -59,7 +59,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     const minCols = Math.max(col.name, col.phase, col.item) + 1;
     if (values.length < minCols) continue;
 
-    const name = values[col.name]?.trim() || planeName;
+    const name = values[col.name]?.trim();
     const manufacturer = col.manufacturer !== -1 && values[col.manufacturer] ? values[col.manufacturer].trim() : planeManufacturer;
     const type = col.type !== -1 && values[col.type] ? values[col.type].trim() : planeType;
     const image = col.image !== -1 && values[col.image] ? values[col.image].trim() : planeImage;
