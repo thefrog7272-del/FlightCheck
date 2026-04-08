@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDatabase } from './useDatabase';
 import { useSharedPlanes } from './useSharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
+import { checklists as staticChecklists } from '../data/checklists';
 
 export function useFleet() {
   const { data, loading, updateKey, resetAll } = useDatabase();
@@ -67,8 +68,8 @@ export function useFleet() {
   }, [sharedPlanes, customPlanes, deletedStaticIds]);
 
   const allChecklists = useMemo(
-    () => ({ ...sharedChecklists, ...customChecklists }),
-    [sharedChecklists, customChecklists],
+    () => ({ ...staticChecklists, ...sharedChecklists, ...customChecklists }),
+    [staticChecklists, sharedChecklists, customChecklists],
   );
 
   const addPlane = useCallback((newPlane: Plane, newChecklist: PlaneChecklist) => {
@@ -148,8 +149,8 @@ export function useFleet() {
   const getCategories = useCallback((planeId: string): string[] => {
     const categories = ['Standard'];
     const seen = new Set<string>();
-    // Check both shared (Supabase) and custom (localStorage) checklists
-    for (const source of [sharedChecklists, customChecklists]) {
+    // Check shared (Supabase), custom (localStorage), and static checklists
+    for (const source of [sharedChecklists, customChecklists, staticChecklists]) {
       for (const key of Object.keys(source)) {
         if (key.startsWith(`${planeId}::`) && !seen.has(key)) {
           seen.add(key);
@@ -158,7 +159,7 @@ export function useFleet() {
       }
     }
     return categories;
-  }, [sharedChecklists, customChecklists]);
+  }, [sharedChecklists, customChecklists, staticChecklists]);
 
   const addCategory = useCallback((planeId: string, categoryName: string, checklist: PlaneChecklist) => {
     const categoryKey = `${planeId}::${categoryName}`;
