@@ -27,12 +27,12 @@ export function Checklist() {
   const navigate = useNavigate();
   const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getCategories, addCategory, deleteCategory } = useFleet();
 
+  // Force console log
+  console.log('>>>> CHECKLIST planeId=', planeId, 'checklist keys count=', Object.keys(checklists).length, 'key test=', planeId ? (checklists[planeId] ? 'FOUND' : 'NOT FOUND') : 'no id');
+
   useEffect(() => {
     if (planeId) trackRecentUse(planeId);
   }, [planeId, trackRecentUse]);
-
-  console.log('[Checklist] CHECK planeId:', planeId, 'checklists keys:', Object.keys(checklists));
-  console.log('[Checklist] CHECK looking for key:', planeId, 'found value:', planeId && checklists[planeId] ? 'YES' : 'NO');
 
   // Compute these early — needed both by voice hook (below) and normal render logic.
   const variantKey = activeVariant !== 'Standard' && planeId ? `${planeId}::${activeVariant}` : null;
