@@ -73,17 +73,20 @@ export function useFleet() {
   );
 
   const addPlane = useCallback((newPlane: Plane, newChecklist: PlaneChecklist) => {
+    console.log('[useFleet addPlane] Adding plane:', newPlane.id, newPlane.name, 'checklist phases:', newChecklist.phases.length);
     // If it was a deleted static plane, restore it
     if (deletedStaticIds.includes(newPlane.id)) {
       updateKey('deleted_static_planes', deletedStaticIds.filter(id => id !== newPlane.id));
     }
 
     const exists = customPlanes.some(p => p.id === newPlane.id);
+    console.log('[useFleet addPlane] Plane exists in customPlanes:', exists);
     if (exists) {
       updateKey('custom_planes', customPlanes.map(p => p.id === newPlane.id ? newPlane : p));
     } else {
       updateKey('custom_planes', [...customPlanes, newPlane]);
     }
+    console.log('[useFleet addPlane] Saving checklist for:', newPlane.id);
     updateKey('custom_checklists', { ...customChecklists, [newPlane.id]: newChecklist });
   }, [customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
@@ -163,6 +166,7 @@ export function useFleet() {
 
   const addCategory = useCallback((planeId: string, categoryName: string, checklist: PlaneChecklist) => {
     const categoryKey = `${planeId}::${categoryName}`;
+    console.log('[useFleet addCategory] Adding category:', categoryName, 'for plane:', planeId, 'phases:', checklist.phases.length);
     updateKey('custom_checklists', { ...customChecklists, [categoryKey]: { ...checklist, planeId: categoryKey } });
   }, [customChecklists, updateKey]);
 
