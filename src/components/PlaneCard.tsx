@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Plane } from '../data/types';
-import { Link } from 'react-router-dom';
 import styles from './PlaneCard.module.css';
 import { Plane as PlaneIcon, Star } from 'lucide-react';
 
@@ -69,13 +68,10 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
 
   return (
     <>
-      <Link
-        to={`/checklist/${plane.id}`}
+      <a
+        href={`/checklist/${plane.id}`}
         className={styles.card}
         onContextMenu={handleContextMenu}
-        onClick={() => {
-          console.log('>>>> Link onClick fired, to:', `/checklist/${plane.id}`);
-        }}
         aria-label={`Open ${plane.name} checklist`}
       >
         <div className={styles.imageWrapper}>
@@ -112,7 +108,7 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
           </div>
         )}
-      </Link>
+      </a>
 
       {menuPos && (
         <div
