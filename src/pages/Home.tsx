@@ -34,59 +34,69 @@ export function Home() {
   // When admin, imports go to Supabase. Otherwise localStorage.
   const importPlane = useCallback(async (plane: Plane, checklist: PlaneChecklist) => {
     console.log(`[FlightCheck Import] isAdmin=${isAdmin}, plane=${plane.id} "${plane.name}", phases=${checklist.phases.length}, items=${checklist.phases.reduce((s, p) => s + p.items.length, 0)}`);
+    
+    // Try admin path first, but catch errors and fall back to local storage
+    let supabaseSuccess = false;
     if (isAdmin) {
       console.log('[FlightCheck Import] Admin path → saving to Supabase...');
+      try {
+        // Check if plane already exists to avoid duplicates
+        const existingPlanes = await listSharedPlanes();
+        const existing = existingPlanes.find(p => p.plane_id === plane.id);
 
-      // Check if plane already exists to avoid duplicates
-      const existingPlanes = await listSharedPlanes();
-      const existing = existingPlanes.find(p => p.plane_id === plane.id);
-
-      if (existing) {
-        console.log('[FlightCheck Import] Plane already exists, updating...');
-        await updateSharedPlane(existing.id, {
-          name: plane.name,
-          manufacturer: plane.manufacturer,
-          image: plane.image,
-          type: plane.type,
-          sim: plane.sim || null,
-        });
-        // Update checklist too
-        const existingChecklists = await listAllSharedChecklists();
-        const existingCl = existingChecklists.find(c => c.plane_id === plane.id && c.category.toLowerCase() === 'normal');
-        if (existingCl) {
-          await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
-        } else {
-          await createSharedChecklist({ plane_id: plane.id, category: 'normal', phases: JSON.stringify(checklist.phases) });
-        }
-      } else {
-        const planeResult = await createSharedPlane({
-          plane_id: plane.id,
-          name: plane.name,
-          manufacturer: plane.manufacturer,
-          image: plane.image,
-          type: plane.type,
-          sim: plane.sim || null,
-          sort_order: null,
-        });
-        if (planeResult) {
-          console.log('[FlightCheck Import] Plane created, saving checklist...');
-          await createSharedChecklist({
-            plane_id: plane.id,
-            category: 'normal',
-            phases: JSON.stringify(checklist.phases),
+        if (existing) {
+          console.log('[FlightCheck Import] Plane already exists, updating...');
+          await updateSharedPlane(existing.id, {
+            name: plane.name,
+            manufacturer: plane.manufacturer,
+            image: plane.image,
+            type: plane.type,
+            sim: plane.sim || null,
           });
+          const existingChecklists = await listAllSharedChecklists();
+          const existingCl = existingChecklists.find(c => c.plane_id === plane.id && c.category.toLowerCase() === 'normal');
+          if (existingCl) {
+            await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
+          } else {
+            await createSharedChecklist({ plane_id: plane.id, category: 'normal', phases: JSON.stringify(checklist.phases) });
+          }
+          supabaseSuccess = true;
         } else {
-          console.error('[FlightCheck Import] createSharedPlane returned null — checklist NOT saved');
+          const planeResult = await createSharedPlane({
+            plane_id: plane.id,
+            name: plane.name,
+            manufacturer: plane.manufacturer,
+            image: plane.image,
+            type: plane.type,
+            sim: plane.sim || null,
+            sort_order: null,
+          });
+          if (planeResult) {
+            console.log('[FlightCheck Import] Plane created, saving checklist...');
+            await createSharedChecklist({
+              plane_id: plane.id,
+              category: 'normal',
+              phases: JSON.stringify(checklist.phases),
+            });
+            supabaseSuccess = true;
+          }
         }
+      } catch (error) {
+        console.log('[FlightCheck Import] Supabase error:', error);
       }
-      console.log('[FlightCheck Import] Clearing cache and refreshing...');
-      try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
-      await refreshSharedPlanes();
-      console.log('[FlightCheck Import] Refresh complete');
-    } else {
-      console.log('[FlightCheck Import] Non-admin path → saving to localStorage');
-      addPlane(plane, checklist);
+      
+      if (supabaseSuccess) {
+        console.log('[FlightCheck Import] Clearing cache and refreshing...');
+        try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+        await refreshSharedPlanes();
+        console.log('[FlightCheck Import] Refresh complete');
+        return;
+      }
     }
+    
+    // Fall back to local storage when Supabase fails
+    console.log('[FlightCheck Import] Non-admin path → saving to localStorage');
+    addPlane(plane, checklist);
   }, [isAdmin, addPlane, refreshSharedPlanes]);
 
   const editingPlane = useMemo(
