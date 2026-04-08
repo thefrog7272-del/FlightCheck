@@ -120,13 +120,16 @@ export function useFleet() {
   }, [sharedPlanes, sharedChecklists, allPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
   const deletePlane = useCallback((planeId: string) => {
+    console.log('[useFleet deletePlane] Deleting plane:', planeId, 'customPlanes has it:', customPlanes.some(p => p.id === planeId));
     const isStatic = sharedPlanes.some(p => p.id === planeId);
+    console.log('[useFleet deletePlane] isStatic:', isStatic);
     if (isStatic) {
       updateKey('deleted_static_planes', [...deletedStaticIds, planeId]);
     } else {
       updateKey('custom_planes', customPlanes.filter(p => p.id !== planeId));
       const next = { ...customChecklists };
       delete next[planeId];
+      console.log('[useFleet deletePlane] Deleted checklist for:', planeId, 'remaining checklists:', Object.keys(next));
       updateKey('custom_checklists', next);
     }
   }, [sharedPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);

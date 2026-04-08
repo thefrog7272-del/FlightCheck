@@ -287,29 +287,30 @@ export function Home() {
         addCategory(plane.id, categoryName, categoryChecklist);
       }
 
-      const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (variants[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
-      alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s), ${totalItems} main items, and ${categoryKeys.length} category(ies) with ${totalCategoryItems} items.${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
-      if (!isAdmin) {
-        const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
-        if (submitToAll) {
-          await createPendingSubmission({
-            name: plane.name,
-            manufacturer: plane.manufacturer,
-            image: plane.image || null,
-            type: plane.type,
-            sim: plane.sim || null,
-            phases: JSON.stringify(checklist.phases),
-            submitted_by: null,
-            status: 'pending',
-          });
-          alert('Submitted for review! An admin will approve it shortly.');
+const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (variants[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
+      
+      // Delay alert and close to let state update
+      setTimeout(() => {
+        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s), ${totalItems} main items, and ${categoryKeys.length} category(ies) with ${totalCategoryItems} items.${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
+        if (!isAdmin) {
+          const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
+          if (submitToAll) {
+            createPendingSubmission({
+              name: plane.name,
+              manufacturer: plane.manufacturer,
+              image: plane.image || null,
+              type: plane.type,
+              sim: plane.sim || null,
+              phases: JSON.stringify(checklist.phases),
+              submitted_by: null,
+              status: 'pending',
+            });
+            alert('Submitted for review! An admin will approve it shortly.');
+          }
         }
-      }
-
-      setIsModalOpen(false);
+      }, 100);
       setCsvInput('');
       setImagePreview(null);
-      
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to parse CSV');
     }
