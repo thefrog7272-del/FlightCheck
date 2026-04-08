@@ -29,7 +29,7 @@ export function Home() {
   const [addTablePlaneId, setAddTablePlaneId] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [showFileImport, setShowFileImport] = useState(false);
-  const [importCategory, setImportCategory] = useState('');
+  
 
   // When admin, imports go to Supabase. Otherwise localStorage.
   const importPlane = useCallback(async (plane: Plane, checklist: PlaneChecklist) => {
@@ -260,7 +260,7 @@ export function Home() {
 
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
       const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
-      const category = importCategory.trim();
+      const category = '';
       if (category && category !== 'Standard') {
         if (!planes.some(p => p.id === plane.id)) {
           await importPlane(plane, checklist);
@@ -316,7 +316,7 @@ export function Home() {
       setIsModalOpen(false);
       setCsvInput('');
       setImagePreview(null);
-      setImportCategory('');
+      
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to parse CSV');
     }
@@ -384,7 +384,7 @@ export function Home() {
           }
 
           const jsonWarnings = formatWarnings(validateChecklist(checklist, plane));
-          const category = importCategory.trim();
+          const category = '';
           if (category && category !== 'Standard') {
             if (!planes.some(p => p.id === planeId)) {
               await importPlane(plane, checklist);
@@ -423,7 +423,7 @@ export function Home() {
             setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`);
           }
 
-          setImportCategory('');
+          
           return;
         }
 
@@ -497,10 +497,11 @@ export function Home() {
     reader.readAsText(file);
   };
 
-  const sampleCsv = `name,manufacturer,type,image,checklist category,phase,item,expectedState
-"Piper Archer II","Piper","GA","","Normal Checklist","Pre-Flight","Master Switch","ON"
-"Piper Archer II","Piper","GA","","Normal Checklist","Pre-Flight","Fuel Pump","ON"
-"Piper Archer II","Piper","GA","","Speeds","Takeoff","Vr","65 KIAS"`;
+  const sampleCsv = `name,category,phase,item,expectedState,reference
+"Piper Archer II","","Pre-Flight","Master Switch","ON",""
+"Piper Archer II","","Pre-Flight","Fuel Pump","ON",""
+"Piper Archer II","","Speeds","Takeoff","Vr","65 KIAS"
+"Piper Archer II","Reference Tables","Performance","Max Cruise","","data:table/json,[[\"Speed\",\"Value\"],[\"Max Cruise\",\"140 KIAS\"]]"`;
 
   return (
     <div className={styles.container}>
@@ -724,18 +725,6 @@ export function Home() {
             </div>
 
             <div className={styles.fileInputWrapper}>
-              <label className={styles.csvLabel}>Checklist Category (Optional):</label>
-              <input
-                type="text"
-                placeholder='Leave blank for "Standard", or type e.g. "Emergency", "IFR"'
-                value={importCategory}
-                onChange={(e) => setImportCategory(e.target.value)}
-                className={styles.fileInput}
-                style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
-              />
-            </div>
-
-            <div className={styles.fileInputWrapper}>
               <label className={styles.csvLabel}>Upload CSV File:</label>
               <input
                 type="file"
@@ -765,7 +754,7 @@ export function Home() {
                   setIsModalOpen(false);
                   setImagePreview(null);
                   setImportSummary(null);
-                  setImportCategory('');
+                  
                 }}
               >
                 Cancel

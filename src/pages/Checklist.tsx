@@ -159,7 +159,7 @@ export function Checklist() {
   const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    const header = 'name,phase,item,expectedState,reference,category';
+    const header = 'name,category,phase,item,expectedState,reference';
     const allChecklists: Array<{ checklist: PlaneChecklist; category: string }> = [
       { checklist, category: activeVariant === 'Standard' ? '' : activeVariant },
     ];
