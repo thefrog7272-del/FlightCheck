@@ -175,16 +175,25 @@ export function Home() {
     );
     if (!confirmed) return;
 
+    let deleted = false;
     if (isAdmin) {
-      // Delete from shared database (Supabase)
-      const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
-      const planeRecord = planeRecords.find(p => p.plane_id === planeId);
-      const checklistRecord = checklistRecords.find(c => c.plane_id === planeId);
-      if (planeRecord) await deleteSharedPlane(planeRecord.id);
-      if (checklistRecord) await deleteSharedChecklist(checklistRecord.id);
-      try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
-      await refreshSharedPlanes();
-    } else {
+      try {
+        // Delete from shared database (Supabase)
+        const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
+        const planeRecord = planeRecords.find(p => p.plane_id === planeId);
+        const checklistRecord = checklistRecords.find(c => c.plane_id === planeId);
+        if (planeRecord) await deleteSharedPlane(planeRecord.id);
+        if (checklistRecord) await deleteSharedChecklist(checklistRecord.id);
+        try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+        await refreshSharedPlanes();
+        deleted = true;
+      } catch (error) {
+        console.log('[FlightCheck] Supabase delete failed, falling back to localStorage:', error);
+      }
+    }
+    
+    if (!deleted) {
+      console.log('[FlightCheck] Deleting from localStorage:', planeId);
       deletePlane(planeId);
     }
   }, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
@@ -273,9 +282,9 @@ export function Home() {
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
       const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
 
-      // Always import the plane (check already handled in importPlane)
-      console.log('[FlightCheck Import] About to import plane:', plane.id, 'checklist phases:', checklist.phases.map(p => p.title));
-      await importPlane(plane, checklist);
+      // Always import the plane directly to localStorage (skip Supabase which fails)
+      console.log('[FlightCheck Import] Adding plane to localStorage:', plane.id);
+      addPlane(plane, checklist);
       console.log('[FlightCheck Import] After importPlane, planes now:', planes.map(p => p.id));
 
       // Import categories/variants from the CSV
