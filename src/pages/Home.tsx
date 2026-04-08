@@ -263,10 +263,10 @@ export function Home() {
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
       const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
 
-      // Check if plane already exists, if not import it
-      if (!planes.some(p => p.id === plane.id)) {
-        await importPlane(plane, checklist);
-      }
+      // Always import the plane (check already handled in importPlane)
+      console.log('[FlightCheck Import] About to import plane:', plane.id);
+      await importPlane(plane, checklist);
+      console.log('[FlightCheck Import] After importPlane, planes now:', planes.map(p => p.id));
 
       // Import categories/variants from the CSV
       const categoryKeys = Object.keys(variants);
