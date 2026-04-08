@@ -13,7 +13,7 @@ export interface ChecklistItem {
   id: string;
   label: string;
   expectedState?: string;
-  notes?: string;
+  reference?: string;
 }
 
 export interface ChecklistPhase {

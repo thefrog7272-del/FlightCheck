@@ -31,7 +31,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     phase: headers.indexOf('phase'),
     item: headers.indexOf('item'),
     expectedState: headers.indexOf('expectedstate'),
-    notes: headers.indexOf('notes'),
+    reference: Math.max(headers.indexOf('reference'), headers.indexOf('notes')),
     category: Math.max(headers.indexOf('category'), headers.indexOf('checklist category'), headers.indexOf('checklistcategory')),
   };
 
@@ -62,7 +62,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     const phaseTitle = values[col.phase]?.trim();
     const itemLabel = values[col.item]?.trim();
     const expectedState = col.expectedState !== -1 && values[col.expectedState] ? values[col.expectedState].trim() : undefined;
-    const notes = col.notes !== -1 && values[col.notes] ? values[col.notes].trim() : undefined;
+    const reference = col.reference !== -1 && values[col.reference] ? values[col.reference].trim() : undefined;
 
     // Determine category
     const category = col.category !== -1 && values[col.category] ? values[col.category].trim() : '';
@@ -96,7 +96,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
       id: `${currentPhase.id}-${itemId}-${currentPhase.items.length}`,
       label: itemLabel,
       expectedState,
-      notes,
+      reference,
     };
 
     currentPhase.items.push(newItem);

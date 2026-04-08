@@ -254,7 +254,7 @@ export function parseHtmlChecklist(
       items: refTables.map((t, i) => ({
         id: `${refPhaseId}-${i}`,
         label: t.label,
-        notes: `${TABLE_NOTE_PREFIX}${JSON.stringify(t.rows)}`,
+        reference: `${TABLE_NOTE_PREFIX}${JSON.stringify(t.rows)}`,
       })),
     });
   }

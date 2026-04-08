@@ -159,7 +159,7 @@ export function Checklist() {
   const downloadCsv = useCallback(() => {
     if (!plane || !checklist) return;
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    const header = 'name,phase,item,expectedState,notes,category';
+    const header = 'name,phase,item,expectedState,reference,category';
     const allChecklists: Array<{ checklist: PlaneChecklist; category: string }> = [
       { checklist, category: activeVariant === 'Standard' ? '' : activeVariant },
     ];
@@ -178,7 +178,7 @@ export function Checklist() {
             quote(phase.title),
             quote(item.label),
             quote(item.expectedState ?? ''),
-            quote(item.notes ?? ''),
+            quote(item.reference ?? ''),
             quote(category),
           ].join(',')
         )
@@ -395,7 +395,7 @@ export function Checklist() {
       phases: checklist.phases.map(phase =>
         phase.id !== phaseId ? phase : {
           ...phase,
-          items: [...phase.items, { id: itemId, label: label || 'Reference Image', notes: dataUrl }],
+          items: [...phase.items, { id: itemId, label: label || 'Reference Image', reference: dataUrl }],
         }
       ),
     };
@@ -788,7 +788,7 @@ export function Checklist() {
                           note={getNote(item.id)}
                           onNoteChange={(text) => setNote(item.id, text)}
                           onDeleteTable={
-                            isAdmin && item.notes?.startsWith('data:table/json,')
+                            isAdmin && item.reference?.startsWith('data:table/json,')
                               ? async () => {
                                   const ok = await confirm(
                                     `Delete "${item.label}"?`,

@@ -339,7 +339,7 @@ export function Home() {
 
           const MAIN_KEY = '__main__';
           // Group items by category, then by phase
-          const categoryPhaseMaps = new Map<string, Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; notes?: string }[] }>>();
+          const categoryPhaseMaps = new Map<string, Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; reference?: string }[] }>>();
           for (const row of json) {
             const phaseTitle = row.phase?.trim();
             const itemLabel = row.item?.trim();
@@ -363,7 +363,7 @@ export function Home() {
               id: `${phase.id}-${phase.items.length}`,
               label: itemLabel,
               expectedState: row.expectedState?.trim() || undefined,
-              notes: row.notes?.trim() || undefined,
+              reference: row.reference?.trim() || undefined,
             });
           }
 

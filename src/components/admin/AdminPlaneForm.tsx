@@ -41,7 +41,7 @@ export function AdminPlaneForm({ initialPlane, initialChecklist, onSubmit, onCan
         const json = JSON.parse(reader.result as string);
         if (Array.isArray(json) && json.length > 0 && json[0].phase) {
           // Flat array format
-          const phasesMap = new Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; notes?: string }[] }>();
+          const phasesMap = new Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; reference?: string }[] }>();
           for (const row of json) {
             const phaseTitle = row.phase?.trim();
             const itemLabel = row.item?.trim();
@@ -51,7 +51,7 @@ export function AdminPlaneForm({ initialPlane, initialChecklist, onSubmit, onCan
               phasesMap.set(phaseTitle, { id: phaseId, title: phaseTitle, items: [] });
             }
             const phase = phasesMap.get(phaseTitle)!;
-            phase.items.push({ id: `${phase.id}-${phase.items.length}`, label: itemLabel, expectedState: row.expectedState?.trim() || undefined, notes: row.notes?.trim() || undefined });
+            phase.items.push({ id: `${phase.id}-${phase.items.length}`, label: itemLabel, expectedState: row.expectedState?.trim() || undefined, reference: row.reference?.trim() || undefined });
           }
           setChecklist({ planeId: '', phases: Array.from(phasesMap.values()) });
           if (json[0].name && !name) setName(json[0].name);
