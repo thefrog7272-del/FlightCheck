@@ -16,7 +16,7 @@ import type { Plane, PlaneChecklist } from '../data/types';
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
-  const { planes, checklists, getProgress, recentlyUsed, addPlane, addVariant, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, addCategory, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -265,7 +265,7 @@ export function Home() {
         if (!planes.some(p => p.id === plane.id)) {
           await importPlane(plane, checklist);
         }
-        addVariant(plane.id, category, checklist);
+        addCategory(plane.id, category, checklist);
         alert(`Imported "${plane.name}" variant "${category}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
       } else {
         await importPlane(plane, checklist);
@@ -307,7 +307,7 @@ export function Home() {
               });
             }
           } else {
-            addVariant(plane.id, variantName, variantChecklist);
+            addCategory(plane.id, variantName, variantChecklist);
           }
         }
         alert(`Also imported ${Object.keys(variants).length} sub-checklist(s): ${Object.keys(variants).join(', ')}`);
@@ -389,7 +389,7 @@ export function Home() {
             if (!planes.some(p => p.id === planeId)) {
               await importPlane(plane, checklist);
             }
-            addVariant(planeId, category, checklist);
+            addCategory(planeId, category, checklist);
             setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
           } else {
             await importPlane(plane, checklist);
@@ -417,7 +417,7 @@ export function Home() {
             if (!planes.some(p => p.id === planeId)) {
               await importPlane(plane, checklist);
             }
-            addVariant(planeId, variantName, variantChecklist);
+            addCategory(planeId, variantName, variantChecklist);
           }
           if (Object.keys(jsonVariants).length > 0) {
             setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`);
@@ -643,7 +643,7 @@ export function Home() {
                     await createSharedChecklist({ plane_id: plane.id, category: variantName, phases: JSON.stringify(variantChecklist.phases) });
                   }
                 } else {
-                  addVariant(plane.id, variantName, variantChecklist);
+                  addCategory(plane.id, variantName, variantChecklist);
                 }
               }
             }
