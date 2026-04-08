@@ -501,7 +501,7 @@ export function Home() {
 "Piper Archer II","","Pre-Flight","Master Switch","ON",""
 "Piper Archer II","","Pre-Flight","Fuel Pump","ON",""
 "Piper Archer II","","Speeds","Takeoff","Vr","65 KIAS"
-"Piper Archer II","Reference Tables","Performance","Max Cruise","","data:table/json,[[\"Speed\",\"Value\"],[\"Max Cruise\",\"140 KIAS\"]]"`;
+"Piper Archer II","Reference Tables","Performance","Max Cruise","","data:table/json,[[Speed,Value],[Max Cruise,140 KIAS]]"`;
 
   return (
     <div className={styles.container}>
