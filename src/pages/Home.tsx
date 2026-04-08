@@ -284,9 +284,9 @@ export function Home() {
       const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
 
       // Always import the plane directly to localStorage (skip Supabase which fails)
-      console.log('[FlightCheck Import] Adding plane to localStorage:', plane.id);
+      console.log('[FlightCheck Import] Calling addPlane for:', plane.id);
       addPlane(plane, checklist);
-      console.log('[FlightCheck Import] After addPlane');
+      console.log('[FlightCheck Import] addPlane completed');
       
       // Import categories from the CSV
       const categoryKeys = Object.keys(categories);
