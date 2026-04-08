@@ -77,6 +77,7 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
     <>
       <div
         className={styles.card}
+        style={{ cursor: 'pointer', zIndex: 1 }}
         onContextMenu={handleContextMenu}
         onClick={() => {
           console.log('>>>> CLICK fired for:', plane.id);
