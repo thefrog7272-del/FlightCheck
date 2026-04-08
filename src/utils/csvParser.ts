@@ -77,6 +77,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
 
     // Track plane info from first non-empty row
     if (!planeName && name) {
+      console.log('[CSV Parser] Setting plane info:', { name, manufacturer, type, image });
       planeName = name;
       planeManufacturer = manufacturer;
       planeType = type;

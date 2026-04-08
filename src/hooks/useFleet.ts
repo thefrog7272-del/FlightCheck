@@ -73,7 +73,7 @@ export function useFleet() {
   );
 
   const addPlane = useCallback((newPlane: Plane, newChecklist: PlaneChecklist) => {
-    console.log('[useFleet addPlane] Adding plane:', newPlane.id, newPlane.name, 'checklist phases:', newChecklist.phases.length);
+    console.log('[useFleet addPlane] Adding plane:', newPlane.id, newPlane.name, 'checklist phases:', newChecklist.phases.length, 'checklist keys:', Object.keys(newChecklist));
     // If it was a deleted static plane, restore it
     if (deletedStaticIds.includes(newPlane.id)) {
       updateKey('deleted_static_planes', deletedStaticIds.filter(id => id !== newPlane.id));
