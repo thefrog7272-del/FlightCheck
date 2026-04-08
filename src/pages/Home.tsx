@@ -168,6 +168,7 @@ export function Home() {
   }, [confirm, deletePlane]);
 
   const handleDeletePlane = useCallback(async (planeId: string) => {
+    console.log('[Home] handleDeletePlane called for:', planeId);
     const confirmed = await confirm(
       'Delete Plane',
       'Permanently delete this plane and its checklist data? This cannot be undone.',

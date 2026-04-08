@@ -63,6 +63,7 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
     e.preventDefault();
     e.stopPropagation();
     setMenuPos(null);
+    console.log('[PlaneCard] Delete clicked for:', plane.id);
     onDelete?.(plane.id);
   };
 
