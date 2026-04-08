@@ -73,7 +73,10 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
         to={`/checklist/${plane.id}`}
         className={styles.card}
         onContextMenu={handleContextMenu}
-        onClick={() => console.log('>>>> PlaneCard clicked, navigating to:', `/checklist/${plane.id}`)}
+        onClick={(e) => {
+          console.log('>>>> Link onClick fired, to:', `/checklist/${plane.id}`);
+          // Let the Link navigate naturally
+        }}
         aria-label={`Open ${plane.name} checklist`}
       >
         <div className={styles.imageWrapper}>
