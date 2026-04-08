@@ -32,7 +32,7 @@ export function Checklist() {
   }, [planeId, trackRecentUse]);
 
   console.log('[Checklist] CHECK planeId:', planeId, 'checklists keys:', Object.keys(checklists));
-  console.log('[Checklist] CHECK looking for key:', planeId, 'found value:', checklists[planeId] ? 'YES' : 'NO');
+  console.log('[Checklist] CHECK looking for key:', planeId, 'found value:', planeId && checklists[planeId] ? 'YES' : 'NO');
 
   // Compute these early — needed both by voice hook (below) and normal render logic.
   const variantKey = activeVariant !== 'Standard' && planeId ? `${planeId}::${activeVariant}` : null;
