@@ -258,59 +258,39 @@ export function Home() {
         plane.image = imagePreview;
       }
 
+      // Import main checklist
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
       const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
-      const category = '';
-      if (category && category !== 'Standard') {
-        if (!planes.some(p => p.id === plane.id)) {
-          await importPlane(plane, checklist);
-        }
-        addCategory(plane.id, category, checklist);
-        alert(`Imported "${plane.name}" variant "${category}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
-      } else {
+
+      // Check if plane already exists, if not import it
+      if (!planes.some(p => p.id === plane.id)) {
         await importPlane(plane, checklist);
-        alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
-        if (!isAdmin) {
-          const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
-          if (submitToAll) {
-            await createPendingSubmission({
-              name: plane.name,
-              manufacturer: plane.manufacturer,
-              image: plane.image || null,
-              type: plane.type,
-              sim: plane.sim || null,
-              phases: JSON.stringify(checklist.phases),
-              submitted_by: null,
-              status: 'pending',
-            });
-            alert('Submitted for review! An admin will approve it shortly.');
-          }
-        }
       }
 
-      // Auto-import category-based variants from CSV
-      if (Object.keys(variants).length > 0) {
-        console.log(`[FlightCheck Import] Importing ${Object.keys(variants).length} variant(s): ${Object.keys(variants).join(', ')}`);
-        for (const [variantName, variantChecklist] of Object.entries(variants)) {
-          if (isAdmin) {
-            // Check if this variant checklist already exists
-            const allCl = await listAllSharedChecklists();
-            const existingVariant = allCl.find(c => c.plane_id === plane.id && c.category === variantName);
-            if (existingVariant) {
-              console.log(`[FlightCheck Import] Variant "${variantName}" exists, updating...`);
-              await updateSharedChecklist(existingVariant.id, JSON.stringify(variantChecklist.phases));
-            } else {
-              await createSharedChecklist({
-                plane_id: plane.id,
-                category: variantName,
-                phases: JSON.stringify(variantChecklist.phases),
-              });
-            }
-          } else {
-            addCategory(plane.id, variantName, variantChecklist);
-          }
+      // Import categories/variants from the CSV
+      const categoryKeys = Object.keys(variants);
+      for (const categoryName of categoryKeys) {
+        const categoryChecklist = variants[categoryName];
+        addCategory(plane.id, categoryName, categoryChecklist);
+      }
+
+      const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (variants[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
+      alert(`Imported "${plane.name}" with ${checklist.phases.length} phase(s), ${totalItems} main items, and ${categoryKeys.length} category(ies) with ${totalCategoryItems} items.${isAdmin ? ' (saved to shared database)' : ''}${csvWarnings}`);
+      if (!isAdmin) {
+        const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
+        if (submitToAll) {
+          await createPendingSubmission({
+            name: plane.name,
+            manufacturer: plane.manufacturer,
+            image: plane.image || null,
+            type: plane.type,
+            sim: plane.sim || null,
+            phases: JSON.stringify(checklist.phases),
+            submitted_by: null,
+            status: 'pending',
+          });
+          alert('Submitted for review! An admin will approve it shortly.');
         }
-        alert(`Also imported ${Object.keys(variants).length} sub-checklist(s): ${Object.keys(variants).join(', ')}`);
       }
 
       setIsModalOpen(false);
