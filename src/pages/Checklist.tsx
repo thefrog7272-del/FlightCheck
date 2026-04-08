@@ -34,9 +34,9 @@ export function Checklist() {
   // Compute these early — needed both by voice hook (below) and normal render logic.
   const variantKey = activeVariant !== 'Standard' && planeId ? `${planeId}::${activeVariant}` : null;
   const baseChecklist = planeId ? checklists[planeId] : null;
-  console.log('[Checklist] planeId:', planeId, 'variantKey:', variantKey, 'checklists keys:', Object.keys(checklists), 'baseChecklist found:', !!baseChecklist);
+  console.log('[Checklist] planeId:', planeId, 'variantKey:', variantKey, 'checklists keys (sample):', Object.keys(checklists).slice(0, 20), 'baseChecklist found:', !!baseChecklist, 'baseChecklist phases:', baseChecklist?.phases.length);
   const checklist = (variantKey ? checklists[variantKey] : null) ?? baseChecklist;
-  console.log('[Checklist] final checklist found:', !!checklist, 'phases:', checklist?.phases.length);
+  console.log('[Checklist] final checklist:', !!checklist, 'phases:', checklist?.phases.length);
   const checkedItems = planeId ? getProgress(planeId, activeVariant) : {};
 
   // Voice checklist — hook must be called unconditionally (before any early return).
