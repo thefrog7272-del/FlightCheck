@@ -68,10 +68,15 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
 
   return (
     <>
-      <a
-        href={`/checklist/${plane.id}`}
+      <div
         className={styles.card}
         onContextMenu={handleContextMenu}
+        onClick={() => {
+          console.log('>>>> CLICK on card, navigating to:', `/checklist/${plane.id}`);
+          window.location.href = `/checklist/${plane.id}`;
+        }}
+        role="button"
+        tabIndex={0}
         aria-label={`Open ${plane.name} checklist`}
       >
         <div className={styles.imageWrapper}>
@@ -108,7 +113,7 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
           </div>
         )}
-      </a>
+      </div>
 
       {menuPos && (
         <div
