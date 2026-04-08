@@ -261,6 +261,7 @@ export function Home() {
   };
 
   const handleImport = async () => {
+    console.log('>>>> handleImport CALLED, csvInput length:', csvInput.length);
     try {
       if (!csvInput.trim()) {
         alert('Please paste or upload CSV content first.');
