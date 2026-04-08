@@ -174,3 +174,87 @@ function parseCsvRow(row: string): string[] {
   result.push(current);
   return result;
 }
+
+/**
+ * JSON checklist format:
+ * {
+ *   "aircraft": "Beechcraft Baron 58",
+ *   "nickname": "Optional category name",
+ *   "checklist": [
+ *     {
+ *       "title": "Pre-Flight",
+ *       "items": [
+ *         { "callout": "Item label", "response": "expectedState" }
+ *       ]
+ *     }
+ *   ]
+ * }
+ */
+export function parsePlaneJson(jsonContent: string): { plane: Plane; checklist: PlaneChecklist; categories: Record<string, PlaneChecklist> } {
+  const data = JSON.parse(jsonContent);
+  
+  if (!data.checklist || !Array.isArray(data.checklist)) {
+    throw new Error('JSON must contain a "checklist" array');
+  }
+
+  const aircraftName = data.aircraft?.trim();
+  if (!aircraftName) {
+    throw new Error('JSON must have an "aircraft" name');
+  }
+
+  const planeId = aircraftName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  
+  const plane: Plane = {
+    id: planeId,
+    name: aircraftName,
+    manufacturer: data.manufacturer?.trim() || 'Unknown',
+    type: data.type?.trim() || 'GA',
+    image: data.image?.trim() || '',
+  };
+
+  const phases: ChecklistPhase[] = [];
+  
+  for (const section of data.checklist) {
+    const phaseTitle = section.title?.trim();
+    if (!phaseTitle) continue;
+    
+    const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const items: ChecklistItem[] = [];
+    
+    if (section.items && Array.isArray(section.items)) {
+      for (const item of section.items) {
+        const label = item.callout?.trim();
+        if (!label) continue;
+        
+        const itemId = `${phaseId}-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${items.length}`;
+        
+        items.push({
+          id: itemId,
+          label,
+          expectedState: item.response?.trim() || undefined,
+        });
+      }
+    }
+    
+    if (items.length > 0) {
+      phases.push({ id: phaseId, title: phaseTitle, items });
+    }
+  }
+
+  if (phases.length === 0) {
+    throw new Error('No valid checklist phases found in JSON');
+  }
+
+  const checklist: PlaneChecklist = { planeId, phases };
+
+  const categories: Record<string, PlaneChecklist> = {};
+
+  const categoryName = data.nickname?.trim();
+  if (categoryName && categoryName.toLowerCase() !== 'standard' && categoryName.toLowerCase() !== 'normal') {
+    categories[categoryName] = { planeId, phases: [...phases] };
+  }
+
+  console.log(`[FlightCheck JSON] Parsed: "${plane.name}" → ${phases.length} phases, ${phases.reduce((s, p) => s + p.items.length, 0)} items. Categories: ${Object.keys(categories).join(', ') || 'none'}`);
+
+  return { plane, checklist, categories };
+}

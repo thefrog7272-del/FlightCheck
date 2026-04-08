@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parsePlaneCsv } from '../../utils/csvParser';
+import { parsePlaneCsv, parsePlaneJson } from '../../utils/csvParser';
 import type { Plane, PlaneChecklist } from '../../data/types';
 import styles from './AdminPlaneForm.module.css';
 
@@ -38,8 +38,18 @@ export function AdminPlaneForm({ initialPlane, initialChecklist, onSubmit, onCan
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const json = JSON.parse(reader.result as string);
-        if (Array.isArray(json) && json.length > 0 && json[0].phase) {
+        const content = reader.result as string;
+        const json = JSON.parse(content);
+        
+        // Check for the new JSON format with "checklist" array
+        if (Array.isArray(json.checklist) && json.checklist.length > 0 && json.checklist[0].title) {
+          const parsed = parsePlaneJson(content);
+          setChecklist(parsed.checklist);
+          if (parsed.plane.name && !name) setName(parsed.plane.name);
+          if (parsed.plane.manufacturer && !manufacturer) setManufacturer(parsed.plane.manufacturer);
+          if (parsed.plane.type && !type) setType(parsed.plane.type);
+          if (parsed.plane.image && !image) setImage(parsed.plane.image);
+        } else if (Array.isArray(json) && json.length > 0 && json[0].phase) {
           // Flat array format
           const phasesMap = new Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; reference?: string }[] }>();
           for (const row of json) {
