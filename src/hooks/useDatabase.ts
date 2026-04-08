@@ -94,7 +94,13 @@ function loadFromLocalStorage(): DbState {
 }
 
 function saveToLocalStorage(data: DbState) {
-  try { localStorage.setItem(FALLBACK_KEY, JSON.stringify(data)); } catch { /* quota exceeded */ }
+  console.log('>>>> saveToLocalStorage called, keys:', Object.keys(data));
+  try { 
+    localStorage.setItem(FALLBACK_KEY, JSON.stringify(data)); 
+    console.log('>>>> localStorage.setItem succeeded');
+  } catch (e) { 
+    console.log('>>>> localStorage.setItem failed:', e); 
+  } 
 }
 
 export function useDatabase() {
@@ -133,6 +139,7 @@ export function useDatabase() {
 
   const updateKey = useCallback(
     <K extends keyof DbState>(key: K, value: DbState[K]) => {
+      console.log('>>>> useDatabase updateKey called:', key, 'value type:', typeof value);
       // Update local state immediately and always persist to localStorage as a
       // reliable fallback (the static Amplify deployment has no /api backend, so
       // localStorage is the only durable store; always writing it avoids losing
