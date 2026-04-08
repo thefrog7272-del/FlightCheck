@@ -144,35 +144,35 @@ export function useFleet() {
     updateKey('checklist_progress', { ...progressData, [key]: progress });
   }, [progressData, updateKey]);
 
-  // Variant management
-  const getVariants = useCallback((planeId: string): string[] => {
-    const variants = ['Standard'];
+  // Category management
+  const getCategories = useCallback((planeId: string): string[] => {
+    const categories = ['Standard'];
     const seen = new Set<string>();
     // Check both shared (Supabase) and custom (localStorage) checklists
     for (const source of [sharedChecklists, customChecklists]) {
       for (const key of Object.keys(source)) {
         if (key.startsWith(`${planeId}::`) && !seen.has(key)) {
           seen.add(key);
-          variants.push(key.split('::')[1]);
+          categories.push(key.split('::')[1]);
         }
       }
     }
-    return variants;
+    return categories;
   }, [sharedChecklists, customChecklists]);
 
-  const addVariant = useCallback((planeId: string, variantName: string, checklist: PlaneChecklist) => {
-    const variantKey = `${planeId}::${variantName}`;
-    updateKey('custom_checklists', { ...customChecklists, [variantKey]: { ...checklist, planeId: variantKey } });
+  const addCategory = useCallback((planeId: string, categoryName: string, checklist: PlaneChecklist) => {
+    const categoryKey = `${planeId}::${categoryName}`;
+    updateKey('custom_checklists', { ...customChecklists, [categoryKey]: { ...checklist, planeId: categoryKey } });
   }, [customChecklists, updateKey]);
 
-  const deleteVariant = useCallback((planeId: string, variantName: string) => {
-    if (variantName === 'Standard') return;
-    const variantKey = `${planeId}::${variantName}`;
+  const deleteCategory = useCallback((planeId: string, categoryName: string) => {
+    if (categoryName === 'Standard') return;
+    const categoryKey = `${planeId}::${categoryName}`;
     const next = { ...customChecklists };
-    delete next[variantKey];
+    delete next[categoryKey];
     updateKey('custom_checklists', next);
     const progress = { ...progressData };
-    delete progress[variantKey];
+    delete progress[categoryKey];
     updateKey('checklist_progress', progress);
   }, [customChecklists, progressData, updateKey]);
 
@@ -271,9 +271,9 @@ export function useFleet() {
     setNote,
     getTimerData,
     saveTimerBest,
-    getVariants,
-    addVariant,
-    deleteVariant,
+    getCategories,
+    addCategory,
+    deleteCategory,
     refreshSharedPlanes,
   };
 }

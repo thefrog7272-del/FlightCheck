@@ -12,17 +12,17 @@ const FIXED_TABS = [
 
 interface VariantSelectorProps {
   planeId: string;
-  variants: string[];
-  activeVariant: string;
+  categories: string[];
+  activeCategory: string;
   onDuplicate: () => void;
-  onDelete: (variant: string) => void;
+  onDelete: (category: string) => void;
   isEditing: boolean;
   children?: ReactNode;
 }
 
-export function VariantSelector({ planeId, variants, activeVariant, onDelete, isEditing, children }: VariantSelectorProps) {
+export function VariantSelector({ planeId, categories, activeCategory, onDelete, isEditing, children }: VariantSelectorProps) {
   const visibleTabs = FIXED_TABS.filter(
-    tab => tab.variant === 'Standard' || variants.includes(tab.variant),
+    tab => tab.variant === 'Standard' || categories.includes(tab.variant),
   );
 
   // Hide the bar when only Normal exists, not editing, and no extra children (e.g. voice button)
@@ -31,7 +31,7 @@ export function VariantSelector({ planeId, variants, activeVariant, onDelete, is
   return (
     <div className={styles.tabBar}>
       {visibleTabs.map(({ label, variant, color }) => {
-        const isActive = activeVariant === variant;
+        const isActive = activeCategory === variant;
         const href =
           variant === 'Standard'
             ? `/checklist/${planeId}`
