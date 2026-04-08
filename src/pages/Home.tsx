@@ -265,10 +265,10 @@ export function Home() {
         alert('Please paste or upload CSV content first.');
         return;
       }
-      const { plane, checklist, variants } = parsePlaneCsv(csvInput);
-      console.log('[FlightCheck Import] Parsed plane:', plane, 'checklist phases:', checklist.phases.length, 'variants:', Object.keys(variants));
+      const { plane, checklist, categories } = parsePlaneCsv(csvInput);
+      console.log('[FlightCheck Import] Parsed plane:', plane, 'checklist phases:', checklist.phases.length, 'categories:', Object.keys(categories));
 
-      if (checklist.phases.length === 0 && Object.keys(variants).length === 0) {
+      if (checklist.phases.length === 0 && Object.keys(categories).length === 0) {
         alert('CSV was parsed but no checklist phases/items were found. Check your CSV format.');
         return;
       }
@@ -287,16 +287,16 @@ export function Home() {
       addPlane(plane, checklist);
       console.log('[FlightCheck Import] After addPlane, planes now:', planes.map(p => p.id));
       
-      // Import categories/variants from the CSV
-      const categoryKeys = Object.keys(variants);
+      // Import categories from the CSV
+      const categoryKeys = Object.keys(categories);
       console.log('[FlightCheck Import] Adding categories:', categoryKeys);
       for (const categoryName of categoryKeys) {
-        const categoryChecklist = variants[categoryName];
+        const categoryChecklist = categories[categoryName];
         console.log('[FlightCheck Import] Adding category:', categoryName, 'phases:', categoryChecklist.phases.map(p => p.title));
         addCategory(plane.id, categoryName, categoryChecklist);
       }
 
-      const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (variants[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
+      const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (categories[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
       
       // Delay alert and close to let state update
       setTimeout(() => {
@@ -376,11 +376,11 @@ export function Home() {
           const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
           const checklist = { planeId, phases };
 
-          // Build variant checklists
-          const jsonVariants: Record<string, { planeId: string; phases: typeof phases }> = {};
+          // Build category checklists
+          const jsonCategories: Record<string, { planeId: string; phases: typeof phases }> = {};
           for (const [key, phasesMap] of categoryPhaseMaps) {
             if (key === MAIN_KEY) continue;
-            jsonVariants[key] = {
+            jsonCategories[key] = {
               planeId,
               phases: Array.from(phasesMap.values()),
             };
@@ -393,7 +393,7 @@ export function Home() {
               await importPlane(plane, checklist);
             }
             addCategory(planeId, category, checklist);
-            setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
+            setImportSummary(`Imported "${name}" category "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
           } else {
             await importPlane(plane, checklist);
             setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
@@ -415,15 +415,15 @@ export function Home() {
             }
           }
 
-          // Auto-import category-based variants from JSON
-          for (const [variantName, variantChecklist] of Object.entries(jsonVariants)) {
+          // Auto-import category-based checklists from JSON
+          for (const [categoryName, categoryChecklist] of Object.entries(jsonCategories)) {
             if (!planes.some(p => p.id === planeId)) {
               await importPlane(plane, checklist);
             }
-            addCategory(planeId, variantName, variantChecklist);
+            addCategory(planeId, categoryName, categoryChecklist);
           }
-          if (Object.keys(jsonVariants).length > 0) {
-            setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`);
+          if (Object.keys(jsonCategories).length > 0) {
+            setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonCategories).length} category(ies): ${Object.keys(jsonCategories).join(', ')}`);
           }
 
           
@@ -633,21 +633,21 @@ export function Home() {
 
       {showFileImport && (
         <FileImportModal
-          onImport={async (plane, checklist, variants) => {
+          onImport={async (plane, checklist, categories) => {
             await importPlane(plane, checklist);
-            // Import any variants (e.g. Reference Tables) returned by the Lambda
-            if (variants && Object.keys(variants).length > 0) {
-              for (const [variantName, variantChecklist] of Object.entries(variants)) {
+            // Import any categories (e.g. Reference Tables) returned by the Lambda
+            if (categories && Object.keys(categories).length > 0) {
+              for (const [categoryName, categoryChecklist] of Object.entries(categories)) {
                 if (isAdmin) {
                   const allCl = await listAllSharedChecklists();
-                  const existing = allCl.find(c => c.plane_id === plane.id && c.category === variantName);
+                  const existing = allCl.find(c => c.plane_id === plane.id && c.category === categoryName);
                   if (existing) {
-                    await updateSharedChecklist(existing.id, JSON.stringify(variantChecklist.phases));
+                    await updateSharedChecklist(existing.id, JSON.stringify(categoryChecklist.phases));
                   } else {
-                    await createSharedChecklist({ plane_id: plane.id, category: variantName, phases: JSON.stringify(variantChecklist.phases) });
+                    await createSharedChecklist({ plane_id: plane.id, category: categoryName, phases: JSON.stringify(categoryChecklist.phases) });
                   }
                 } else {
-                  addCategory(plane.id, variantName, variantChecklist);
+                  addCategory(plane.id, categoryName, categoryChecklist);
                 }
               }
             }

@@ -15,7 +15,7 @@ import type { Plane, PlaneChecklist, ChecklistPhase, ChecklistItem } from '../da
  *
  * @param csvContent The raw CSV text content.
  */
-export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: PlaneChecklist; variants: Record<string, PlaneChecklist> } {
+export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: PlaneChecklist; categories: Record<string, PlaneChecklist> } {
   const lines = csvContent.split(/\r?\n/).filter(line => line.trim() !== '');
   if (lines.length < 2) throw new Error('CSV must contain a header and at least one data row.');
 
@@ -121,21 +121,21 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     phases: Array.from(mainPhasesMap.values())
   };
 
-  // Build variant checklists from all other keys
-  const variants: Record<string, PlaneChecklist> = {};
+  // Build category checklists from all other keys
+  const categories: Record<string, PlaneChecklist> = {};
   for (const [key, phasesMap] of categoryPhaseMaps) {
     if (key === MAIN_KEY) continue;
-    variants[key] = {
+    categories[key] = {
       planeId: plane.id,
       phases: Array.from(phasesMap.values()),
     };
   }
 
   const mainItems = checklist.phases.reduce((s, p) => s + p.items.length, 0);
-  const variantNames = Object.keys(variants);
-  console.log(`[FlightCheck CSV] Parsed: "${plane.name}" → main checklist: ${checklist.phases.length} phases, ${mainItems} items. Variants: ${variantNames.length > 0 ? variantNames.join(', ') : 'none'}`);
+  const categoryNames = Object.keys(categories);
+  console.log(`[FlightCheck CSV] Parsed: "${plane.name}" → main checklist: ${checklist.phases.length} phases, ${mainItems} items. Categories: ${categoryNames.length > 0 ? categoryNames.join(', ') : 'none'}`);
 
-  return { plane, checklist, variants };
+  return { plane, checklist, categories };
 }
 
 /**

@@ -68,12 +68,17 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
 
   return (
     <>
-      <Link
-        to={`/checklist/${plane.id}`}
-        className={styles.card}
-        onContextMenu={handleContextMenu}
-        aria-label={`Open ${plane.name} checklist`}
-      >
+<Link
+          to={`/checklist/${plane.id}`}
+          className={styles.card}
+          onContextMenu={handleContextMenu}
+          onClick={(e) => {
+            e.preventDefault();
+            console.log('[PlaneCard] Navigating to:', `/checklist/${plane.id}`);
+            console.log('[PlaneCard] Plane ID:', plane.id);
+          }}
+          aria-label={`Open ${plane.name} checklist`}
+        >
         <div className={styles.imageWrapper}>
           {imgError || !plane.image ? (
             <div className={styles.imagePlaceholder}>
