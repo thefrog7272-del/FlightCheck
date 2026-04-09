@@ -177,9 +177,6 @@ const handleDeletePlane = useCallback(async (planeId: string) => {
     );
     if (!confirmed) return;
 
-    // Variable to track if the *network* deletion succeeded
-    let wasDeletedOnBackend = false;
-
     if (isAdmin) {
       try {
         // A. Attempt to delete from shared database (Supabase)
@@ -194,9 +191,6 @@ listAllSharedChecklists()]);
         // B. Clean up general shared cache if successful
         try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
         await refreshSharedPlanes();
-
-        wasDeletedOnBackend = true;
-
       } catch (error) {
         console.log('[FlightCheck] Supabase delete failed, falling back to localStorage:', error);
         // If the network fails, we still want to proceed with local cleanup
