@@ -168,11 +168,13 @@ export function Home() {
   }, [confirm, deletePlane]);
 
   const handleDeletePlane = useCallback(async (planeId: string) => {
+    console.log('[FlightCheck] handleDeletePlane called for:', planeId, 'isAdmin:', isAdmin);
     const confirmed = await confirm(
       'Delete Plane',
       'Permanently delete this plane and its checklist data? This cannot be undone.',
       { confirmLabel: 'Delete', destructive: true }
     );
+    console.log('[FlightCheck] Delete confirmed:', confirmed);
     if (!confirmed) return;
 
     let deleted = false;
@@ -182,6 +184,7 @@ export function Home() {
         const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
         const planeRecord = planeRecords.find(p => p.plane_id === planeId);
         const checklistRecord = checklistRecords.find(c => c.plane_id === planeId);
+        console.log('[FlightCheck] Supabase delete - planeRecord:', !!planeRecord, 'checklistRecord:', !!checklistRecord);
         if (planeRecord) await deleteSharedPlane(planeRecord.id);
         if (checklistRecord) await deleteSharedChecklist(checklistRecord.id);
         try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
@@ -194,7 +197,7 @@ export function Home() {
     
     if (!deleted) {
       console.log('[FlightCheck] Deleting from localStorage:', planeId);
-      await deletePlane(planeId);
+      deletePlane(planeId);
     }
   }, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
 
