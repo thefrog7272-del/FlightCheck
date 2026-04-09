@@ -94,15 +94,14 @@ export function useFleet() {
       console.log('>>>> [useFleet addPlane] New customPlanes will be:', newCustomPlanes.map(p => p.id));
       updateKey('custom_planes', newCustomPlanes);
     }
-    console.log('>>>> [useFleet addPlane] Saving checklist for:', newPlane.id, 'current customChecklists length:', Object.keys(customChecklists).length);
-    const newChecklists = { ...customChecklists, [newPlane.id]: newChecklist };
-    console.log('>>>> [useFleet addPlane] New customChecklists will have keys:', Object.keys(newChecklists));
-    updateKey('custom_checklists', newChecklists);
+    console.log('>>>> [useFleet addPlane] Saving checklist for:', newPlane.id);
+    // Use functional update to avoid stale closure over customChecklists
+    updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => ({ ...prev, [newPlane.id]: newChecklist }));
   }, [customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
   const updateChecklist = useCallback((planeId: string, checklist: PlaneChecklist) => {
-    updateKey('custom_checklists', { ...customChecklists, [planeId]: checklist });
-  }, [customChecklists, updateKey]);
+    updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => ({ ...prev, [planeId]: checklist }));
+  }, [updateKey]);
 
   const updatePlaneImage = useCallback((planeId: string, newImage: string) => {
     const isStatic = sharedPlanes.some(p => p.id === planeId);
@@ -120,9 +119,12 @@ export function useFleet() {
         updateKey('deleted_static_planes', [...deletedStaticIds, planeId]);
         updateKey('custom_planes', [...customPlanes, updatedPlane]);
         // Copy the static checklist to custom so it's preserved
-        if (sharedChecklists[planeId] && !customChecklists[planeId]) {
-          updateKey('custom_checklists', { ...customChecklists, [planeId]: sharedChecklists[planeId] });
-        }
+        updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => {
+          if (!prev[planeId] && sharedChecklists[planeId]) {
+            return { ...prev, [planeId]: sharedChecklists[planeId] };
+          }
+          return prev;
+        });
       }
     } else {
       updateKey('custom_planes', customPlanes.map(p => p.id === planeId ? updatedPlane : p));
@@ -130,19 +132,23 @@ export function useFleet() {
   }, [sharedPlanes, sharedChecklists, allPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
   const deletePlane = useCallback((planeId: string) => {
-    console.log('[useFleet deletePlane] Deleting plane:', planeId, 'customPlanes has it:', customPlanes.some(p => p.id === planeId));
+    console.log('[useFleet deletePlane] Deleting plane:', planeId);
     const isStatic = sharedPlanes.some(p => p.id === planeId);
     console.log('[useFleet deletePlane] isStatic:', isStatic);
     if (isStatic) {
       updateKey('deleted_static_planes', [...deletedStaticIds, planeId]);
     } else {
-      updateKey('custom_planes', customPlanes.filter(p => p.id !== planeId));
-      const next = { ...customChecklists };
-      delete next[planeId];
-      console.log('[useFleet deletePlane] Deleted checklist for:', planeId, 'remaining checklists:', Object.keys(next));
-      updateKey('custom_checklists', next);
+      // Use functional update to avoid stale closure over customPlanes
+      updateKey('custom_planes', (prev: Plane[]) => prev.filter(p => p.id !== planeId));
+      // Use functional update to avoid stale closure over customChecklists
+      updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => {
+        const next = { ...prev };
+        delete next[planeId];
+        console.log('[useFleet deletePlane] Deleted checklist for:', planeId, 'remaining checklists:', Object.keys(next));
+        return next;
+      });
     }
-  }, [sharedPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
+  }, [sharedPlanes, deletedStaticIds, updateKey]);
 
   const resetFleet = useCallback(() => {
     resetAll();
@@ -179,21 +185,23 @@ export function useFleet() {
 
   const addCategory = useCallback((planeId: string, categoryName: string, checklist: PlaneChecklist) => {
     const categoryKey = `${planeId}::${categoryName}`;
-    console.log('[useFleet addCategory] Adding category:', categoryName, 'for plane:', planeId, 'categoryKey:', categoryKey, 'current customChecklists keys:', Object.keys(customChecklists));
-    updateKey('custom_checklists', { ...customChecklists, [categoryKey]: { ...checklist, planeId: categoryKey } });
-    console.log('[useFleet addCategory] After update, customChecklists keys:', Object.keys({ ...customChecklists, [categoryKey]: { ...checklist, planeId: categoryKey } }));
-  }, [customChecklists, updateKey]);
+    console.log('[useFleet addCategory] Adding category:', categoryName, 'for plane:', planeId, 'categoryKey:', categoryKey);
+    // Use functional update to avoid stale closure over customChecklists
+    updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => ({ ...prev, [categoryKey]: { ...checklist, planeId: categoryKey } }));
+  }, [updateKey]);
 
   const deleteCategory = useCallback((planeId: string, categoryName: string) => {
     if (categoryName === 'Standard') return;
     const categoryKey = `${planeId}::${categoryName}`;
-    const next = { ...customChecklists };
-    delete next[categoryKey];
-    updateKey('custom_checklists', next);
+    updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => {
+      const next = { ...prev };
+      delete next[categoryKey];
+      return next;
+    });
     const progress = { ...progressData };
     delete progress[categoryKey];
     updateKey('checklist_progress', progress);
-  }, [customChecklists, progressData, updateKey]);
+  }, [progressData, updateKey]);
 
   const exportFleet = useCallback(() => {
     const backup = {

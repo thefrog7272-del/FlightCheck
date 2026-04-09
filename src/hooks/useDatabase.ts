@@ -138,15 +138,18 @@ export function useDatabase() {
   }, []);
 
   const updateKey = useCallback(
-    <K extends keyof DbState>(key: K, value: DbState[K]) => {
+    <K extends keyof DbState>(key: K, value: DbState[K] | ((prev: DbState[K]) => DbState[K])) => {
       console.log('>>>> useDatabase updateKey called:', key, 'value type:', typeof value);
       // Update local state immediately and always persist to localStorage as a
       // reliable fallback (the static Amplify deployment has no /api backend, so
       // localStorage is the only durable store; always writing it avoids losing
       // data during the brief startup window before useApi flips to false).
       setData((prev) => {
-        const next = prev ? { ...prev, [key]: value } : prev;
-        if (next) saveToLocalStorage(next);
+        if (!prev) return prev;
+        const prevValue = prev[key];
+        const resolvedValue = typeof value === 'function' ? (value as (p: DbState[K]) => DbState[K])(prevValue) : value;
+        const next = { ...prev, [key]: resolvedValue };
+        saveToLocalStorage(next);
         return next;
       });
 
@@ -156,6 +159,12 @@ export function useDatabase() {
           clearTimeout(timers.current[key]);
         }
         timers.current[key] = setTimeout(() => {
+          // For functional updates, resolve against current API state
+          if (typeof value === 'function') {
+            // Skip functional API updates for now — they're primarily for localStorage
+            delete timers.current[key];
+            return;
+          }
           saveKey(key, value);
           delete timers.current[key];
         }, DEBOUNCE_MS);

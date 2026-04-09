@@ -167,49 +167,39 @@ export function Home() {
     }
   }, [confirm, deletePlane]);
 
-  
-const handleDeletePlane = useCallback(async (planeId: string) => {
-    // 1. Confirmation check
+  const handleDeletePlane = useCallback(async (planeId: string) => {
+    console.log('[FlightCheck] handleDeletePlane called for:', planeId, 'isAdmin:', isAdmin);
     const confirmed = await confirm(
       'Delete Plane',
       'Permanently delete this plane and its checklist data? This cannot be undone.',
       { confirmLabel: 'Delete', destructive: true }
     );
+    console.log('[FlightCheck] Delete confirmed:', confirmed);
     if (!confirmed) return;
 
+    let deleted = false;
     if (isAdmin) {
       try {
-        // A. Attempt to delete from shared database (Supabase)
-        const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(),
-listAllSharedChecklists()]);
+        // Delete from shared database (Supabase)
+        const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(), listAllSharedChecklists()]);
         const planeRecord = planeRecords.find(p => p.plane_id === planeId);
         const checklistRecord = checklistRecords.find(c => c.plane_id === planeId);
-
+        console.log('[FlightCheck] Supabase delete - planeRecord:', !!planeRecord, 'checklistRecord:', !!checklistRecord);
         if (planeRecord) await deleteSharedPlane(planeRecord.id);
         if (checklistRecord) await deleteSharedChecklist(checklistRecord.id);
-
-        // B. Clean up general shared cache if successful
         try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
         await refreshSharedPlanes();
+        deleted = true;
       } catch (error) {
         console.log('[FlightCheck] Supabase delete failed, falling back to localStorage:', error);
-        // If the network fails, we still want to proceed with local cleanup
       }
     }
-
-    // =====================================================================
-    // 2. LOCAL CLEANUP (THIS HAPPENS EVERY TIME, REGARDLESS OF ADMIN STATUS)
-    // =====================================================================
-
-    // Always attempt local cleanup regardless of backend success/failure.
-    try {
-        await deletePlane(planeId);
-    } catch (error) {
-        console.error("Error during local plane deletion:", error);
+    
+    if (!deleted) {
+      console.log('[FlightCheck] Deleting from localStorage:', planeId);
+      deletePlane(planeId);
     }
-
-}, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
-
+  }, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
 
   const handleShowAll = useCallback(async () => {
     const confirmed = await confirm(
