@@ -132,13 +132,14 @@ export function useFleet() {
   }, [sharedPlanes, sharedChecklists, allPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
   const deletePlane = useCallback((planeId: string) => {
-    console.log('[useFleet deletePlane] Deleting plane:', planeId, 'customPlanes has it:', customPlanes.some(p => p.id === planeId));
+    console.log('[useFleet deletePlane] Deleting plane:', planeId);
     const isStatic = sharedPlanes.some(p => p.id === planeId);
     console.log('[useFleet deletePlane] isStatic:', isStatic);
     if (isStatic) {
       updateKey('deleted_static_planes', [...deletedStaticIds, planeId]);
     } else {
-      updateKey('custom_planes', customPlanes.filter(p => p.id !== planeId));
+      // Use functional update to avoid stale closure over customPlanes
+      updateKey('custom_planes', (prev: Plane[]) => prev.filter(p => p.id !== planeId));
       // Use functional update to avoid stale closure over customChecklists
       updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => {
         const next = { ...prev };
@@ -147,7 +148,7 @@ export function useFleet() {
         return next;
       });
     }
-  }, [sharedPlanes, customPlanes, customChecklists, deletedStaticIds, updateKey]);
+  }, [sharedPlanes, deletedStaticIds, updateKey]);
 
   const resetFleet = useCallback(() => {
     resetAll();
