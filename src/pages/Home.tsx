@@ -265,10 +265,10 @@ export function Home() {
         alert('Please paste or upload CSV content first.');
         return;
       }
-      const { plane, checklist, variants } = parsePlaneCsv(csvInput);
-      console.log('[FlightCheck Import] Parsed plane:', plane, 'checklist phases:', checklist.phases.length, 'variants:', Object.keys(variants));
+      const { plane, checklist, categories } = parsePlaneCsv(csvInput);
+      console.log('[FlightCheck Import] Parsed plane:', plane, 'checklist phases:', checklist.phases.length, 'categories:', Object.keys(categories));
 
-      if (checklist.phases.length === 0 && Object.keys(variants).length === 0) {
+      if (checklist.phases.length === 0 && Object.keys(categories).length === 0) {
         alert('CSV was parsed but no checklist phases/items were found. Check your CSV format.');
         return;
       }
@@ -287,16 +287,16 @@ export function Home() {
       addPlane(plane, checklist);
       console.log('[FlightCheck Import] After addPlane, planes now:', planes.map(p => p.id));
       
-      // Import categories/variants from the CSV
-      const categoryKeys = Object.keys(variants);
+      // Import categories from the CSV
+      const categoryKeys = Object.keys(categories);
       console.log('[FlightCheck Import] Adding categories:', categoryKeys);
       for (const categoryName of categoryKeys) {
-        const categoryChecklist = variants[categoryName];
-        console.log('[FlightCheck Import] Adding category:', categoryName, 'phases:', categoryChecklist.phases.map(p => p.title));
+        const categoryChecklist = categories[categoryName];
+        console.log('[FlightCheck Import] Adding category:', categoryName, 'phases:', categoryChecklist.phases.map((p: { title: string }) => p.title));
         addCategory(plane.id, categoryName, categoryChecklist);
       }
 
-      const totalCategoryItems = categoryKeys.reduce((sum, cat) => sum + (variants[cat]?.phases.reduce((s, p) => s + p.items.length, 0) || 0), 0);
+      const totalCategoryItems = categoryKeys.reduce((sum: number, cat: string) => sum + (categories[cat]?.phases.reduce((s: number, p: { items: unknown[] }) => s + p.items.length, 0) || 0), 0);
       
       // Delay alert and close to let state update
       setTimeout(() => {

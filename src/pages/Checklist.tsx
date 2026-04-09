@@ -22,10 +22,14 @@ import { encodeChecklist } from '../utils/shareCodec';
 import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
+  console.log('>>>> CHECKLIST COMPONENT MOUNTED, planeId from params:', typeof window !== 'undefined' ? window.location.pathname : 'unknown');
   const { planeId, variantName: rawVariantName } = useParams();
   const activeVariant = rawVariantName ?? 'Standard';
   const navigate = useNavigate();
   const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getCategories, addCategory, deleteCategory } = useFleet();
+
+  // Force console log
+  console.log('>>>> CHECKLIST planeId=', planeId, 'checklist keys count=', Object.keys(checklists).length, 'key test=', planeId ? (checklists[planeId] ? 'FOUND' : 'NOT FOUND') : 'no id');
 
   useEffect(() => {
     if (planeId) trackRecentUse(planeId);
@@ -34,7 +38,10 @@ export function Checklist() {
   // Compute these early — needed both by voice hook (below) and normal render logic.
   const variantKey = activeVariant !== 'Standard' && planeId ? `${planeId}::${activeVariant}` : null;
   const baseChecklist = planeId ? checklists[planeId] : null;
+  console.log('[Checklist] baseChecklist for key', planeId, ':', baseChecklist ? 'found with ' + baseChecklist.phases.length + ' phases' : 'NOT FOUND');
+  console.log('[Checklist] planeId:', planeId, 'variantKey:', variantKey, 'checklists keys (sample):', Object.keys(checklists).slice(0, 20), 'baseChecklist found:', !!baseChecklist, 'baseChecklist phases:', baseChecklist?.phases.length);
   const checklist = (variantKey ? checklists[variantKey] : null) ?? baseChecklist;
+  console.log('[Checklist] final checklist:', !!checklist, 'phases:', checklist?.phases.length);
   const checkedItems = planeId ? getProgress(planeId, activeVariant) : {};
 
   // Voice checklist — hook must be called unconditionally (before any early return).
@@ -253,11 +260,14 @@ export function Checklist() {
     return () => clearTimeout(t);
   }, [voiceItemId, checklist]);
 
+  console.log('[Checklist] loading:', loading, 'plane:', !!plane, 'checklist:', !!checklist);
+
   if (loading) {
     return <div className={styles.container}><p>Loading...</p></div>;
   }
 
   if (!plane || !checklist) {
+    console.log('[Checklist] Redirecting - !plane:', !plane, '!checklist:', !checklist);
     return <Navigate to="/" replace />;
   }
 

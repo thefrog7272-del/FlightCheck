@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Plane } from '../data/types';
-import { Link } from 'react-router-dom';
 import styles from './PlaneCard.module.css';
 import { Plane as PlaneIcon, Star } from 'lucide-react';
 
@@ -63,15 +62,30 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
     e.preventDefault();
     e.stopPropagation();
     setMenuPos(null);
+    console.log('[PlaneCard] Delete clicked for:', plane.id);
     onDelete?.(plane.id);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      console.log('>>>> handleKeyDown fired for:', plane.id);
+      window.location.href = `/checklist/${plane.id}`;
+    }
   };
 
   return (
     <>
-      <Link
-        to={`/checklist/${plane.id}`}
+      <div
         className={styles.card}
+        style={{ cursor: 'pointer', zIndex: 1 }}
         onContextMenu={handleContextMenu}
+        onClick={() => {
+          console.log('>>>> CLICK fired for:', plane.id);
+          window.location.href = `/checklist/${plane.id}`;
+        }}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
         aria-label={`Open ${plane.name} checklist`}
       >
         <div className={styles.imageWrapper}>
@@ -108,7 +122,7 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
           </div>
         )}
-      </Link>
+      </div>
 
       {menuPos && (
         <div

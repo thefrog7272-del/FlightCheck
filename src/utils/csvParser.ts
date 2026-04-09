@@ -15,7 +15,7 @@ import type { Plane, PlaneChecklist, ChecklistPhase, ChecklistItem } from '../da
  *
  * @param csvContent The raw CSV text content.
  */
-export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: PlaneChecklist; variants: Record<string, PlaneChecklist> } {
+export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: PlaneChecklist; categories: Record<string, PlaneChecklist> } {
   const lines = csvContent.split(/\r?\n/).filter(line => line.trim() !== '');
   if (lines.length < 2) throw new Error('CSV must contain a header and at least one data row.');
 
@@ -59,7 +59,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     const minCols = Math.max(col.name, col.phase, col.item) + 1;
     if (values.length < minCols) continue;
 
-    const name = values[col.name]?.trim() || planeName;
+    const name = values[col.name]?.trim();
     const manufacturer = col.manufacturer !== -1 && values[col.manufacturer] ? values[col.manufacturer].trim() : planeManufacturer;
     const type = col.type !== -1 && values[col.type] ? values[col.type].trim() : planeType;
     const image = col.image !== -1 && values[col.image] ? values[col.image].trim() : planeImage;
@@ -77,6 +77,7 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
 
     // Track plane info from first non-empty row
     if (!planeName && name) {
+      console.log('[CSV Parser] Setting plane info:', { name, manufacturer, type, image });
       planeName = name;
       planeManufacturer = manufacturer;
       planeType = type;
@@ -121,21 +122,21 @@ export function parsePlaneCsv(csvContent: string): { plane: Plane; checklist: Pl
     phases: Array.from(mainPhasesMap.values())
   };
 
-  // Build variant checklists from all other keys
-  const variants: Record<string, PlaneChecklist> = {};
+  // Build category checklists from all other keys
+  const categories: Record<string, PlaneChecklist> = {};
   for (const [key, phasesMap] of categoryPhaseMaps) {
     if (key === MAIN_KEY) continue;
-    variants[key] = {
+    categories[key] = {
       planeId: plane.id,
       phases: Array.from(phasesMap.values()),
     };
   }
 
   const mainItems = checklist.phases.reduce((s, p) => s + p.items.length, 0);
-  const variantNames = Object.keys(variants);
-  console.log(`[FlightCheck CSV] Parsed: "${plane.name}" → main checklist: ${checklist.phases.length} phases, ${mainItems} items. Variants: ${variantNames.length > 0 ? variantNames.join(', ') : 'none'}`);
+  const categoryNames = Object.keys(categories);
+  console.log(`[FlightCheck CSV] Parsed: "${plane.name}" → main checklist: ${checklist.phases.length} phases, ${mainItems} items. Categories: ${categoryNames.length > 0 ? categoryNames.join(', ') : 'none'}`);
 
-  return { plane, checklist, variants };
+  return { plane, checklist, categories };
 }
 
 /**
@@ -173,4 +174,88 @@ function parseCsvRow(row: string): string[] {
   }
   result.push(current);
   return result;
+}
+
+/**
+ * JSON checklist format:
+ * {
+ *   "aircraft": "Beechcraft Baron 58",
+ *   "nickname": "Optional category name",
+ *   "checklist": [
+ *     {
+ *       "title": "Pre-Flight",
+ *       "items": [
+ *         { "callout": "Item label", "response": "expectedState" }
+ *       ]
+ *     }
+ *   ]
+ * }
+ */
+export function parsePlaneJson(jsonContent: string): { plane: Plane; checklist: PlaneChecklist; categories: Record<string, PlaneChecklist> } {
+  const data = JSON.parse(jsonContent);
+  
+  if (!data.checklist || !Array.isArray(data.checklist)) {
+    throw new Error('JSON must contain a "checklist" array');
+  }
+
+  const aircraftName = data.aircraft?.trim();
+  if (!aircraftName) {
+    throw new Error('JSON must have an "aircraft" name');
+  }
+
+  const planeId = aircraftName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  
+  const plane: Plane = {
+    id: planeId,
+    name: aircraftName,
+    manufacturer: data.manufacturer?.trim() || 'Unknown',
+    type: data.type?.trim() || 'GA',
+    image: data.image?.trim() || '',
+  };
+
+  const phases: ChecklistPhase[] = [];
+  
+  for (const section of data.checklist) {
+    const phaseTitle = section.title?.trim();
+    if (!phaseTitle) continue;
+    
+    const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const items: ChecklistItem[] = [];
+    
+    if (section.items && Array.isArray(section.items)) {
+      for (const item of section.items) {
+        const label = item.callout?.trim();
+        if (!label) continue;
+        
+        const itemId = `${phaseId}-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${items.length}`;
+        
+        items.push({
+          id: itemId,
+          label,
+          expectedState: item.response?.trim() || undefined,
+        });
+      }
+    }
+    
+    if (items.length > 0) {
+      phases.push({ id: phaseId, title: phaseTitle, items });
+    }
+  }
+
+  if (phases.length === 0) {
+    throw new Error('No valid checklist phases found in JSON');
+  }
+
+  const checklist: PlaneChecklist = { planeId, phases };
+
+  const categories: Record<string, PlaneChecklist> = {};
+
+  const categoryName = data.nickname?.trim();
+  if (categoryName && categoryName.toLowerCase() !== 'standard' && categoryName.toLowerCase() !== 'normal') {
+    categories[categoryName] = { planeId, phases: [...phases] };
+  }
+
+  console.log(`[FlightCheck JSON] Parsed: "${plane.name}" → ${phases.length} phases, ${phases.reduce((s, p) => s + p.items.length, 0)} items. Categories: ${Object.keys(categories).join(', ') || 'none'}`);
+
+  return { plane, checklist, categories };
 }

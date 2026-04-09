@@ -6,7 +6,7 @@ import styles from './FileImportModal.module.css';
 import type { Plane, PlaneChecklist } from '../data/types';
 
 interface FileImportModalProps {
-  onImport: (plane: Plane, checklist: PlaneChecklist, variants?: Record<string, PlaneChecklist>) => Promise<void>;
+  onImport: (plane: Plane, checklist: PlaneChecklist, categories?: Record<string, PlaneChecklist>) => Promise<void>;
   onClose: () => void;
 }
 
@@ -20,7 +20,7 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
   const [rawText, setRawText] = useState('');
   const [planeName, setPlaneName] = useState('');
   const [manufacturer, setManufacturer] = useState('');
-  const [result, setResult] = useState<{ plane: Plane; checklist: PlaneChecklist; variants?: Record<string, PlaneChecklist> } | null>(null);
+  const [result, setResult] = useState<{ plane: Plane; checklist: PlaneChecklist; categories?: Record<string, PlaneChecklist> } | null>(null);
   const [warnings, setWarnings] = useState<ImportWarning[]>([]);
   const [importing, setImporting] = useState(false);
 
@@ -65,14 +65,14 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
           throw new Error(body.error || `Server error ${response.status}`);
         }
         const data = await response.json();
-        const { plane, checklist, variants } = data as {
+        const { plane, checklist, categories } = data as {
           plane: Plane;
           checklist: PlaneChecklist;
-          variants: Record<string, PlaneChecklist>;
+          categories: Record<string, PlaneChecklist>;
         };
         setPlaneName(plane.name);
         setManufacturer(plane.manufacturer || '');
-        setResult({ plane, checklist, variants });
+        setResult({ plane, checklist, categories });
         setWarnings(validateChecklist(checklist, plane));
         setStep('preview');
         return;
@@ -115,14 +115,14 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
       setResult(null);
       setWarnings([]);
     } else if (result) {
-      // Update plane name in the Lambda result
+        // Update plane name in the Lambda result
       const updatedId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       setResult(prev => prev ? {
         ...prev,
         plane: { ...prev.plane, name, id: updatedId },
         checklist: { ...prev.checklist, planeId: updatedId },
-        variants: prev.variants ? Object.fromEntries(
-          Object.entries(prev.variants).map(([k, v]) => [k, { ...v, planeId: updatedId }])
+        categories: prev.categories ? Object.fromEntries(
+          Object.entries(prev.categories).map(([k, v]) => [k, { ...v, planeId: updatedId }])
         ) : undefined,
       } : null);
     }
@@ -139,7 +139,7 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
     if (!result) return;
     setImporting(true);
     try {
-      await onImport(result.plane, result.checklist, result.variants);
+      await onImport(result.plane, result.checklist, result.categories);
     } finally {
       setImporting(false);
     }
@@ -150,7 +150,7 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
   const needsManualParse = !isLambdaResult && !!rawText;
 
   const totalItems = result?.checklist.phases.reduce((s, p) => s + p.items.length, 0) ?? 0;
-  const variantNames = result?.variants ? Object.keys(result.variants) : [];
+  const categoryNames = result?.categories ? Object.keys(result.categories) : [];
 
   return (
     <div className={styles.overlay}>
@@ -238,7 +238,7 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
                   <span>
                     Found {result.checklist.phases.length} phase{result.checklist.phases.length !== 1 ? 's' : ''},{' '}
                     {totalItems} items
-                    {variantNames.length > 0 && ` + ${variantNames.join(', ')}`}
+                    {categoryNames.length > 0 && ` + ${categoryNames.join(', ')}`}
                   </span>
                 </div>
                 <div className={styles.phaseList}>
@@ -248,11 +248,11 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
                       <span className={styles.itemCount}>{phase.items.length} items</span>
                     </div>
                   ))}
-                  {variantNames.map(name => (
+                  {categoryNames.map(name => (
                     <div key={name} className={styles.phasePreview} style={{ opacity: 0.7 }}>
                       <strong>{name} (sub-checklist)</strong>
                       <span className={styles.itemCount}>
-                        {result.variants![name].phases.reduce((s, p) => s + p.items.length, 0)} items
+                        {result.categories![name].phases.reduce((s, p) => s + p.items.length, 0)} items
                       </span>
                     </div>
                   ))}

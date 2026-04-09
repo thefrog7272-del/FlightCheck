@@ -170,7 +170,7 @@ export function AdminDashboard() {
           created++;
         }
 
-        // Find all checklists for this plane (including variants like ::Emergency)
+        // Find all checklists for this plane (including categories like ::Emergency)
         for (const [clKey, checklist] of Object.entries(staticChecklists)) {
           if (!clKey.startsWith(plane.id)) continue;
           if (existingClKeys.has(clKey)) {
