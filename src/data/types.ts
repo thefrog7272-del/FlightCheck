@@ -6,8 +6,8 @@ export interface Plane {
   manufacturer: string;
   image: string;
   type: string;
-  sim?: SimPlatform;
-}
+  sim?: SimPlatform
+ }
 
 export interface ChecklistItem {
   id: string;

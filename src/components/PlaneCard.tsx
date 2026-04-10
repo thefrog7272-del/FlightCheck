@@ -116,7 +116,7 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
           <span className={styles.manufacturer}>{plane.manufacturer}</span>
           <h3 className={styles.name}>{plane.name}</h3>
           <span className={styles.type}>{plane.type}</span>
-        </div>
+                </div>
         {typeof progress === 'number' && progress > 0 && (
           <div className={styles.progressBar}>
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
