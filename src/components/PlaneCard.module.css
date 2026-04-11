@@ -98,11 +98,14 @@
 .author {
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+a.author {
   text-decoration: underline;
   cursor: pointer;
 }
 
-.author:hover {
+a.author:hover {
   color: var(--accent);
 }
 
