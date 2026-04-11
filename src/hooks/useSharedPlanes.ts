@@ -37,6 +37,8 @@ function mapToPlane(record: SharedPlaneRecord): Plane {
     image: record.image,
     type: record.type,
     sim: (record.sim as Plane['sim']) || undefined,
+    author: record.author ?? undefined,
+    author_weblink: record.author_weblink ?? undefined,
   };
 }
 

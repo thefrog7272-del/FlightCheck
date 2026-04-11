@@ -95,6 +95,20 @@
   font-weight: 600;
 }
 
+.author {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+a.author {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+a.author:hover {
+  color: var(--accent);
+}
+
 .type {
   margin-top: 0.5rem;
   font-size: 0.75rem;
