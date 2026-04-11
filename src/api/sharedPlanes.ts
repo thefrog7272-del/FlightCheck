@@ -9,6 +9,8 @@ export interface SharedPlaneRecord {
   type: string;
   sim?: string | null;
   sort_order?: number | null;
+  author?: string | null;
+  author_weblink?: string | null;
 }
 
 export interface SharedChecklistRecord {
@@ -90,6 +92,8 @@ export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): P
         type: plane.type,
         sim: plane.sim,
         sort_order: plane.sort_order,
+        author: plane.author,
+        author_weblink: plane.author_weblink,
       }])
       .select()
       .single();
@@ -146,6 +150,8 @@ export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPl
         ...(plane.type !== undefined && { type: plane.type }),
         ...(plane.sim !== undefined && { sim: plane.sim }),
         ...(plane.sort_order !== undefined && { sort_order: plane.sort_order }),
+        ...(plane.author !== undefined && { author: plane.author }),
+        ...(plane.author_weblink !== undefined && { author_weblink: plane.author_weblink }),
       })
       .eq('id', id);
     if (error) throw error;

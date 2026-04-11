@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS shared_planes (
   image TEXT NOT NULL DEFAULT '',
   type TEXT NOT NULL,
   sim TEXT,
-  sort_order INT
+  sort_order INT,
+  author TEXT,
+  author_weblink TEXT
 );
 
 ALTER TABLE shared_planes ENABLE ROW LEVEL SECURITY;

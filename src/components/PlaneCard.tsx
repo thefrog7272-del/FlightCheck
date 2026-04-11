@@ -115,6 +115,21 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
         <div className={styles.content}>
           <span className={styles.manufacturer}>{plane.manufacturer}</span>
           <h3 className={styles.name}>{plane.name}</h3>
+          {plane.author && (
+            plane.author_weblink ? (
+              <a
+                href={plane.author_weblink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.author}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {plane.author}
+              </a>
+            ) : (
+              <span className={styles.author}>{plane.author}</span>
+            )
+          )}
           <span className={styles.type}>{plane.type}</span>
                 </div>
         {typeof progress === 'number' && progress > 0 && (

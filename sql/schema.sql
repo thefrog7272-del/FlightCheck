@@ -7,7 +7,9 @@ CREATE TABLE IF NOT EXISTS planes (
   image TEXT,
   type TEXT NOT NULL,
   sim_platform TEXT DEFAULT 'both',
-  sort_order INTEGER DEFAULT 0
+  sort_order INTEGER DEFAULT 0,
+  author TEXT,
+  author_weblink TEXT
 );
 
 CREATE TABLE IF NOT EXISTS checklists (
