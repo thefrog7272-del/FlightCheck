@@ -16,7 +16,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(!supabase);
+  const [loading, setLoading] = useState(!!supabase);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
