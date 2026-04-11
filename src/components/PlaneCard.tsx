@@ -122,7 +122,11 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.author}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(plane.author_weblink, '_blank', 'noopener,noreferrer');
+                }}
               >
                 {plane.author}
               </a>
