@@ -345,7 +345,7 @@ listAllSharedChecklists()]);
     return lower;
   };
 
-  const handleJsonImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleJsonImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
     setImportSummary(null);
@@ -518,22 +518,18 @@ listAllSharedChecklists()]);
         return summary;
       }
 
-      throw new Error('Unrecognized JSON format. Supported: flat array of items, { plane, checklist }, { phases }, or fleet backup.');
+      throw new Error('Unrecognized JSON format. Supported: flat array of items, { plane, checklist }, { phases }, fleet backup, or { aircraft, checklist }.');
     };
 
-    const processAllFiles = async () => {
-      const summaries: string[] = [];
-      for (const file of files) {
-        try {
-          summaries.push(await processFile(file));
-        } catch (error) {
-          summaries.push(`Error importing "${file.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
+    const summaries: string[] = [];
+    for (const file of files) {
+      try {
+        summaries.push(await processFile(file));
+      } catch (error) {
+        summaries.push(`Error importing "${file.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-      setImportSummary(summaries.join('\n'));
-    };
-
-    processAllFiles();
+    }
+    setImportSummary(summaries.join('\n'));
   };
 
   const sampleCsv = `name,category,phase,item,expectedState,reference
