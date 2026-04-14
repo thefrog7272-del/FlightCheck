@@ -469,52 +469,44 @@ listAllSharedChecklists()]);
 
       // Format 6: { aircraft, nickname, checklist: [{ title, type?, items: [{callout, response}] }] }
       // Used by some third-party checklist bundles (e.g. Cessna 208B Caravan Expert)
-      // Phases are grouped by their "type" field (default "normal"); abnormal/emergency become variants.
+      // All phases are imported into a single main checklist regardless of type,
+      // matching CSV behaviour where all procedures live in one flat checklist.
       if (json.aircraft && Array.isArray(json.checklist) && json.checklist[0]?.title) {
         const name = String(json.aircraft);
         const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
         const plane = { id: planeId, name, manufacturer: '', image: '', type: 'GA' as const };
 
-        const FMT6_MAIN = 'normal';
-        const fmt6CategoryPhases = new Map<string, Array<{ id: string; title: string; items: { id: string; label: string; expectedState?: string }[] }>>();
+        const typeCounts: Record<string, number> = {};
+        const phases = (json.checklist as Array<{ title: string; type?: string; items: Array<Record<string, unknown>> }>)
+          .map((phase, pi) => {
+            const phaseId = phase.title.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
+            const items = (phase.items ?? [])
+              .filter(item => item.callout)
+              .map((item, ii) => ({
+                id: `${phaseId}-${ii}`,
+                label: String(item.callout),
+                ...(item.response ? { expectedState: String(item.response) } : {}),
+              }));
+            if (items.length > 0 && phase.type) {
+              const t = normalizeCategory(phase.type);
+              typeCounts[t] = (typeCounts[t] ?? 0) + 1;
+            }
+            return { id: phaseId, title: phase.title, items };
+          })
+          .filter(p => p.items.length > 0);
 
-        for (const [pi, phase] of (json.checklist as Array<{ title: string; type?: string; items: Array<Record<string, unknown>> }>).entries()) {
-          const rawType = (phase.type as string | undefined) || 'normal';
-          const categoryKey = normalizeCategory(rawType);
-          const phaseId = phase.title.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
-          const items = (phase.items ?? [])
-            .filter(item => item.callout)
-            .map((item, ii) => ({
-              id: `${phaseId}-${ii}`,
-              label: String(item.callout),
-              ...(item.response ? { expectedState: String(item.response) } : {}),
-            }));
-          if (items.length === 0) continue;
-          if (!fmt6CategoryPhases.has(categoryKey)) {
-            fmt6CategoryPhases.set(categoryKey, []);
-          }
-          fmt6CategoryPhases.get(categoryKey)!.push({ id: phaseId, title: phase.title, items });
-        }
-
-        // Use "normal" phases as main checklist, falling back to the first available category
-        const mainCategoryKey = fmt6CategoryPhases.has(FMT6_MAIN) ? FMT6_MAIN : (Array.from(fmt6CategoryPhases.keys())[0] ?? FMT6_MAIN);
-        const mainPhases = fmt6CategoryPhases.get(mainCategoryKey) ?? [];
-        const checklist = { planeId, phases: mainPhases };
+        const checklist = { planeId, phases };
         await importPlane(plane, checklist);
         const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
-        let summary = `Imported "${name}" with ${mainPhases.length} phase(s) and ${mainPhases.reduce((s, p) => s + p.items.length, 0)} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`;
-
-        // Import non-main categories (e.g. "abnormal", "emergency") as variants
-        const fmt6Variants: string[] = [];
-        for (const [cat, catPhases] of fmt6CategoryPhases) {
-          if (cat === mainCategoryKey) continue;
-          addCategory(planeId, cat, { planeId, phases: catPhases });
-          fmt6Variants.push(cat);
+        const totalItems = phases.reduce((s, p) => s + p.items.length, 0);
+        let summary = `Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`;
+        const typeBreakdown = Object.entries(typeCounts)
+          .filter(([t]) => t !== 'normal')
+          .map(([t, n]) => `${n} ${t}`)
+          .join(', ');
+        if (typeBreakdown) {
+          summary += ` (includes ${typeBreakdown} procedure phase(s))`;
         }
-        if (fmt6Variants.length > 0) {
-          summary += ` Also imported ${fmt6Variants.length} variant(s): ${fmt6Variants.join(', ')}`;
-        }
-
         return summary;
       }
 
