@@ -338,179 +338,202 @@ listAllSharedChecklists()]);
     }
   };
 
+  const normalizeCategory = (cat: string): string => {
+    const lower = cat.toLowerCase();
+    if (lower.includes('emergency')) return 'emergency';
+    if (lower.includes('abnormal')) return 'abnormal';
+    return lower;
+  };
+
   const handleJsonImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const json = JSON.parse(reader.result as string);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setImportSummary(null);
 
-        // Format 1: Flat array of items [{ name, manufacturer, phase, item, expectedState, category? }, ...]
-        if (Array.isArray(json) && json.length > 0 && json[0].phase && json[0].item) {
-          const first = json[0];
-          const name = first.name || file.name.replace(/\.[^.]+$/, '');
-          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-          const plane = { id: planeId, name, manufacturer: first.manufacturer || '', image: first.image || '', type: first.type || 'GA' };
+    const processFile = async (file: File): Promise<string> => {
+      const text = await file.text();
+      const json = JSON.parse(text);
 
-          const MAIN_KEY = '__main__';
-          // Group items by category, then by phase
-          const categoryPhaseMaps = new Map<string, Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; reference?: string }[] }>>();
-          for (const row of json) {
-            const phaseTitle = row.phase?.trim();
-            const itemLabel = row.item?.trim();
-            if (!phaseTitle || !itemLabel) continue;
+      // Format 1: Flat array of items [{ name, manufacturer, phase, item, expectedState, category? }, ...]
+      if (Array.isArray(json) && json.length > 0 && json[0].phase && json[0].item) {
+        const first = json[0];
+        const name = first.name || file.name.replace(/\.[^.]+$/, '');
+        const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const plane = { id: planeId, name, manufacturer: first.manufacturer || '', image: first.image || '', type: first.type || 'GA' };
 
-            const rowCategory = (row.category || row.checklistCategory || row['checklist category'] || row['Checklist Category'] || '').trim();
-            const isMain = !rowCategory || rowCategory.toLowerCase() === 'normal checklist' || rowCategory.toLowerCase() === 'standard';
-            const mapKey = isMain ? MAIN_KEY : rowCategory;
+        const MAIN_KEY = '__main__';
+        // Group items by normalized category, then by phase
+        const categoryPhaseMaps = new Map<string, Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; reference?: string }[] }>>();
+        for (const row of json) {
+          const phaseTitle = row.phase?.trim();
+          const itemLabel = row.item?.trim();
+          if (!phaseTitle || !itemLabel) continue;
 
-            if (!categoryPhaseMaps.has(mapKey)) {
-              categoryPhaseMaps.set(mapKey, new Map());
-            }
-            const phasesMap = categoryPhaseMaps.get(mapKey)!;
+          const rowCategory = (row.category || row.checklistCategory || row['checklist category'] || row['Checklist Category'] || '').trim();
+          const normalizedRowCategory = rowCategory ? normalizeCategory(rowCategory) : '';
+          const isMain = !normalizedRowCategory || normalizedRowCategory === 'normal' || normalizedRowCategory === 'standard';
+          const mapKey = isMain ? MAIN_KEY : normalizedRowCategory;
 
-            if (!phasesMap.has(phaseTitle)) {
-              const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
-              phasesMap.set(phaseTitle, { id: phaseId, title: phaseTitle, items: [] });
-            }
-            const phase = phasesMap.get(phaseTitle)!;
-            phase.items.push({
-              id: `${phase.id}-${phase.items.length}`,
-              label: itemLabel,
-              expectedState: row.expectedState?.trim() || undefined,
-              reference: row.reference?.trim() || undefined,
+          if (!categoryPhaseMaps.has(mapKey)) {
+            categoryPhaseMaps.set(mapKey, new Map());
+          }
+          const phasesMap = categoryPhaseMaps.get(mapKey)!;
+
+          if (!phasesMap.has(phaseTitle)) {
+            const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            phasesMap.set(phaseTitle, { id: phaseId, title: phaseTitle, items: [] });
+          }
+          const phase = phasesMap.get(phaseTitle)!;
+          phase.items.push({
+            id: `${phase.id}-${phase.items.length}`,
+            label: itemLabel,
+            expectedState: row.expectedState?.trim() || undefined,
+            reference: row.reference?.trim() || undefined,
+          });
+        }
+
+        // Build main checklist
+        const mainPhasesMap = categoryPhaseMaps.get(MAIN_KEY) ?? new Map();
+        const phases = Array.from(mainPhasesMap.values());
+        const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
+        const checklist = { planeId, phases };
+
+        // Build variant checklists
+        const jsonVariants: Record<string, { planeId: string; phases: typeof phases }> = {};
+        for (const [key, phasesMap] of categoryPhaseMaps) {
+          if (key === MAIN_KEY) continue;
+          jsonVariants[key] = { planeId, phases: Array.from(phasesMap.values()) };
+        }
+
+        const jsonWarnings = formatWarnings(validateChecklist(checklist, plane));
+        await importPlane(plane, checklist);
+        let summary = `Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`;
+
+        if (!isAdmin) {
+          const submitToAll = window.confirm(`Would you also like to submit "${name}" for all users? (Requires admin approval)`);
+          if (submitToAll) {
+            await createPendingSubmission({
+              name,
+              manufacturer: plane.manufacturer,
+              image: plane.image || null,
+              type: plane.type,
+              sim: undefined,
+              phases: JSON.stringify(phases),
+              submitted_by: null,
+              status: 'pending',
             });
+            summary += ' Submitted for community review!';
           }
-
-          // Build main checklist
-          const mainPhasesMap = categoryPhaseMaps.get(MAIN_KEY) ?? new Map();
-          const phases = Array.from(mainPhasesMap.values());
-          const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
-          const checklist = { planeId, phases };
-
-          // Build variant checklists
-          const jsonVariants: Record<string, { planeId: string; phases: typeof phases }> = {};
-          for (const [key, phasesMap] of categoryPhaseMaps) {
-            if (key === MAIN_KEY) continue;
-            jsonVariants[key] = {
-              planeId,
-              phases: Array.from(phasesMap.values()),
-            };
-          }
-
-          const jsonWarnings = formatWarnings(validateChecklist(checklist, plane));
-          const category = '';
-          if (category && category !== 'Standard') {
-            if (!planes.some(p => p.id === planeId)) {
-              await importPlane(plane, checklist);
-            }
-            addCategory(planeId, category, checklist);
-            setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
-          } else {
-            await importPlane(plane, checklist);
-            setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
-            if (!isAdmin) {
-              const submitToAll = window.confirm(`Would you also like to submit "${name}" for all users? (Requires admin approval)`);
-              if (submitToAll) {
-                await createPendingSubmission({
-                  name,
-                  manufacturer: plane.manufacturer,
-                  image: plane.image || null,
-                  type: plane.type,
-                  sim: undefined,
-                  phases: JSON.stringify(phases),
-                  submitted_by: null,
-                  status: 'pending',
-                });
-                setImportSummary(prev => (prev || '') + ' Submitted for community review!');
-              }
-            }
-          }
-
-          // Auto-import category-based variants from JSON
-          for (const [variantName, variantChecklist] of Object.entries(jsonVariants)) {
-            if (!planes.some(p => p.id === planeId)) {
-              await importPlane(plane, checklist);
-            }
-            addCategory(planeId, variantName, variantChecklist);
-          }
-          if (Object.keys(jsonVariants).length > 0) {
-            setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`);
-          }
-
-          
-          return;
         }
 
-        // Format 2: Single plane { plane: {...}, checklist: {...} }
-        if (json.plane && json.checklist && json.checklist.phases) {
-          await importPlane(json.plane, json.checklist);
-          const fmt2Warnings = formatWarnings(validateChecklist(json.checklist, json.plane));
-          setImportSummary(`Imported "${json.plane.name}" successfully.${isAdmin ? ' (shared)' : ''}${fmt2Warnings}`);
-          return;
+        // Auto-import category-based variants from JSON
+        for (const [variantName, variantChecklist] of Object.entries(jsonVariants)) {
+          addCategory(planeId, variantName, variantChecklist);
+        }
+        if (Object.keys(jsonVariants).length > 0) {
+          summary += ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`;
         }
 
-        // Format 3: Checklist with plane info { name, phases } or { planeId, phases }
-        if (json.phases && Array.isArray(json.phases)) {
-          const name = json.name || json.planeId || file.name.replace(/\.[^.]+$/, '');
-          const planeId = (json.planeId || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
-          const plane = { id: planeId, name, manufacturer: json.manufacturer || '', image: json.image || '', type: json.type || 'GA' };
-          const checklist = { planeId, phases: json.phases };
-          await importPlane(plane, checklist);
-          const fmt3Warnings = formatWarnings(validateChecklist(checklist, plane));
-          setImportSummary(`Imported "${name}" with ${json.phases.length} phase(s).${isAdmin ? ' (shared)' : ''}${fmt3Warnings}`);
-          return;
-        }
-
-        // Format 4: Fleet backup { version: 1, custom_planes, custom_checklists, ... }
-        if (json.version === 1) {
-          const result = importFleet(json);
-          setImportSummary(
-            `Imported ${result.planes} plane(s), ${result.checklists} checklist(s), ${result.progress} progress record(s).`
-          );
-          return;
-        }
-
-        // Format 5: Object with custom_planes / custom_checklists (no version)
-        if (json.custom_planes || json.custom_checklists) {
-          const result = importFleet({ ...json, version: 1 });
-          setImportSummary(
-            `Imported ${result.planes} plane(s), ${result.checklists} checklist(s).`
-          );
-          return;
-        }
-
-        // Format 6: { aircraft, nickname, checklist: [{ title, items: [{callout, response}] }] }
-        // Used by some third-party checklist bundles (e.g. Cessna 208B Caravan Bundle)
-        if (json.aircraft && Array.isArray(json.checklist) && json.checklist[0]?.title) {
-          const name = String(json.aircraft);
-          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-          const plane = { id: planeId, name, manufacturer: '', image: '', type: 'GA' as const };
-          const phases = (json.checklist as Array<{ title: string; items: Array<Record<string, unknown>> }>).map((phase, pi) => {
-            const phaseId = phase.title.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
-            const items = (phase.items ?? [])
-              .filter(item => item.callout)
-              .map((item, ii) => ({
-                id: `${phaseId}-${ii}`,
-                label: String(item.callout),
-                ...(item.response ? { expectedState: String(item.response) } : {}),
-              }));
-            return { id: phaseId, title: phase.title, items };
-          }).filter(p => p.items.length > 0);
-          const checklist = { planeId, phases };
-          await importPlane(plane, checklist);
-          const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
-          setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${phases.reduce((s, p) => s + p.items.length, 0)} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`);
-          return;
-        }
-
-        alert('Unrecognized JSON format. Supported: flat array of items, { plane, checklist }, { phases }, or fleet backup.');
-      } catch (error) {
-        alert(error instanceof Error ? error.message : 'Failed to parse JSON file.');
+        return summary;
       }
+
+      // Format 2: Single plane { plane: {...}, checklist: {...} }
+      if (json.plane && json.checklist && json.checklist.phases) {
+        await importPlane(json.plane, json.checklist);
+        const fmt2Warnings = formatWarnings(validateChecklist(json.checklist, json.plane));
+        return `Imported "${json.plane.name}" successfully.${isAdmin ? ' (shared)' : ''}${fmt2Warnings}`;
+      }
+
+      // Format 3: Checklist with plane info { name, phases } or { planeId, phases }
+      if (json.phases && Array.isArray(json.phases)) {
+        const name = json.name || json.planeId || file.name.replace(/\.[^.]+$/, '');
+        const planeId = (json.planeId || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const plane = { id: planeId, name, manufacturer: json.manufacturer || '', image: json.image || '', type: json.type || 'GA' };
+        const checklist = { planeId, phases: json.phases };
+        await importPlane(plane, checklist);
+        const fmt3Warnings = formatWarnings(validateChecklist(checklist, plane));
+        return `Imported "${name}" with ${json.phases.length} phase(s).${isAdmin ? ' (shared)' : ''}${fmt3Warnings}`;
+      }
+
+      // Format 4: Fleet backup { version: 1, custom_planes, custom_checklists, ... }
+      if (json.version === 1) {
+        const result = importFleet(json);
+        return `Imported ${result.planes} plane(s), ${result.checklists} checklist(s), ${result.progress} progress record(s).`;
+      }
+
+      // Format 5: Object with custom_planes / custom_checklists (no version)
+      if (json.custom_planes || json.custom_checklists) {
+        const result = importFleet({ ...json, version: 1 });
+        return `Imported ${result.planes} plane(s), ${result.checklists} checklist(s).`;
+      }
+
+      // Format 6: { aircraft, nickname, checklist: [{ title, type?, items: [{callout, response}] }] }
+      // Used by some third-party checklist bundles (e.g. Cessna 208B Caravan Expert)
+      // Phases are grouped by their "type" field (default "normal"); abnormal/emergency become variants.
+      if (json.aircraft && Array.isArray(json.checklist) && json.checklist[0]?.title) {
+        const name = String(json.aircraft);
+        const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const plane = { id: planeId, name, manufacturer: '', image: '', type: 'GA' as const };
+
+        const FMT6_MAIN = 'normal';
+        const fmt6CategoryPhases = new Map<string, Array<{ id: string; title: string; items: { id: string; label: string; expectedState?: string }[] }>>();
+
+        for (const [pi, phase] of (json.checklist as Array<{ title: string; type?: string; items: Array<Record<string, unknown>> }>).entries()) {
+          const rawType = (phase.type as string | undefined) || 'normal';
+          const categoryKey = normalizeCategory(rawType);
+          const phaseId = phase.title.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
+          const items = (phase.items ?? [])
+            .filter(item => item.callout)
+            .map((item, ii) => ({
+              id: `${phaseId}-${ii}`,
+              label: String(item.callout),
+              ...(item.response ? { expectedState: String(item.response) } : {}),
+            }));
+          if (items.length === 0) continue;
+          if (!fmt6CategoryPhases.has(categoryKey)) {
+            fmt6CategoryPhases.set(categoryKey, []);
+          }
+          fmt6CategoryPhases.get(categoryKey)!.push({ id: phaseId, title: phase.title, items });
+        }
+
+        // Use "normal" phases as main checklist, falling back to the first available category
+        const mainCategoryKey = fmt6CategoryPhases.has(FMT6_MAIN) ? FMT6_MAIN : (Array.from(fmt6CategoryPhases.keys())[0] ?? FMT6_MAIN);
+        const mainPhases = fmt6CategoryPhases.get(mainCategoryKey) ?? [];
+        const checklist = { planeId, phases: mainPhases };
+        await importPlane(plane, checklist);
+        const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
+        let summary = `Imported "${name}" with ${mainPhases.length} phase(s) and ${mainPhases.reduce((s, p) => s + p.items.length, 0)} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`;
+
+        // Import non-main categories (e.g. "abnormal", "emergency") as variants
+        const fmt6Variants: string[] = [];
+        for (const [cat, catPhases] of fmt6CategoryPhases) {
+          if (cat === mainCategoryKey) continue;
+          addCategory(planeId, cat, { planeId, phases: catPhases });
+          fmt6Variants.push(cat);
+        }
+        if (fmt6Variants.length > 0) {
+          summary += ` Also imported ${fmt6Variants.length} variant(s): ${fmt6Variants.join(', ')}`;
+        }
+
+        return summary;
+      }
+
+      throw new Error('Unrecognized JSON format. Supported: flat array of items, { plane, checklist }, { phases }, or fleet backup.');
     };
-    reader.readAsText(file);
+
+    const processAllFiles = async () => {
+      const summaries: string[] = [];
+      for (const file of files) {
+        try {
+          summaries.push(await processFile(file));
+        } catch (error) {
+          summaries.push(`Error importing "${file.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+      setImportSummary(summaries.join('\n'));
+    };
+
+    processAllFiles();
   };
 
   const sampleCsv = `name,category,phase,item,expectedState,reference
@@ -718,6 +741,7 @@ listAllSharedChecklists()]);
               <input
                 type="file"
                 accept=".json"
+                multiple
                 onChange={handleJsonImport}
                 className={styles.fileInput}
               />
