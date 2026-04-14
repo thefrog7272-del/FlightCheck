@@ -481,29 +481,76 @@ listAllSharedChecklists()]);
           return;
         }
 
-        // Format 6: { aircraft, nickname, checklist: [{ title, items: [{callout, response}] }] }
-        // Used by some third-party checklist bundles (e.g. Cessna 208B Caravan Bundle)
-        if (json.aircraft && Array.isArray(json.checklist) && json.checklist[0]?.title) {
-          const name = String(json.aircraft);
-          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-          const plane = { id: planeId, name, manufacturer: '', image: '', type: 'GA' as const };
-          const phases = (json.checklist as Array<{ title: string; items: Array<Record<string, unknown>> }>).map((phase, pi) => {
-            const phaseId = phase.title.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
-            const items = (phase.items ?? [])
-              .filter(item => item.callout)
-              .map((item, ii) => ({
-                id: `${phaseId}-${ii}`,
-                label: String(item.callout),
-                ...(item.response ? { expectedState: String(item.response) } : {}),
-              }));
-            return { id: phaseId, title: phase.title, items };
-          }).filter(p => p.items.length > 0);
-          const checklist = { planeId, phases };
-          await importPlane(plane, checklist);
-          const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
-          setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${phases.reduce((s, p) => s + p.items.length, 0)} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`);
-          return;
-        }
+       // Format 6: { aircraft, nickname, checklist: [{ title, items: [{callout, response}], type? }] }
+if (json.aircraft && Array.isArray(json.checklist) && json.checklist?.[0]?.title) {
+const name = String(json.aircraft);
+const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+const plane = { id: planeId, name, manufacturer: '', image: '', type: 'GA' as const };
+
+const MAIN_KEY = '__main__';
+const categoryPhaseMaps = new Map<string, Map<string, { id: string; title: string; items: { id: string; label: string; expectedState?: string; reference?: string }[] }>>();
+
+const checklistArray = json.checklist as Array<{ title: string; items?: Array<Record<string, unknown>>; type?: string; category?: string }>;
+checklistArray.forEach((phase, pi) => {
+const phaseTitle = (phase.title || '').trim();
+if (!phaseTitle) return;
+// Prefer explicit "type" on the phase, otherwise fall back to "category"
+const rawType = String(phase.type || phase.category || '').trim();
+const rowCategory = rawType || '';
+const isMain = !rowCategory || rowCategory.toLowerCase() === 'normal checklist' || rowCategory.toLowerCase() === 'standard';
+const mapKey = isMain ? MAIN_KEY : rowCategory.toLowerCase();
+
+if (!categoryPhaseMaps.has(mapKey)) categoryPhaseMaps.set(mapKey, new Map());
+const phasesMap = categoryPhaseMaps.get(mapKey)!;
+
+const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
+if (!phasesMap.has(phaseTitle)) {
+  const items = (phase.items ?? [])
+    .filter(item => item && (item as any).callout)
+    .map((item, ii) => ({
+      id: `${phaseId}-${ii}`,
+      label: String((item as any).callout),
+      expectedState: (item as any).response ? String((item as any).response) : undefined,
+    }));
+  if (items.length > 0) {
+    phasesMap.set(phaseTitle, { id: phaseId, title: phaseTitle, items });
+  }
+}
+});
+
+// Build main checklist
+const mainPhasesMap = categoryPhaseMaps.get(MAIN_KEY) ?? new Map();
+const phases = Array.from(mainPhasesMap.values());
+const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
+const checklist = { planeId, phases };
+
+// Build variant checklists
+const jsonVariants: Record<string, { planeId: string; phases: typeof phases }> = {};
+for (const [key, phasesMap] of categoryPhaseMaps) {
+if (key === MAIN_KEY) continue;
+jsonVariants[key] = {
+planeId,
+phases: Array.from(phasesMap.values()),
+};
+}
+
+const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
+await importPlane(plane, checklist);
+setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`);
+
+// Auto-import category-based variants from JSON
+for (const [variantName, variantChecklist] of Object.entries(jsonVariants)) {
+if (!planes.some(p => p.id === planeId)) {
+await importPlane(plane, checklist);
+}
+addCategory(planeId, variantName, variantChecklist);
+}
+if (Object.keys(jsonVariants).length > 0) {
+setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`);
+}
+
+return;
+}
 
         alert('Unrecognized JSON format. Supported: flat array of items, { plane, checklist }, { phases }, or fleet backup.');
       } catch (error) {
