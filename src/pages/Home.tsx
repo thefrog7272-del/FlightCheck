@@ -506,17 +506,35 @@ const phasesMap = categoryPhaseMaps.get(mapKey)!;
 const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
 if (!phasesMap.has(phaseTitle)) {
   const items = (phase.items ?? [])
-    .filter(item => item && (item as any).callout)
-    .map((item, ii) => ({
+  .filter((item): item is { callout?: unknown; response?: unknown } => Boolean(item && (item as any).callout))
+  .map((item, ii) => {
+    const callout = (item as any).callout;
+    const response = (item as any).response;
+
+    // Normalize callout: accept string/number, otherwise skip this item
+    let label: string | undefined;
+    if (typeof callout === 'string' || typeof callout === 'number') {
+      label = String(callout);
+    } else if (callout && typeof callout === 'object' && 'text' in callout && typeof (callout as any).text === 'string') {
+      // example: object with text prop
+      label = (callout as any).text;
+    } else {
+      // skip non-serializable callouts (e.g., JSX, File, Blob)
+      return null;
+    }
+
+    const expectedState =
+      response == null ? undefined
+      : typeof response === 'string' || typeof response === 'number' ? String(response)
+      : undefined; // or handle other shapes similarly
+
+    return {
       id: `${phaseId}-${ii}`,
-      label: String((item as any).callout),
-      expectedState: (item as any).response ? String((item as any).response) : undefined,
-    }));
-  if (items.length > 0) {
-    phasesMap.set(phaseTitle, { id: phaseId, title: phaseTitle, items });
-  }
-}
-});
+      label,
+      expectedState,
+    };
+  })
+  .filter(Boolean) as Array<{ id: string; label: string; expectedState?: string }>;
 
 // Build main checklist
 const mainPhasesMap = categoryPhaseMaps.get(MAIN_KEY) ?? new Map();
