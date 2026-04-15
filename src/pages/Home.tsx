@@ -483,7 +483,8 @@ listAllSharedChecklists()]);
 
 // ```typescript
     // Add this inside your HomeComponent class
-    private handleJsonImportWithCategory(file: File) {
+    // Add this method inside your HomeComponent class (around line 480-500 area based on errors)
+    private handleJsonImportWithCategory(file: File): void {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
@@ -505,51 +506,43 @@ listAllSharedChecklists()]);
             type: first.type || 'GA'
           };
 
-           const MAIN_KEY = '__main__';
-    const categoryPhaseMaps = new Map<string, Map<string, {
-      id: string;
-      title: string;
-      items: {
-        id: string;
-        label: string;
-        expectedState?: string;
-        reference?: string
-      }[]
-    }>>();
+          const MAIN_KEY = '__main__';
+          const categoryPhaseMaps = new Map<string, Map<string, any>>();
 
-    for (const row of json) {
-      const phaseTitle = row.phase?.trim();
-      const itemLabel = row.item?.trim();
-      if (!phaseTitle || !itemLabel) continue;
+          for (const row of json) {
+            const phaseTitle = row.phase?.trim();
+            const itemLabel = row.item?.trim();
+            if (!phaseTitle || !itemLabel) continue;
 
-      const rowType = (row.type || '').trim();
-      const isMain = !rowType || rowType.toLowerCase() === 'normal';
-      const mapKey = isMain ? MAIN_KEY : rowType;
+            const rowType = (row.type || '').trim();
+            const isMain = !rowType || rowType.toLowerCase() === 'normal';
+            const mapKey = isMain ? MAIN_KEY : rowType;
 
-      // Correct way to check and set Map value
-      if (!categoryPhaseMaps.has(mapKey)) {
-        categoryPhaseMaps.set(mapKey, new Map());
-      }
+            // Initialize the inner Map if it doesn't exist
+            if (!categoryPhaseMaps.has(mapKey)) {
+              categoryPhaseMaps.set(mapKey, new Map());
+            }
 
-      const phasesMap = categoryPhaseMaps.get(mapKey)!;
+            const phasesMap = categoryPhaseMaps.get(mapKey)!;
 
-      if (!phasesMap.has(phaseTitle)) {
-        const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
-        phasesMap.set(phaseTitle, {
-          id: phaseId,
-          title: phaseTitle,
-          items: []
-        });
-      }
+            // Initialize the phase if it doesn't exist
+            if (!phasesMap.has(phaseTitle)) {
+              const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
+              phasesMap.set(phaseTitle, {
+                id: phaseId,
+                title: phaseTitle,
+                items: []
+              });
+            }
 
-      const phase = phasesMap.get(phaseTitle)!;
-      phase.items.push({
-        id: `${phase.id}-${phase.items.length}`,
-        label: itemLabel,
-        expectedState: row.expectedState?.trim(),
-        reference: row.reference?.trim(),
-      });
-    }
+            const phase = phasesMap.get(phaseTitle)!;
+            phase.items.push({
+              id: `${phase.id}-${phase.items.length}`,
+              label: itemLabel,
+              expectedState: row.expectedState?.trim(),
+              reference: row.reference?.trim()
+            });
+          }
 
           // Build main checklist
           const mainPhasesMap = categoryPhaseMaps.get(MAIN_KEY) ?? new Map();
@@ -769,8 +762,7 @@ listAllSharedChecklists()]);
           onCancel={() => setAddTablePlaneId(null)}
         />
       )}
-
-      {isModalOpen && (
+  {isModalOpen && (
       <div className={styles.modalOverlay}>
         <div className={styles.modal}>
           <h2 className={styles.modalTitle}>Import Plane & Checklist</h2>
@@ -847,16 +839,3 @@ listAllSharedChecklists()]);
         </div>
       </div>
     )}
-              >
-                Cancel
-              </button>
-              <button className={styles.submitButton} onClick={handleImport}>
-                Import Plane
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
