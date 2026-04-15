@@ -481,7 +481,7 @@ listAllSharedChecklists()]);
           return;
         }
 
- ```typescript
+// ```typescript
     // Add this inside your HomeComponent class
     private handleJsonImportWithCategory(file: File) {
       const reader = new FileReader();
@@ -505,35 +505,51 @@ listAllSharedChecklists()]);
             type: first.type || 'GA'
           };
 
-          const MAIN_KEY = '__main__';
-          const categoryPhaseMaps = new Map<string, Map<string, any>>();
+           const MAIN_KEY = '__main__';
+    const categoryPhaseMaps = new Map<string, Map<string, {
+      id: string;
+      title: string;
+      items: {
+        id: string;
+        label: string;
+        expectedState?: string;
+        reference?: string
+      }[]
+    }>>();
 
-          for (const row of json) {
-            const phaseTitle = row.phase?.trim();
-            const itemLabel = row.item?.trim();
-            if (!phaseTitle || !itemLabel) continue;
+    for (const row of json) {
+      const phaseTitle = row.phase?.trim();
+      const itemLabel = row.item?.trim();
+      if (!phaseTitle || !itemLabel) continue;
 
-            const rowType = (row.type || '').trim();
-            const isMain = !rowType || rowType.toLowerCase() === 'normal';
-            const mapKey = isMain ? MAIN_KEY : rowType;
+      const rowType = (row.type || '').trim();
+      const isMain = !rowType || rowType.toLowerCase() === 'normal';
+      const mapKey = isMain ? MAIN_KEY : rowType;
 
-            if (!categoryPhaseMaps.has(mapKey)) {
-              categoryPhaseMaps.set(mapKey, new Map());
-            }
-            const phasesMap = categoryPhaseMaps.get(mapKey)!;
+      // Correct way to check and set Map value
+      if (!categoryPhaseMaps.has(mapKey)) {
+        categoryPhaseMaps.set(mapKey, new Map());
+      }
 
-            if (!phasesMap.has(phaseTitle)) {
-              const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
-              phasesMap.set(phaseTitle, { id: phaseId, title: phaseTitle, items: [] });
-            }
-            const phase = phasesMap.get(phaseTitle)!;
-            phase.items.push({
-              id: `${phase.id}-${phase.items.length}`,
-              label: itemLabel,
-              expectedState: row.expectedState?.trim(),
-              reference: row.reference?.trim(),
-            });
-          }
+      const phasesMap = categoryPhaseMaps.get(mapKey)!;
+
+      if (!phasesMap.has(phaseTitle)) {
+        const phaseId = phaseTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        phasesMap.set(phaseTitle, {
+          id: phaseId,
+          title: phaseTitle,
+          items: []
+        });
+      }
+
+      const phase = phasesMap.get(phaseTitle)!;
+      phase.items.push({
+        id: `${phase.id}-${phase.items.length}`,
+        label: itemLabel,
+        expectedState: row.expectedState?.trim(),
+        reference: row.reference?.trim(),
+      });
+    }
 
           // Build main checklist
           const mainPhasesMap = categoryPhaseMaps.get(MAIN_KEY) ?? new Map();
