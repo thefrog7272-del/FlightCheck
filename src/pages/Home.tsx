@@ -575,7 +575,7 @@ listAllSharedChecklists()]);
       };
       reader.readAsText(file);
     }
-    ```
+    
       
 
   const sampleCsv = `name,category,phase,item,expectedState,reference
@@ -771,72 +771,82 @@ listAllSharedChecklists()]);
       )}
 
       {isModalOpen && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <h2 className={styles.modalTitle}>Import Plane & Checklist</h2>
+      <div className={styles.modalOverlay}>
+        <div className={styles.modal}>
+          <h2 className={styles.modalTitle}>Import Plane & Checklist</h2>
 
-            <div className={styles.fileInputWrapper}>
-              <label className={styles.csvLabel}>
-                <Upload size={14} style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} />
-                Import from JSON (fleet backup or single plane):
-              </label>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleJsonImport}
-                className={styles.fileInput}
-              />
-              {importSummary && (
-                <span className={styles.importSummary}>{importSummary}</span>
-              )}
-            </div>
-
-            <div className={styles.sectionDivider}>
-              <span>Or import a single plane via CSV</span>
-            </div>
-
-            <div className={styles.fileInputWrapper}>
-              <label className={styles.csvLabel}>Aircraft Image (Optional):</label>
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleFileChange}
-                className={styles.fileInput}
-              />
-            </div>
-
-            <div className={styles.fileInputWrapper}>
-              <label className={styles.csvLabel}>Upload CSV File:</label>
-              <input
-                type="file"
-                accept=".csv,text/csv"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = () => setCsvInput(reader.result as string);
-                  reader.readAsText(file);
-                }}
-                className={styles.fileInput}
-              />
-            </div>
-
-            <label className={styles.csvLabel}>Or paste CSV content:</label>
-            <textarea
-              className={styles.textarea}
-              placeholder={sampleCsv}
-              value={csvInput}
-              onChange={(e) => setCsvInput(e.target.value)}
+          <div className={styles.fileInputWrapper}>
+            <label className={styles.csvLabel}>
+              <Upload size={14} style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} />
+              Import from JSON (fleet backup or single plane):
+            </label>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleJsonImport}
+              className={styles.fileInput}
             />
-            <div className={styles.modalActions}>
-              <button 
-                className={styles.cancelButton} 
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setImagePreview(null);
-                  setImportSummary(null);
-                  
-                }}
+            {importSummary && (
+              <span className={styles.importSummary}>{importSummary}</span>
+            )}
+          </div>
+
+          <div className={styles.sectionDivider}>
+            <span>Or import a single plane via CSV</span>
+          </div>
+
+          <div className={styles.fileInputWrapper}>
+            <label className={styles.csvLabel}>Aircraft Image (Optional):</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className={styles.fileInput}
+            />
+          </div>
+
+          <div className={styles.fileInputWrapper}>
+            <label className={styles.csvLabel}>Upload CSV File:</label>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => setCsvInput(reader.result as string);
+                reader.readAsText(file);
+              }}
+              className={styles.fileInput}
+            />
+          </div>
+
+          <label className={styles.csvLabel}>Or paste CSV content:</label>
+          <textarea
+            className={styles.textarea}
+            placeholder={sampleCsv}
+            value={csvInput}
+            onChange={(e) => setCsvInput(e.target.value)}
+          />
+
+          <div className={styles.modalActions}>
+            <button
+              className={styles.cancelButton}
+              onClick={() => {
+                setIsModalOpen(false);
+                setImagePreview(null);
+                setImportSummary(null);
+              }}
+            >
+              Cancel
+            </button>
+            <button className={styles.submitButton} onClick={handleImport}>
+              Import Plane
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
               >
                 Cancel
               </button>
