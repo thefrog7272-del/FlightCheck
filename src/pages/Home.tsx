@@ -158,30 +158,20 @@ export function Home() {
 
   const handleHidePlane = useCallback(async (planeId: string) => {
     const confirmed = await confirm(
-      'Hide Plane',
-      'Hide this plane from your fleet? You can restore it with "Show All".',
-      { confirmLabel: 'Hide', destructive: true }
+      'Delete Plane',
+      'Permanently delete this plane and its checklist data? This cannot be undone.',
+      { confirmLabel: 'Delete', destructive: true }
     );
     if (confirmed) {
       deletePlane(planeId);
     }
   }, [confirm, deletePlane]);
 
-  
-const handleDeletePlane = useCallback(async (planeId: string) => {
-    // 1. Confirmation check
-    const confirmed = await confirm(
-      'Delete Plane',
-      'Permanently delete this plane and its checklist data? This cannot be undone.',
-      { confirmLabel: 'Delete', destructive: true }
-    );
-    if (!confirmed) return;
-
-    if (isAdmin) {
+  const handleDeletePlane = useCallback(async (planeId: string) => {
       try {
         // A. Attempt to delete from shared database (Supabase)
         const [planeRecords, checklistRecords] = await Promise.all([listSharedPlanes(),
-listAllSharedChecklists()]);
+ listAllSharedChecklists()]);
         const planeRecord = planeRecords.find(p => p.plane_id === planeId);
         const checklistRecord = checklistRecords.find(c => c.plane_id === planeId);
 
@@ -203,12 +193,12 @@ listAllSharedChecklists()]);
 
     // Always attempt local cleanup regardless of backend success/failure.
     try {
-        await deletePlane(planeId);
+        return await deletePlane(planeId);
     } catch (error) {
         console.error("Error during local plane deletion:", error);
     }
 
-}, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
+  }, [confirm, isAdmin, deletePlane, refreshSharedPlanes]);
 
 
   const handleShowAll = useCallback(async () => {
@@ -252,22 +242,28 @@ listAllSharedChecklists()]);
     });
 
     // Pin favorites to top
-    result.sort((a, b) => {
-      const aFav = favoriteIds.includes(a.id) ? 0 : 1;
-      const bFav = favoriteIds.includes(b.id) ? 0 : 1;
-      return aFav - bFav;
-    });
+     result.sort((a, b) => {
+       const aFav = favoriteIds.has(a.id) ? 0 : 1;
+       const bFav = favoriteIds.has(b.id) ? 0 : 1;
+       return aFav - bFav;
+     });
 
     return result;
   }, [planes, searchQuery, filterType, sortBy, favoriteIds]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+      reader.readAsDataURL(file);
+    }
+  };
       reader.readAsDataURL(file);
     }
   };
@@ -295,10 +291,10 @@ listAllSharedChecklists()]);
       const totalItems = checklist.phases.reduce((sum, p) => sum + p.items.length, 0);
       const csvWarnings = formatWarnings(validateChecklist(checklist, plane));
 
-      // Always import the plane directly to localStorage (skip Supabase which fails)
-      console.log('[FlightCheck Import] Adding plane to localStorage:', plane.id);
-      addPlane(plane, checklist);
-      console.log('[FlightCheck Import] After addPlane, planes now:', planes.map(p => p.id));
+       // Always import the plane directly to localStorage (skip Supabase which fails)
+       console.log('[FlightCheck Import] Adding plane to localStorage:', plane.id);
+       addPlane(plane, checklist);
+       console.log('[FlightCheck Import] Refreshed planes:', planes.map(p => p.id));
       
       // Import categories from the CSV
       const categoryKeys = Object.keys(categories);
@@ -574,10 +570,10 @@ listAllSharedChecklists()]);
         <div className={styles.recentSection}>
           <h2 className={styles.recentTitle}>Continue</h2>
           <div className={styles.recentGrid}>
-            {recentPlanes.map(rp => {
-              const plane = planes.find(p => p.id === rp.planeId);
-              if (!plane) return null;
-              const progress = getPlaneProgress(plane.id);
+{recentPlanes.map(rp => {
+    const plane = planes.find(p => p.id === rp.planeId);
+    if (!plane) return <></>;
+    const progress = getPlaneProgress(plane.id);
               return (
                 <PlaneCard
                   key={`recent-${plane.id}`}

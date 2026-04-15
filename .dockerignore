@@ -8,4 +8,4 @@ dist-ssr
 .idea
 Dockerfile
 docker-compose.yaml
-nginx.conf
+
