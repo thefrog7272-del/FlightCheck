@@ -484,7 +484,7 @@ listAllSharedChecklists()]);
 // ```typescript
     // Add this inside your HomeComponent class
     // Add this method inside your HomeComponent class (around line 480-500 area based on errors)
-    private handleJsonImportWithCategory(file: File): void {
+//    private handleJsonImportWithCategory(file: File): void {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
