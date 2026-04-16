@@ -484,7 +484,7 @@ listAllSharedChecklists()]);
         // Format 6: { aircraft, nickname, checklist: [{ title, items: [{callout, response}] }] }
         // Used by some third-party checklist bundles (e.g. Cessna 208B Caravan Bundle)
     
-    import * as fs from 'fs';
+        {  import * as fs from 'fs';
     import * as path from 'path';
 
     const handleJsonImport = async (filePath: string) => {
