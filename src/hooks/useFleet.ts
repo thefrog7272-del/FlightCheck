@@ -157,13 +157,13 @@ export function useFleet() {
   // Checklist progress
   const progressData = data?.checklist_progress ?? {};
 
-  const getProgress = useCallback((planeId: string, variant?: string): Record<string, boolean> => {
-    const key = variant && variant !== 'Standard' ? `${planeId}::${variant}` : planeId;
+  const getProgress = useCallback((planeId: string, category?: string): Record<string, boolean> => {
+    const key = category && category !== 'Standard' ? `${planeId}::${category}` : planeId;
     return progressData[key] ?? {};
   }, [progressData]);
 
-  const setProgress = useCallback((planeId: string, progress: Record<string, boolean>, variant?: string) => {
-    const key = variant && variant !== 'Standard' ? `${planeId}::${variant}` : planeId;
+  const setProgress = useCallback((planeId: string, progress: Record<string, boolean>, category?: string) => {
+    const key = category && category !== 'Standard' ? `${planeId}::${category}` : planeId;
     updateKey('checklist_progress', { ...progressData, [key]: progress });
   }, [progressData, updateKey]);
 

@@ -4,10 +4,10 @@ import { Trash2 } from 'lucide-react';
 import styles from './CategorySelector.module.css';
 
 const FIXED_TABS = [
-  { label: 'Normal',    variant: 'Standard',        color: styles.colorGreen },
-  { label: 'Abnormal',  variant: 'Abnormal',         color: styles.colorAmber },
-  { label: 'Emergency', variant: 'Emergency',        color: styles.colorRed   },
-  { label: 'Reference', variant: 'Reference Tables', color: styles.colorBlue  },
+  { label: 'Normal',    categoryId: 'Standard',        color: styles.colorGreen },
+  { label: 'Abnormal',  categoryId: 'Abnormal',         color: styles.colorAmber },
+  { label: 'Emergency', categoryId: 'Emergency',        color: styles.colorRed   },
+  { label: 'Reference', categoryId: 'Reference Tables', color: styles.colorBlue  },
 ] as const;
 
 interface CategorySelectorProps {
@@ -22,7 +22,7 @@ interface CategorySelectorProps {
 
 export function CategorySelector({ planeId, categories, activeCategory, onDelete, isEditing, children }: CategorySelectorProps) {
   const visibleTabs = FIXED_TABS.filter(
-    tab => tab.variant === 'Standard' || categories.includes(tab.variant),
+    tab => tab.categoryId === 'Standard' || categories.includes(tab.categoryId),
   );
 
   // Hide the bar when only Normal exists, not editing, and no extra children (e.g. voice button)
@@ -30,24 +30,24 @@ export function CategorySelector({ planeId, categories, activeCategory, onDelete
 
   return (
     <div className={styles.tabBar}>
-      {visibleTabs.map(({ label, variant, color }) => {
-        const isActive = activeCategory === variant;
+      {visibleTabs.map(({ label, categoryId, color }) => {
+        const isActive = activeCategory === categoryId;
         const href =
-          variant === 'Standard'
+          categoryId === 'Standard'
             ? `/checklist/${planeId}`
-            : `/checklist/${planeId}/${encodeURIComponent(variant)}`;
+            : `/checklist/${planeId}/${encodeURIComponent(categoryId)}`;
         return (
-          <div key={variant} className={styles.tabItem}>
+          <div key={categoryId} className={styles.tabItem}>
             <Link
               to={href}
               className={`${styles.tab} ${color} ${isActive ? styles.tabActive : ''}`}
             >
               {label}
             </Link>
-            {isEditing && variant !== 'Standard' && (
+            {isEditing && categoryId !== 'Standard' && (
               <button
                 className={styles.deleteBtn}
-                onClick={() => onDelete(variant)}
+                onClick={() => onDelete(categoryId)}
                 title={`Delete ${label}`}
               >
                 <Trash2 size={11} />

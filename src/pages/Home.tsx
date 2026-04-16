@@ -12,6 +12,7 @@ import { parsePlaneCsv } from '../utils/csvParser';
 import { validateChecklist, formatWarnings } from '../utils/checklistValidator';
 import { createSharedPlane, createSharedChecklist, createPendingSubmission, listSharedPlanes, listAllSharedChecklists, updateSharedPlane, updateSharedChecklist, deleteSharedPlane, deleteSharedChecklist } from '../api/sharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
+import { exportPlaneAsJson, exportPlaneAsHtml } from '../utils/exportPlane';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
@@ -130,6 +131,18 @@ export function Home() {
   const handleAddReferenceTable = useCallback((planeId: string) => {
     setAddTablePlaneId(planeId);
   }, []);
+
+  const handleDownloadJson = useCallback((planeId: string) => {
+    const plane = planes.find(p => p.id === planeId);
+    if (!plane) return;
+    exportPlaneAsJson(plane, checklists);
+  }, [planes, checklists]);
+
+  const handleDownloadHtml = useCallback((planeId: string) => {
+    const plane = planes.find(p => p.id === planeId);
+    if (!plane) return;
+    exportPlaneAsHtml(plane, checklists);
+  }, [planes, checklists]);
 
   const handleSaveReferenceTable = useCallback(async (updatedChecklist: PlaneChecklist) => {
     if (!addTablePlaneId) return;
@@ -675,6 +688,8 @@ listAllSharedChecklists()]);
                   onHide={handleHidePlane}
                   onDelete={handleDeletePlane}
                   onEditImage={handleEditImage}
+                  onDownloadJson={handleDownloadJson}
+                  onDownloadHtml={handleDownloadHtml}
                 />
               );
             })}
@@ -714,6 +729,8 @@ listAllSharedChecklists()]);
               onDelete={handleDeletePlane}
               onEditImage={handleEditImage}
               onAddReferenceTable={isAdmin ? handleAddReferenceTable : undefined}
+              onDownloadJson={handleDownloadJson}
+              onDownloadHtml={handleDownloadHtml}
             />
           ))}
         </div>

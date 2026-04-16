@@ -23,8 +23,8 @@ import type { PlaneChecklist } from '../data/types';
 
 export function Checklist() {
   console.log('>>>> CHECKLIST COMPONENT MOUNTED, planeId from params:', typeof window !== 'undefined' ? window.location.pathname : 'unknown');
-  const { planeId, variantName: rawVariantName } = useParams();
-  const activeVariant = rawVariantName ?? 'Standard';
+  const { planeId, categoryName: rawCategoryName } = useParams();
+  const activeCategory = rawCategoryName ?? 'Standard';
   const navigate = useNavigate();
   const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getCategories, addCategory, deleteCategory } = useFleet();
 
@@ -36,13 +36,13 @@ export function Checklist() {
   }, [planeId, trackRecentUse]);
 
   // Compute these early — needed both by voice hook (below) and normal render logic.
-  const variantKey = activeVariant !== 'Standard' && planeId ? `${planeId}::${activeVariant}` : null;
+  const categoryKey = activeCategory !== 'Standard' && planeId ? `${planeId}::${activeCategory}` : null;
   const baseChecklist = planeId ? checklists[planeId] : null;
   console.log('[Checklist] baseChecklist for key', planeId, ':', baseChecklist ? 'found with ' + baseChecklist.phases.length + ' phases' : 'NOT FOUND');
-  console.log('[Checklist] planeId:', planeId, 'variantKey:', variantKey, 'checklists keys (sample):', Object.keys(checklists).slice(0, 20), 'baseChecklist found:', !!baseChecklist, 'baseChecklist phases:', baseChecklist?.phases.length);
-  const checklist = (variantKey ? checklists[variantKey] : null) ?? baseChecklist;
+  console.log('[Checklist] planeId:', planeId, 'categoryKey:', categoryKey, 'checklists keys (sample):', Object.keys(checklists).slice(0, 20), 'baseChecklist found:', !!baseChecklist, 'baseChecklist phases:', baseChecklist?.phases.length);
+  const checklist = (categoryKey ? checklists[categoryKey] : null) ?? baseChecklist;
   console.log('[Checklist] final checklist:', !!checklist, 'phases:', checklist?.phases.length);
-  const checkedItems = planeId ? getProgress(planeId, activeVariant) : {};
+  const checkedItems = planeId ? getProgress(planeId, activeCategory) : {};
 
   // Voice checklist — hook must be called unconditionally (before any early return).
   // We use a stable wrapper + ref so toggleItem (defined after the guard clause)
@@ -57,9 +57,9 @@ export function Checklist() {
     voiceCompletePhaseRef.current(itemIds);
   }, []);
 
-  const voiceNavigateVariantRef = useRef<(variant: string) => void>(() => {});
-  const stableNavigateVariant = useCallback((variant: string) => {
-    voiceNavigateVariantRef.current(variant);
+  const voiceCategoryNavigateRef = useRef<(category: string) => void>(() => {});
+  const stableNavigateCategory = useCallback((category: string) => {
+    voiceCategoryNavigateRef.current(category);
   }, []);
 
   const {
@@ -77,7 +77,7 @@ export function Checklist() {
     checkedItems,
     onCheckItem: stableVoiceCheck,
     onCompletePhase: stableCompletePhase,
-    onNavigateVariant: stableNavigateVariant,
+    onNavigateCategory: stableNavigateCategory,
   });
 
   const { user, isAdmin } = useAuth();
@@ -101,10 +101,10 @@ export function Checklist() {
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
     if (!planeId) return;
     const newValue = typeof updater === 'function' ? updater(checkedItems) : updater;
-    setProgress(planeId, newValue, activeVariant);
+    setProgress(planeId, newValue, activeCategory);
   };
 
-  const handleDuplicateVariant = () => {
+  const handleDuplicateCategory = () => {
     if (!planeId || !checklist) return;
     const name = prompt('Enter sub-checklist name:');
     if (!name?.trim()) return;
@@ -137,7 +137,7 @@ export function Checklist() {
   // DnD reorder callbacks (must be before guard clause)
   const reorderItems = useCallback((phaseId: string, fromIndex: number, toIndex: number) => {
     if (!checklist || !plane) return;
-    const key = variantKey ?? plane.id;
+    const key = categoryKey ?? plane.id;
     const updated: PlaneChecklist = {
       ...checklist,
       phases: checklist.phases.map(phase => {
@@ -149,16 +149,16 @@ export function Checklist() {
       }),
     };
     updateChecklist(key, updated);
-  }, [checklist, plane, variantKey, updateChecklist]);
+  }, [checklist, plane, categoryKey, updateChecklist]);
 
   const reorderPhases = useCallback((fromIndex: number, toIndex: number) => {
     if (!checklist || !plane) return;
-    const key = variantKey ?? plane.id;
+    const key = categoryKey ?? plane.id;
     const phases = [...checklist.phases];
     const [moved] = phases.splice(fromIndex, 1);
     phases.splice(toIndex, 0, moved);
     updateChecklist(key, { ...checklist, phases });
-  }, [checklist, plane, variantKey, updateChecklist]);
+  }, [checklist, plane, categoryKey, updateChecklist]);
 
   const { handleDragStart, handleDragEnd, handleDragOver, handleDropItem, handleDropPhase: _handleDropPhase } = useDragReorder(reorderItems, reorderPhases);
   void _handleDropPhase; // phases use up/down arrows instead of DnD
@@ -168,11 +168,11 @@ export function Checklist() {
     const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
     const header = 'name,category,phase,item,expectedState,reference';
     const allChecklists: Array<{ checklist: PlaneChecklist; category: string }> = [
-      { checklist, category: activeVariant === 'Standard' ? '' : activeVariant },
+      { checklist, category: activeCategory === 'Standard' ? '' : activeCategory },
     ];
     const planeCategories = planeId ? getCategories(planeId) : ['Standard'];
     for (const c of planeCategories) {
-      if (c === activeVariant) continue;
+      if (c === activeCategory) continue;
       const key = c === 'Standard' ? planeId! : `${planeId}::${c}`;
       const cl = checklists[key];
       if (cl) allChecklists.push({ checklist: cl, category: c === 'Standard' ? '' : c });
@@ -199,7 +199,7 @@ export function Checklist() {
     a.download = `${plane.id}-checklist.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [plane, checklist, activeVariant, planeId, checklists, getCategories]);
+  }, [plane, checklist, activeCategory, planeId, checklists, getCategories]);
 
   const handleShare = async () => {
     if (!plane || !checklist) return;
@@ -271,12 +271,12 @@ export function Checklist() {
     return <Navigate to="/" replace />;
   }
 
-  if (rawVariantName && !categories.includes(rawVariantName)) {
+  if (rawCategoryName && !categories.includes(rawCategoryName)) {
     return <Navigate to={`/checklist/${planeId}`} replace />;
   }
 
-  const checklistKey = variantKey ?? (plane?.id || '');
-  const isReferenceVariant = activeVariant === 'Reference Tables';
+  const checklistKey = categoryKey ?? (plane?.id || '');
+  const isReferenceCategory = activeCategory === 'Reference Tables';
 
   const autoAdvancePhase = (updatedItems: Record<string, boolean>) => {
     if (isEditing) return;
@@ -324,13 +324,13 @@ export function Checklist() {
     if (!checkedItems[itemId]) toggleItem(itemId);
   };
 
-  // Wire voice variant navigation commands.
-  voiceNavigateVariantRef.current = (variant: string) => {
+  // Wire voice category navigation commands.
+  voiceCategoryNavigateRef.current = (category: string) => {
     if (!planeId) return;
-    if (variant === 'Standard') {
+    if (category === 'Standard') {
       navigate(`/checklist/${planeId}`);
     } else {
-      navigate(`/checklist/${planeId}/${encodeURIComponent(variant)}`);
+      navigate(`/checklist/${planeId}/${encodeURIComponent(category)}`);
     }
   };
 
@@ -339,7 +339,7 @@ export function Checklist() {
     if (!planeId || itemIds.length === 0) return;
     const updated = { ...checkedItems };
     for (const id of itemIds) updated[id] = true;
-    setProgress(planeId, updated, activeVariant);
+    setProgress(planeId, updated, activeCategory);
   };
 
   const togglePhase = (phaseId: string) => {
@@ -544,23 +544,23 @@ export function Checklist() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <Link to={activeVariant !== 'Standard' ? `/checklist/${planeId}` : '/'} className={styles.backLink}>
-          <ChevronLeft /> {activeVariant !== 'Standard' ? 'Back to Checklist' : 'Back to Fleet'}
+        <Link to={activeCategory !== 'Standard' ? `/checklist/${planeId}` : '/'} className={styles.backLink}>
+          <ChevronLeft /> {activeCategory !== 'Standard' ? 'Back to Checklist' : 'Back to Fleet'}
         </Link>
         <div className={styles.headerContent}>
           <div>
             <h1 className={styles.title}>
-              {plane.name} {activeVariant !== 'Standard' ? `— ${activeVariant}` : 'Checklist'}
+              {plane.name} {activeCategory !== 'Standard' ? `— ${activeCategory}` : 'Checklist'}
             </h1>
             <span className={styles.subtitle}>{plane.manufacturer}</span>
             <CategorySelector
               planeId={planeId!}
               categories={categories}
-              activeCategory={activeVariant}
-              onDuplicate={handleDuplicateVariant}
+              activeCategory={activeCategory}
+              onDuplicate={handleDuplicateCategory}
               onDelete={(v) => {
                 if (planeId) deleteCategory(planeId, v);
-                if (v === activeVariant) navigate(`/checklist/${planeId}`);
+                if (v === activeCategory) navigate(`/checklist/${planeId}`);
               }}
               isEditing={isEditing}
             >
@@ -577,7 +577,7 @@ export function Checklist() {
             </CategorySelector>
           </div>
           <div className={styles.headerActions}>
-            {!isReferenceVariant && (
+            {!isReferenceCategory && (
               <button
                 onClick={() => { setIsEditing(!isEditing); setInsertAt(null); }}
                 className={isEditing ? styles.editButtonActive : styles.resetButton}
@@ -602,18 +602,18 @@ export function Checklist() {
                 </button>
               </>
             )}
-            {!isReferenceVariant && (
+            {!isReferenceCategory && (
               <button onClick={resetChecklist} className={styles.resetButton}>
                 <RotateCcw className={styles.resetIcon} />
                 Reset
               </button>
             )}
-            {!isReferenceVariant && (
+            {!isReferenceCategory && (
               <button onClick={toggleMute} className={styles.resetButton} title={isMuted ? 'Unmute sounds' : 'Mute sounds'}>
                 {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
               </button>
             )}
-            {user && isReferenceVariant && (
+            {user && isReferenceCategory && (
               <button
                 onClick={() => setShowAddTableModal(true)}
                 className={styles.resetButton}
@@ -716,7 +716,7 @@ export function Checklist() {
                     {isCollapsed ? <ChevronRight size={20} /> : <ChevronDown size={20} />}
                     <h2 className={styles.phaseTitle}>{phase.title}</h2>
                   </div>
-                  {!isReferenceVariant && <div className={styles.progressWrapper}>
+                  {!isReferenceCategory && <div className={styles.progressWrapper}>
                     <div className={styles.progressBar}>
                       <div
                         className={styles.progressFill}
@@ -728,7 +728,7 @@ export function Checklist() {
                     </span>
                   </div>}
                 </div>
-                {!isEditing && !isReferenceVariant && phase.items.length > 0 && (
+                {!isEditing && !isReferenceCategory && phase.items.length > 0 && (
                   <button
                     className={styles.toggleAllButton}
                     onClick={() => {
@@ -823,7 +823,7 @@ export function Checklist() {
                       {isEditing && insertionPoint(phase.id, idx + 1)}
                     </div>
                   ))}
-                {user && isReferenceVariant && !isCollapsed && (
+                {user && isReferenceCategory && !isCollapsed && (
                   <div className={styles.addRefImageRow}>
                     {addImagePhaseId === phase.id ? (
                       <div className={styles.insertForm}>
