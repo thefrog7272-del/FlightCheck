@@ -3,4 +3,7 @@ services:
     build: .
     ports:
       - "5173:80"
+    environment:
+        - VITE_SUPABASE_URL=https://uuqsqzxntlaxlgzayorf.supabase.co
+        - VITE_SUPABASE_ANON_KEY=sb_publishable_Cd6Vh0T0Luleu3YvwpAfrw_4gQ5KAfj
     restart: unless-stopped
