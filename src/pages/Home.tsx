@@ -516,6 +516,8 @@ listAllSharedChecklists()]);
         // Your existing processing logic
       }
     }; 
+            reader.readAsText(file);
+  };
 
   const sampleCsv = `name,category,phase,item,expectedState,reference
 "Piper Archer II","","Pre-Flight","Master Switch","ON",""
