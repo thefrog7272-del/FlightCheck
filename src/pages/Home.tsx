@@ -481,27 +481,97 @@ listAllSharedChecklists()]);
           return;
         }
 
-        // Format 6: { aircraft, nickname, checklist: [{ title, items: [{callout, response}] }] }
+        // Format 6: { aircraft, nickname, checklist: [{ title, items: [{callout, response, "type:"}] }] }
         // Used by some third-party checklist bundles (e.g. Cessna 208B Caravan Bundle)
+        // Items are routed by the "type:" key (note: literal colon in key name):
+        //   null / absent  → Normal (main) checklist
+        //   "Emergency"    → Emergency category checklist
+        //   "Abnormal"     → Abnormal category checklist
+        //   "Reference"    → Reference category checklist
+        // Items with a "pause" key (instead of "callout") are imported as note rows.
         if (json.aircraft && Array.isArray(json.checklist) && json.checklist[0]?.title) {
           const name = String(json.aircraft);
           const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           const plane = { id: planeId, name, manufacturer: '', image: '', type: 'GA' as const };
-          const phases = (json.checklist as Array<{ title: string; items: Array<Record<string, unknown>> }>).map((phase, pi) => {
+
+          // Category buckets: null/"" → main, "Emergency" / "Abnormal" / "Reference" → own category
+          const CATEGORY_KEYS = ['Emergency', 'Abnormal', 'Reference'] as const;
+          type CategoryKey = typeof CATEGORY_KEYS[number];
+          const categoryPhases: Record<CategoryKey, Array<{ id: string; title: string; items: { id: string; label: string; expectedState?: string }[] }>> = {
+            Emergency: [],
+            Abnormal: [],
+            Reference: [],
+          };
+          const mainPhases: typeof categoryPhases['Emergency'] = [];
+
+          (json.checklist as Array<{ title: string; items: Array<Record<string, unknown>> }>).forEach((phase, pi) => {
             const phaseId = phase.title.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
-            const items = (phase.items ?? [])
-              .filter(item => item.callout)
-              .map((item, ii) => ({
-                id: `${phaseId}-${ii}`,
-                label: String(item.callout),
-                ...(item.response ? { expectedState: String(item.response) } : {}),
-              }));
-            return { id: phaseId, title: phase.title, items };
-          }).filter(p => p.items.length > 0);
-          const checklist = { planeId, phases };
+
+            // Split items in this phase into main vs category buckets
+            const buckets: Record<'main' | CategoryKey, { id: string; label: string; expectedState?: string }[]> = {
+              main: [], Emergency: [], Abnormal: [], Reference: [],
+            };
+
+            (phase.items ?? []).forEach((item, ii) => {
+              const itemId = `${phaseId}-${ii}`;
+              // Determine the category from the "type:" key (literal colon in key name)
+              const rawCategory = (item['type:'] as string | undefined | null) ?? null;
+              const categoryBucket: 'main' | CategoryKey =
+                rawCategory && CATEGORY_KEYS.includes(rawCategory as CategoryKey)
+                  ? (rawCategory as CategoryKey)
+                  : 'main';
+
+              if (item.pause && Array.isArray(item.pause)) {
+                // pause: [index, "note text"] — import as a label-only note row
+                const noteText = String(item.pause[1] ?? item.pause[0] ?? '');
+                if (noteText) buckets[categoryBucket].push({ id: itemId, label: noteText });
+              } else if (item.callout) {
+                buckets[categoryBucket].push({
+                  id: itemId,
+                  label: String(item.callout),
+                  ...(item.response ? { expectedState: String(item.response) } : {}),
+                });
+              }
+            });
+
+            // Append non-empty phase slices to the appropriate bucket
+            if (buckets.main.length > 0) {
+              mainPhases.push({ id: phaseId, title: phase.title, items: buckets.main });
+            }
+            for (const cat of CATEGORY_KEYS) {
+              if (buckets[cat].length > 0) {
+                categoryPhases[cat].push({ id: `${phaseId}-${cat.toLowerCase()}`, title: phase.title, items: buckets[cat] });
+              }
+            }
+          });
+
+          const checklist = { planeId, phases: mainPhases };
           await importPlane(plane, checklist);
+
+          // Import each non-empty category checklist
+          const importedCategories: string[] = [];
+          for (const cat of CATEGORY_KEYS) {
+            if (categoryPhases[cat].length > 0) {
+              const categoryChecklist = { planeId, phases: categoryPhases[cat] };
+              if (isAdmin) {
+                const allCl = await listAllSharedChecklists();
+                const existing = allCl.find(c => c.plane_id === planeId && c.category === cat);
+                if (existing) {
+                  await updateSharedChecklist(existing.id, JSON.stringify(categoryPhases[cat]));
+                } else {
+                  await createSharedChecklist({ plane_id: planeId, category: cat, phases: JSON.stringify(categoryPhases[cat]) });
+                }
+              } else {
+                addCategory(planeId, cat, categoryChecklist);
+              }
+              importedCategories.push(cat);
+            }
+          }
+
           const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
-          setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${phases.reduce((s, p) => s + p.items.length, 0)} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`);
+          const mainItemCount = mainPhases.reduce((s, p) => s + p.items.length, 0);
+          const catSummary = importedCategories.length > 0 ? ` + categories: ${importedCategories.join(', ')}` : '';
+          setImportSummary(`Imported "${name}" with ${mainPhases.length} phase(s) and ${mainItemCount} item(s)${catSummary}.${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`);
           return;
         }
 
