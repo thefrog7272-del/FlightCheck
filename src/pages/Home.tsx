@@ -483,40 +483,40 @@ listAllSharedChecklists()]);
 
         // Format 6: { aircraft, nickname, checklist: [{ title, items: [{callout, response}] }] }
         // Used by some third-party checklist bundles (e.g. Cessna 208B Caravan Bundle)
+
+         const handleJsonImport = async (json: any) => {
+      // Process JSON directly
     
-          import * as fs from 'fs';
-    import * as path from 'path';
-
-    const handleJsonImport = async (filePath: string) => {
-      try {
-        // Read JSON file directly
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        const json = JSON.parse(fileContent);
-
-        // Rest of your existing logic remains the same
-        if (Array.isArray(json) && json.length > 0 && json[0].phase && json[0].item) {
-          const first = json[0];
-          const name = path.basename(filePath, path.extname(filePath));
+    };
+        if (json.aircraft && Array.isArray(json.checklist) && json.checklist[0]?.title) {
+          const name = String(json.aircraft);
           const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-          const plane = { id: planeId, name, manufacturer: first.manufacturer || '', image: first.image || '', type: first.type || 'GA' };
-
-          // ... rest of your processing logic
+          const plane = { id: planeId, name, manufacturer: '', image: '', type: 'GA' as const };
+          const phases = (json.checklist as Array<{ title: string; items: Array<Record<string, unknown>> }>).map((phase, pi) => {
+            const phaseId = phase.title.toLowerCase().replace(/[^a-z0-9]/g, '-') + `-${pi}`;
+            const items = (phase.items ?? [])
+            const category = String(json.type);
+              .filter(item => item.callout)
+              .map((item, ii) => ({
+                id: `${phaseId}-${ii}`,
+                label: String(item.callout),
+                ...(item.response ? { expectedState: String(item.response) } : {}),
+              }));
+            return { id: phaseId, title: phase.title, items };
+          }).filter(p => p.items.length > 0);
+          const checklist = { planeId, phases };
+          await importPlane(plane, checklist);
+          const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
+          setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${phases.reduce((s, p) => s + p.items.length, 0)} item(s).${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`);
+          return;
         }
+
+        alert('Unrecognized JSON format. Supported: flat array of items, { plane, checklist }, { phases }, or fleet backup.');
       } catch (error) {
-        console.error('Error importing JSON file:', error);
+        alert(error instanceof Error ? error.message : 'Failed to parse JSON file.');
       }
     };
-  
-
-    //**For browser-based usage (without file input):**
-    
-    const handleJsonImport = async (json: any) => {
-      // Process JSON directly
-      if (Array.isArray(json) && json.length > 0 && json[0]?.phase && json[0]?.item) {
-        // Your existing processing logic
-      }
-    }; 
-            reader.readAsText(file);
+    reader.readAsText(file);
   };
 
   const sampleCsv = `name,category,phase,item,expectedState,reference
