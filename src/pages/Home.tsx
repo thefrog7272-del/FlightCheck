@@ -389,11 +389,11 @@ listAllSharedChecklists()]);
           const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
           const checklist = { planeId, phases };
 
-          // Build variant checklists
-          const jsonVariants: Record<string, { planeId: string; phases: typeof phases }> = {};
+          // Build category checklists
+          const jsoncategorys: Record<string, { planeId: string; phases: typeof phases }> = {};
           for (const [key, phasesMap] of categoryPhaseMaps) {
             if (key === MAIN_KEY) continue;
-            jsonVariants[key] = {
+            jsoncategorys[key] = {
               planeId,
               phases: Array.from(phasesMap.values()),
             };
@@ -406,7 +406,7 @@ listAllSharedChecklists()]);
               await importPlane(plane, checklist);
             }
             addCategory(planeId, category, checklist);
-            setImportSummary(`Imported "${name}" variant "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
+            setImportSummary(`Imported "${name}" category "${category}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
           } else {
             await importPlane(plane, checklist);
             setImportSummary(`Imported "${name}" with ${phases.length} phase(s) and ${totalItems} item(s).${isAdmin ? ' (shared)' : ''}${jsonWarnings}`);
@@ -428,15 +428,15 @@ listAllSharedChecklists()]);
             }
           }
 
-          // Auto-import category-based variants from JSON
-          for (const [variantName, variantChecklist] of Object.entries(jsonVariants)) {
+          // Auto-import category-based categorys from JSON
+          for (const [categoryName, categoryChecklist] of Object.entries(jsoncategorys)) {
             if (!planes.some(p => p.id === planeId)) {
               await importPlane(plane, checklist);
             }
-            addCategory(planeId, variantName, variantChecklist);
+            addCategory(planeId, categoryName, categoryChecklist);
           }
-          if (Object.keys(jsonVariants).length > 0) {
-            setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsonVariants).length} variant(s): ${Object.keys(jsonVariants).join(', ')}`);
+          if (Object.keys(jsoncategorys).length > 0) {
+            setImportSummary(prev => (prev || '') + ` Also imported ${Object.keys(jsoncategorys).length} category(s): ${Object.keys(jsoncategorys).join(', ')}`);
           }
 
           
@@ -646,21 +646,21 @@ listAllSharedChecklists()]);
 
       {showFileImport && (
         <FileImportModal
-          onImport={async (plane, checklist, variants) => {
+          onImport={async (plane, checklist, categorys) => {
             await importPlane(plane, checklist);
-            // Import any variants (e.g. Reference Tables) returned by the Lambda
-            if (variants && Object.keys(variants).length > 0) {
-              for (const [variantName, variantChecklist] of Object.entries(variants)) {
+            // Import any categorys (e.g. Reference Tables) returned by the Lambda
+            if (categorys && Object.keys(categorys).length > 0) {
+              for (const [categoryName, categoryChecklist] of Object.entries(categorys)) {
                 if (isAdmin) {
                   const allCl = await listAllSharedChecklists();
-                  const existing = allCl.find(c => c.plane_id === plane.id && c.category === variantName);
+                  const existing = allCl.find(c => c.plane_id === plane.id && c.category === categoryName);
                   if (existing) {
-                    await updateSharedChecklist(existing.id, JSON.stringify(variantChecklist.phases));
+                    await updateSharedChecklist(existing.id, JSON.stringify(categoryChecklist.phases));
                   } else {
-                    await createSharedChecklist({ plane_id: plane.id, category: variantName, phases: JSON.stringify(variantChecklist.phases) });
+                    await createSharedChecklist({ plane_id: plane.id, category: categoryName, phases: JSON.stringify(categoryChecklist.phases) });
                   }
                 } else {
-                  addCategory(plane.id, variantName, variantChecklist);
+                  addCategory(plane.id, categoryName, categoryChecklist);
                 }
               }
             }
