@@ -48,8 +48,8 @@ interface UseVoiceChecklistProps {
   onCheckItem: (itemId: string) => void;
   /** Called with all unchecked item IDs in the current phase when the user says "next phase". */
   onCompletePhase?: (itemIds: string[]) => void;
-  /** Called with a variant name ('Standard', 'Abnormal', 'Emergency', 'Reference Tables') when user says a navigation command. */
-  onNavigateVariant?: (variant: string) => void;
+  /** Called with a category name ('Standard', 'Abnormal', 'Emergency', 'Reference Tables') when user says a navigation command. */
+  onNavigateCategory?: (category: string) => void;
 }
 
 export interface VoiceChecklistReturn {
@@ -89,7 +89,7 @@ export function useVoiceChecklist({
   checkedItems,
   onCheckItem,
   onCompletePhase,
-  onNavigateVariant,
+  onNavigateCategory,
 }: UseVoiceChecklistProps): VoiceChecklistReturn {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -150,7 +150,7 @@ export function useVoiceChecklist({
   const checkedItemsRef = useRef(checkedItems);
   const onCheckItemRef = useRef(onCheckItem);
   const onCompletePhaseRef = useRef(onCompletePhase);
-  const onNavigateVariantRef = useRef(onNavigateVariant);
+  const onNavigateCategoryRef = useRef(onNavigateCategory);
   const phasesRef = useRef(phases);
   const allItemsRef = useRef<PhaseItem[]>([]);
 
@@ -166,7 +166,7 @@ export function useVoiceChecklist({
   useEffect(() => { checkedItemsRef.current = checkedItems; }, [checkedItems]);
   useEffect(() => { onCheckItemRef.current = onCheckItem; }, [onCheckItem]);
   useEffect(() => { onCompletePhaseRef.current = onCompletePhase; }, [onCompletePhase]);
-  useEffect(() => { onNavigateVariantRef.current = onNavigateVariant; }, [onNavigateVariant]);
+  useEffect(() => { onNavigateCategoryRef.current = onNavigateCategory; }, [onNavigateCategory]);
   useEffect(() => { phasesRef.current = phases; }, [phases]);
   useEffect(() => { allItemsRef.current = allItems; }, [allItems]);
 
@@ -378,7 +378,7 @@ export function useVoiceChecklist({
       'next section', 'next phase', 'complete phase', 'finish phase', 'phase complete', 'jump',
       'next', 'skip', 'pass', 'continue', 'move on',
       'back', 'previous', 'go back',
-      // Variant navigation — no "checklist" suffix (contains "check" substring, would match check handler)
+      // Category navigation — no "checklist" suffix (contains "check" substring, would match check handler)
       // Multi-word phrases listed before bare words so debounce captures full phrase first
       'go normal', 'open normal', 'normal',
       'go abnormal', 'open abnormal', 'abnormal',
@@ -405,16 +405,16 @@ export function useVoiceChecklist({
       } else if (['next section', 'next phase', 'complete phase', 'finish phase', 'phase complete', 'jump'].some(w => cmd.includes(w))) {
         jumpToNextPhase();
 
-      // Variant navigation — checked before 'check'/'go back' to avoid substring matches.
+      // Category navigation — checked before 'check'/'go back' to avoid substring matches.
       // 'abnormal' before 'normal' because 'abnormal'.includes('normal') === true.
       } else if (['abnormal', 'go abnormal', 'open abnormal'].some(w => cmd.includes(w))) {
-        onNavigateVariantRef.current?.('Abnormal');
+        onNavigateCategoryRef.current?.('Abnormal');
       } else if (['normal', 'go normal', 'open normal'].some(w => cmd.includes(w))) {
-        onNavigateVariantRef.current?.('Standard');
+        onNavigateCategoryRef.current?.('Standard');
       } else if (['emergency', 'go emergency', 'open emergency'].some(w => cmd.includes(w))) {
-        onNavigateVariantRef.current?.('Emergency');
+        onNavigateCategoryRef.current?.('Emergency');
       } else if (['reference', 'reference tables', 'go reference', 'open reference'].some(w => cmd.includes(w))) {
-        onNavigateVariantRef.current?.('Reference Tables');
+        onNavigateCategoryRef.current?.('Reference Tables');
 
       } else if (
         ['check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',

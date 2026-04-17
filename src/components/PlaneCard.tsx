@@ -10,11 +10,13 @@ interface PlaneCardProps {
   onDelete?: (id: string) => void;
   onEditImage?: (id: string) => void;
   onAddReferenceTable?: (id: string) => void;
+  onDownloadJson?: (id: string) => void;
+  onDownloadHtml?: (id: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
 }
 
-export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, isFavorite, onToggleFavorite }: PlaneCardProps) {
+export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadHtml, isFavorite, onToggleFavorite }: PlaneCardProps) {
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -64,6 +66,20 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
     setMenuPos(null);
     console.log('[PlaneCard] Delete clicked for:', plane.id);
     onDelete?.(plane.id);
+  };
+
+  const handleDownloadJson = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos(null);
+    onDownloadJson?.(plane.id);
+  };
+
+  const handleDownloadHtml = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos(null);
+    onDownloadHtml?.(plane.id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -158,6 +174,16 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
           {onAddReferenceTable && (
             <button className={styles.contextMenuItem} onClick={handleAddReferenceTable} role="menuitem">
               Add Reference Table
+            </button>
+          )}
+          {onDownloadJson && (
+            <button className={styles.contextMenuItem} onClick={handleDownloadJson} role="menuitem">
+              Download JSON
+            </button>
+          )}
+          {onDownloadHtml && (
+            <button className={styles.contextMenuItem} onClick={handleDownloadHtml} role="menuitem">
+              Download HTML
             </button>
           )}
           {onHide && (
