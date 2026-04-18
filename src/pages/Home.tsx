@@ -11,12 +11,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useImportHandlers } from '../hooks/useImportHandlers';
 import { createSharedChecklist, createPendingSubmission, listSharedPlanes, listAllSharedChecklists, updateSharedChecklist, deleteSharedPlane, deleteSharedChecklist } from '../api/sharedPlanes';
 import type { PlaneChecklist } from '../data/types';
+import { ABILITY_VARIANTS } from '../data/types';
 import { exportPlaneAsJson, exportPlaneAsHtml, exportPlaneAsChecklistJson } from '../utils/exportPlane';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
-  const { planes, checklists, getProgress, recentlyUsed, addPlane, addCategory, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, addCategory, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes, getCategories } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,25 +62,17 @@ export function Home() {
       .slice(0, 3);
   }, [recentlyUsed, getPlaneProgress]);
 
-  // Map groupPlaneId → ability variant buttons ({ label, planeId } sorted by label).
-  // Variant planes carry a `groupId` pointing to their base/group plane.
+  // Map planeId → ability variant category names (beginner/advanced/expert/professional)
   const abilityVariants = useMemo(() => {
-    const result: Record<string, Array<{ label: string; planeId: string }>> = {};
+    const result: Record<string, string[]> = {};
     for (const plane of planes) {
-      if (plane.groupId && plane.abilityVariant) {
-        if (!result[plane.groupId]) result[plane.groupId] = [];
-        result[plane.groupId].push({
-          label: plane.abilityVariant.charAt(0).toUpperCase() + plane.abilityVariant.slice(1),
-          planeId: plane.id,
-        });
-      }
-    }
-    // Sort variants consistently (alphabetical)
-    for (const id of Object.keys(result)) {
-      result[id].sort((a, b) => a.label.localeCompare(b.label));
+      const found = getCategories(plane.id).filter(cat =>
+        (ABILITY_VARIANTS as readonly string[]).includes(cat.toLowerCase()),
+      );
+      if (found.length > 0) result[plane.id] = found;
     }
     return result;
-  }, [planes]);
+  }, [planes, getCategories]);
 
   const handleEditImage = useCallback((planeId: string) => {
     setEditingImagePlaneId(planeId);
@@ -205,10 +198,7 @@ listAllSharedChecklists()]);
 
   const filteredPlanes = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    // Variant planes (those with a groupId) are never shown as standalone cards —
-    // they appear as buttons on their group's card.
     const result = planes.filter(plane => {
-      if (plane.groupId) return false;
       const matchesSearch = plane.name.toLowerCase().includes(query) ||
         plane.manufacturer.toLowerCase().includes(query);
       const matchesType = filterType === 'All' || plane.type === filterType;

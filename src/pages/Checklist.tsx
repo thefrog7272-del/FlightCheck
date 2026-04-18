@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Pl
 import { dispatchScratchpadEvent } from '../hooks/useScratchpad';
 import { subscribeScratchpadEvents } from '../hooks/useScratchpad';
 import { useVoiceChecklist } from '../hooks/useVoiceChecklist';
+import { ABILITY_VARIANTS } from '../data/types';
 import { useFleet } from '../hooks/useFleet';
 import { useAuth } from '../contexts/AuthContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -36,6 +37,24 @@ export function Checklist() {
   useEffect(() => {
     if (planeId) trackRecentUse(planeId);
   }, [planeId, trackRecentUse]);
+
+  // ── Ability-variant context ─────────────────────────────────────────────────
+  // activeCategory may be:
+  //   'Standard'           – the plane's normal checklist
+  //   'expert'             – the expert variant's Normal view
+  //   'expert::Abnormal'   – the expert variant's Abnormal category
+  //
+  // activeVariant      – e.g. 'expert', or null when not in a variant
+  // variantSubCategory – the category within the variant: 'Standard' | 'Abnormal' | etc.
+  const activeVariant = useMemo(
+    () => (ABILITY_VARIANTS as readonly string[]).find(v => activeCategory === v || activeCategory.startsWith(v + '::')) ?? null,
+    [activeCategory],
+  );
+  const variantSubCategory = useMemo(() => {
+    if (!activeVariant) return null;
+    const sep = activeVariant + '::';
+    return activeCategory.startsWith(sep) ? activeCategory.slice(sep.length) : 'Standard';
+  }, [activeVariant, activeCategory]);
 
   // Compute these early — needed both by voice hook (below) and normal render logic.
   const categoryKey = activeCategory !== 'Standard' && planeId ? `${planeId}::${activeCategory}` : null;
@@ -110,7 +129,16 @@ export function Checklist() {
   const [showAddTableModal, setShowAddTableModal] = useState(false);
   const [phaseContextMenu, setPhaseContextMenu] = useState<{ phaseId: string; x: number; y: number } | null>(null);
   const plane = planes.find(p => p.id === planeId);
-  const categories = planeId ? getCategories(planeId) : ['Standard'];
+  // When inside a variant, show that variant's own sub-categories (Normal/Abnormal/Emergency/Reference).
+  // Otherwise show top-level categories, but exclude ability-variant names from the tab bar
+  // (those are shown as buttons on the plane card, not as checklist tabs).
+  const categories = useMemo(() => {
+    if (!planeId) return ['Standard'];
+    if (activeVariant) {
+      return getCategories(`${planeId}::${activeVariant}`);
+    }
+    return getCategories(planeId).filter(cat => !(ABILITY_VARIANTS as readonly string[]).includes(cat.toLowerCase()));
+  }, [planeId, activeVariant, getCategories]);
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
     if (!planeId) return;
     const newValue = typeof updater === 'function' ? updater(checkedItems) : updater;
@@ -284,12 +312,13 @@ export function Checklist() {
     return <Navigate to="/" replace />;
   }
 
-  if (rawCategoryName && !categories.includes(rawCategoryName)) {
+  if (rawCategoryName && !checklist) {
+    // Unknown category or variant — fall back to the plane's base checklist
     return <Navigate to={`/checklist/${planeId}`} replace />;
   }
 
   const checklistKey = categoryKey ?? (plane?.id || '');
-  const isReferenceCategory = activeCategory === 'Reference Tables';
+  const isReferenceCategory = activeCategory === 'Reference Tables' || variantSubCategory === 'Reference Tables';
 
   const autoAdvancePhase = (updatedItems: Record<string, boolean>) => {
     if (isEditing) return;
@@ -599,23 +628,47 @@ export function Checklist() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <Link to={activeCategory !== 'Standard' ? `/checklist/${planeId}` : '/'} className={styles.backLink}>
-          <ChevronLeft /> {activeCategory !== 'Standard' ? 'Back to Checklist' : 'Back to Fleet'}
+        <Link
+          to={
+            activeVariant && variantSubCategory !== 'Standard'
+              ? `/checklist/${planeId}/${encodeURIComponent(activeVariant)}`
+              : activeCategory !== 'Standard' && !activeVariant
+                ? `/checklist/${planeId}`
+                : '/'
+          }
+          className={styles.backLink}
+        >
+          <ChevronLeft />
+          {activeVariant && variantSubCategory !== 'Standard'
+            ? 'Back to Checklist'
+            : activeCategory !== 'Standard' && !activeVariant
+              ? 'Back to Checklist'
+              : 'Back to Fleet'}
         </Link>
         <div className={styles.headerContent}>
           <div>
             <h1 className={styles.title}>
-              {plane.name} {activeCategory !== 'Standard' ? `— ${activeCategory}` : 'Checklist'}
+              {activeVariant
+                ? `${plane.name} — ${activeVariant.charAt(0).toUpperCase() + activeVariant.slice(1)}${variantSubCategory !== 'Standard' ? ` ${variantSubCategory}` : ' Checklist'}`
+                : activeCategory !== 'Standard'
+                  ? `${plane.name} — ${activeCategory}`
+                  : `${plane.name} Checklist`}
             </h1>
             <span className={styles.subtitle}>{plane.manufacturer}</span>
             <CategorySelector
               planeId={planeId!}
               categories={categories}
-              activeCategory={activeCategory}
+              activeCategory={variantSubCategory ?? activeCategory}
+              categoryPrefix={activeVariant ?? undefined}
               onDuplicate={handleDuplicateCategory}
               onDelete={(v) => {
-                if (planeId) deleteCategory(planeId, v);
-                if (v === activeCategory) navigate(`/checklist/${planeId}`);
+                if (planeId) {
+                  // When in a variant, delete the compound key (e.g. expert::Abnormal)
+                  deleteCategory(planeId, activeVariant ? `${activeVariant}::${v}` : v);
+                }
+                if (v === (variantSubCategory ?? activeCategory)) {
+                  navigate(activeVariant ? `/checklist/${planeId}/${encodeURIComponent(activeVariant)}` : `/checklist/${planeId}`);
+                }
               }}
               isEditing={isEditing}
             >

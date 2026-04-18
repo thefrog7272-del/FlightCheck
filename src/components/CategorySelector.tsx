@@ -17,10 +17,14 @@ interface CategorySelectorProps {
   onDuplicate: () => void;
   onDelete: (category: string) => void;
   isEditing: boolean;
+  /** When set, tab links are scoped to this ability-variant.
+   *  e.g. categoryPrefix="expert" → Normal links to /checklist/{id}/expert,
+   *  Abnormal links to /checklist/{id}/expert%3A%3AAbnormal */
+  categoryPrefix?: string;
   children?: ReactNode;
 }
 
-export function CategorySelector({ planeId, categories, activeCategory, onDelete, isEditing, children }: CategorySelectorProps) {
+export function CategorySelector({ planeId, categories, activeCategory, onDelete, isEditing, categoryPrefix, children }: CategorySelectorProps) {
   const visibleTabs = FIXED_TABS.filter(
     tab => tab.categoryId === 'Standard' || categories.includes(tab.categoryId),
   );
@@ -32,10 +36,16 @@ export function CategorySelector({ planeId, categories, activeCategory, onDelete
     <div className={styles.tabBar}>
       {visibleTabs.map(({ label, categoryId, color }) => {
         const isActive = activeCategory === categoryId;
-        const href =
-          categoryId === 'Standard'
+        let href: string;
+        if (categoryPrefix) {
+          href = categoryId === 'Standard'
+            ? `/checklist/${planeId}/${encodeURIComponent(categoryPrefix)}`
+            : `/checklist/${planeId}/${encodeURIComponent(`${categoryPrefix}::${categoryId}`)}`;
+        } else {
+          href = categoryId === 'Standard'
             ? `/checklist/${planeId}`
             : `/checklist/${planeId}/${encodeURIComponent(categoryId)}`;
+        }
         return (
           <div key={categoryId} className={styles.tabItem}>
             <Link

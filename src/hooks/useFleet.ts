@@ -171,12 +171,18 @@ export function useFleet() {
   const getCategories = useCallback((planeId: string): string[] => {
     const categories = ['Standard'];
     const seen = new Set<string>();
+    const prefix = `${planeId}::`;
     // Check shared (Supabase), custom (localStorage), and static checklists
     for (const source of [sharedChecklists, customChecklists, staticChecklists]) {
       for (const key of Object.keys(source)) {
-        if (key.startsWith(`${planeId}::`) && !seen.has(key)) {
-          seen.add(key);
-          categories.push(key.split('::')[1]);
+        if (key.startsWith(prefix)) {
+          // Only the first segment after the prefix is a direct child.
+          // e.g. prefix="boeing-777::", key="boeing-777::expert::Abnormal" → directChild="expert"
+          const directChild = key.slice(prefix.length).split('::')[0];
+          if (!seen.has(directChild)) {
+            seen.add(directChild);
+            categories.push(directChild);
+          }
         }
       }
     }
