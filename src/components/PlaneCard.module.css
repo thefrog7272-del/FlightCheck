@@ -230,7 +230,7 @@ a.author:hover {
   box-shadow: none;
 }
 
-/* Ability variant buttons row */
+/* Ability-variant buttons row */
 .abilityVariantButtons {
   display: flex;
   flex-wrap: wrap;

@@ -678,7 +678,7 @@
   }
 }
 
-/* ── Voice tab pill (sits in the variant selector bar) ───────────────────── */
+/* ── Voice tab pill (sits in the category selector bar) ─────────────────── */
 
 .voiceTab {
   display: flex;
