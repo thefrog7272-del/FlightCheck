@@ -34,9 +34,7 @@ export function Home() {
 
   const {
     importSummary, setImportSummary,
-    importPlane, handleJsonImport, handleFileChange: _handleFileChange,
-    csvInput: _csvInput, setCsvInput: _setCsvInput,
-    imagePreview: _imagePreview, setImagePreview: _setImagePreview,
+    importPlane, handleJsonImport,
   } = useImportHandlers({ planes, addPlane, addCategory, importFleet, isAdmin, refreshSharedPlanes, onImportComplete: handleImportComplete });
 
   const editingPlane = useMemo(

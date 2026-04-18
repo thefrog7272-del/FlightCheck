@@ -48,7 +48,7 @@ function deriveType(summary: string): string | undefined {
 function deriveManufacturer(extract: string, planeName: string): string | undefined {
   // Common pattern: "The XYZ is a ... aircraft manufactured by Acme"
   const mfgMatch = extract.match(
-    /manufactured by ([A-Z][A-Za-z\s&]+?)[\.,]|produced by ([A-Z][A-Za-z\s&]+?)[\.,]|by ([A-Z][A-Za-z\s&]+?) (?:is|was|are)/,
+    /manufactured by ([A-Z][A-Za-z\s&]+?)[.,]|produced by ([A-Z][A-Za-z\s&]+?)[.,]|by ([A-Z][A-Za-z\s&]+?) (?:is|was|are)/,
   );
   if (mfgMatch) {
     return (mfgMatch[1] ?? mfgMatch[2] ?? mfgMatch[3]).trim();

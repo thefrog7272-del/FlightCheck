@@ -216,11 +216,13 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
       }
     }
 
+    // eslint-disable-next-line react-hooks/immutability
     startListeningRef.current = startSession;
     setMicError(null);
     setIsListening(true);
     isListeningRef.current = true;
     // Seed the committed base with the current text (use ref to avoid stale closure)
+    // eslint-disable-next-line react-hooks/immutability
     committedBaseRef.current = textRef.current;
     // Stop checklist voice recognition — Chrome only allows one instance at a time
     dispatchScratchpadEvent('stop-voice');
