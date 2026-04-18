@@ -45,7 +45,7 @@ interface UseVoiceChecklistProps {
   phases: Array<{
     id: string;
     title: string;
-    items: Array<{ id: string; label: string; expectedState?: string }>;
+    items: Array<{ id: string; label: string; expectedState?: string; annotationType?: 'caution' | 'note' | 'warning' }>;
     annotations?: Array<{ type: 'caution' | 'note' | 'warning'; text: string }>;
   }>;
   checkedItems: Record<string, boolean>;

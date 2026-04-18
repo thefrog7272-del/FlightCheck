@@ -1,4 +1,4 @@
-import { Plane, Coffee, Sun, Moon, Lock, Shield, NotebookPen } from 'lucide-react';
+import { Plane, Coffee, Sun, Moon, Lock, Shield } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';

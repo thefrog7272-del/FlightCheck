@@ -10,11 +10,6 @@
 
 export type ScratchpadAction = 'toggle' | 'erase' | 'stop-voice' | 'dictate';
 
-interface ScratchpadEvent {
-  action: ScratchpadAction;
-  suppressMs?: number;
-}
-
 const EVENT_NAME = 'flightcheck:scratchpad';
 
 export function dispatchScratchpadEvent(action: ScratchpadAction) {

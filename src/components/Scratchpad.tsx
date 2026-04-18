@@ -12,6 +12,9 @@ interface Props {
 }
 
 type WSARecognitionCtor = new () => SpeechRecognition;
+type WSAResult = { isFinal: boolean; 0: { transcript: string } };
+type WSAEvent = Event & { results: ArrayLike<WSAResult>; resultIndex: number };
+type WSAErrorEvent = Event & { error: string };
 
 function getRecognitionClass(): WSARecognitionCtor | null {
   if (typeof window === 'undefined') return null;
@@ -37,7 +40,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
 
   const panelRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<InstanceType<WSARecognitionCtor> | null>(null);
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   // Track isListening in a ref so recognition callbacks don't get stale closures
   const isListeningRef = useRef(false);
@@ -143,7 +146,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
       rec.interimResults = true;
       rec.lang = 'en-US';
 
-      rec.onresult = (e: SpeechRecognitionEvent) => {
+      rec.onresult = (e: WSAEvent) => {
         if (Date.now() < suppressUntilRef.current) return;
 
         let finalChunk = '';
@@ -181,7 +184,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
         }
       };
 
-      rec.onerror = (e: SpeechRecognitionErrorEvent) => {
+      rec.onerror = (e: WSAErrorEvent) => {
         if (e.error === 'aborted' || e.error === 'no-speech') return;
         setMicError(`Mic error: ${e.error}`);
         stopListening();
