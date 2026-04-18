@@ -119,8 +119,7 @@
   background-color: rgba(251, 191, 36, 0.15);
 }
 
-.referenceImage {
-  display: block;
+.referenceImage {  display: block;
   max-width: 100%;
   height: auto;
   border-radius: var(--radius);
@@ -288,6 +287,68 @@
   .noteInput {
     display: none !important;
   }
+}
+
+/* ── Annotation banners (caution / note / warning) ─────────────────────── */
+.annotation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius);
+  border-left-width: 4px;
+  border-left-style: solid;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.annotationLabel {
+  font-weight: 700;
+  flex-shrink: 0;
+  letter-spacing: 0.04em;
+}
+
+.annotationText {
+  flex: 1;
+}
+
+/* caution — amber */
+.annotation-caution {
+  background-color: #fffbeb;
+  border-left-color: #f59e0b;
+  color: #78350f;
+}
+
+:root[data-theme="dark"] .annotation-caution {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border-left-color: #f59e0b;
+}
+
+/* warning — red */
+.annotation-warning {
+  background-color: #fff1f2;
+  border-left-color: #ef4444;
+  color: #7f1d1d;
+}
+
+:root[data-theme="dark"] .annotation-warning {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border-left-color: #ef4444;
+}
+
+/* note — indigo */
+.annotation-note {
+  background-color: #eef2ff;
+  border-left-color: #6366f1;
+  color: #312e81;
+}
+
+:root[data-theme="dark"] .annotation-note {
+  background-color: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  border-left-color: #6366f1;
 }
 
 /* ── Reference-table context menu ─────────────────────────────────────── */

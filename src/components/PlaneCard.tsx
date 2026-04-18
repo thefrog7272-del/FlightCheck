@@ -11,12 +11,13 @@ interface PlaneCardProps {
   onEditImage?: (id: string) => void;
   onAddReferenceTable?: (id: string) => void;
   onDownloadJson?: (id: string) => void;
+  onDownloadChecklistJson?: (id: string) => void;
   onDownloadHtml?: (id: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
 }
 
-export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadHtml, isFavorite, onToggleFavorite }: PlaneCardProps) {
+export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadChecklistJson, onDownloadHtml, isFavorite, onToggleFavorite }: PlaneCardProps) {
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -73,6 +74,13 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
     e.stopPropagation();
     setMenuPos(null);
     onDownloadJson?.(plane.id);
+  };
+
+  const handleDownloadChecklistJson = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos(null);
+    onDownloadChecklistJson?.(plane.id);
   };
 
   const handleDownloadHtml = (e: React.MouseEvent) => {
@@ -179,6 +187,11 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
           {onDownloadJson && (
             <button className={styles.contextMenuItem} onClick={handleDownloadJson} role="menuitem">
               Download JSON
+            </button>
+          )}
+          {onDownloadChecklistJson && (
+            <button className={styles.contextMenuItem} onClick={handleDownloadChecklistJson} role="menuitem">
+              Checklist Reader Format
             </button>
           )}
           {onDownloadHtml && (

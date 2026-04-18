@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, FileText, AlertCircle, Check, AlertTriangle, Info } from 'lucide-react';
 import { extractFileText, parseChecklistText, parseHtmlChecklist } from '../utils/checklistFileParser';
 import { validateChecklist, type ImportWarning } from '../utils/checklistValidator';
@@ -8,13 +8,14 @@ import type { Plane, PlaneChecklist } from '../data/types';
 interface FileImportModalProps {
   onImport: (plane: Plane, checklist: PlaneChecklist, categories?: Record<string, PlaneChecklist>) => Promise<void>;
   onClose: () => void;
+  initialFile?: File;
 }
 
 type Step = 'upload' | 'parsing' | 'preview' | 'error';
 
 const PDF_CONVERTER_URL = import.meta.env.VITE_PDF_CONVERTER_URL as string | undefined;
 
-export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
+export function FileImportModal({ onImport, onClose, initialFile }: FileImportModalProps) {
   const [step, setStep] = useState<Step>('upload');
   const [error, setError] = useState('');
   const [rawText, setRawText] = useState('');
@@ -23,6 +24,11 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
   const [result, setResult] = useState<{ plane: Plane; checklist: PlaneChecklist; categories?: Record<string, PlaneChecklist> } | null>(null);
   const [warnings, setWarnings] = useState<ImportWarning[]>([]);
   const [importing, setImporting] = useState(false);
+
+  useEffect(() => {
+    if (initialFile) handleFile(initialFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFile = async (file: File) => {
     setStep('parsing');
@@ -36,10 +42,10 @@ export function FileImportModal({ onImport, onClose }: FileImportModalProps) {
     if (isHtml) {
       try {
         const htmlText = await file.text();
-        const { plane, checklist } = parseHtmlChecklist(htmlText);
+        const { plane, checklist, categories } = parseHtmlChecklist(htmlText);
         setPlaneName(plane.name);
         setManufacturer(plane.manufacturer || '');
-        setResult({ plane, checklist });
+        setResult({ plane, checklist, categories });
         setWarnings(validateChecklist(checklist, plane));
         setStep('preview');
         return;

@@ -4,6 +4,12 @@ import styles from './ChecklistItem.module.css';
 import clsx from 'clsx';
 import type { ChecklistItem as ItemType } from '../data/types';
 
+const ANNOTATION_LABELS: Record<string, string> = {
+  caution: 'CAUTION',
+  warning: 'WARNING',
+  note: 'NOTE',
+};
+
 interface ChecklistItemProps {
   item: ItemType;
   checked: boolean;
@@ -103,8 +109,17 @@ export function ChecklistItem({ item, checked, onToggle, note, onNoteChange, onD
     };
   }, [menuPos]);
 
-  if (hasTableNote) {
+  // Annotation banner (caution / note / warning) — no checkbox, text only
+  if (item.annotationType) {
     return (
+      <div className={`${styles.annotation} ${styles[`annotation-${item.annotationType}`]}`}>
+        <span className={styles.annotationLabel}>{ANNOTATION_LABELS[item.annotationType] ?? item.annotationType.toUpperCase()}</span>
+        <span className={styles.annotationText}>{item.label}</span>
+      </div>
+    );
+  }
+
+  if (hasTableNote) {    return (
       <div
         className={styles.wrapper}
         onContextMenu={onDeleteTable ? (e) => {

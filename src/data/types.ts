@@ -16,12 +16,20 @@ export interface ChecklistItem {
   label: string;
   expectedState?: string;
   reference?: string;
+  /** When set, this item is a caution/note/warning banner, not a checkable step. */
+  annotationType?: 'caution' | 'note' | 'warning';
+}
+
+export interface PhaseAnnotation {
+  type: 'caution' | 'note' | 'warning';
+  text: string;
 }
 
 export interface ChecklistPhase {
   id: string;
   title: string;
   items: ChecklistItem[];
+  annotations?: PhaseAnnotation[];
 }
 
 export interface PlaneChecklist {

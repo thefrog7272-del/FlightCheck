@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { dispatchScratchpadEvent, subscribeScratchpadEvents } from './useScratchpad';
 
 // ── Local Web Speech API types ────────────────────────────────────────────────
 // TypeScript's DOM lib has partial Speech Recognition coverage; we define the
@@ -36,13 +37,16 @@ type PhaseItem = {
   label: string;
   expectedState?: string;
   phaseTitle: string;
+  isAnnotation?: boolean;
+  annotationType?: 'caution' | 'note' | 'warning';
 };
 
 interface UseVoiceChecklistProps {
   phases: Array<{
     id: string;
     title: string;
-    items: Array<{ id: string; label: string; expectedState?: string }>;
+    items: Array<{ id: string; label: string; expectedState?: string; annotationType?: 'caution' | 'note' | 'warning' }>;
+    annotations?: Array<{ type: 'caution' | 'note' | 'warning'; text: string }>;
   }>;
   checkedItems: Record<string, boolean>;
   onCheckItem: (itemId: string) => void;
@@ -62,6 +66,8 @@ export interface VoiceChecklistReturn {
   toggleVoiceMode: () => void;
   readExpectedState: boolean;
   toggleReadExpectedState: () => void;
+  readAnnotations: boolean;
+  toggleReadAnnotations: () => void;
 }
 
 /** Returns the browser's SpeechRecognition constructor (handles webkit prefix). */
@@ -83,6 +89,8 @@ function getRecognitionClass(): WSARecognitionCtor | null {
  *   "back"  / "previous"                     → go to previous item
  *   "repeat" / "again"                       → re-read current item
  *   "stop"  / "exit" / "cancel"              → exit voice mode
+ *   "notepad" / "open notepad"               → toggle scratchpad
+ *   "erase"  / "clear notes"                 → erase scratchpad
  */
 export function useVoiceChecklist({
   phases,
@@ -101,6 +109,13 @@ export function useVoiceChecklist({
       const stored = localStorage.getItem('voice_read_expected_state');
       return stored === null ? false : stored === 'true';
     } catch { return false; }
+  });
+
+  const [readAnnotations, setReadAnnotations] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('voice_read_annotations');
+      return stored === null ? true : stored === 'true';
+    } catch { return true; }
   });
 
   // eslint-disable-next-line react-hooks/use-memo
@@ -154,10 +169,18 @@ export function useVoiceChecklist({
   const phasesRef = useRef(phases);
   const allItemsRef = useRef<PhaseItem[]>([]);
 
+  const readAnnotationsRef = useRef(readAnnotations);
+  useEffect(() => { readAnnotationsRef.current = readAnnotations; }, [readAnnotations]);
+
   const allItems = useMemo(
     (): PhaseItem[] =>
       phases.flatMap(phase =>
-        phase.items.map(item => ({ ...item, phaseTitle: phase.title })),
+        phase.items.map(item => ({
+          ...item,
+          phaseTitle: phase.title,
+          isAnnotation: !!item.annotationType,
+          annotationType: item.annotationType,
+        })),
       ),
     [phases],
   );
@@ -174,10 +197,26 @@ export function useVoiceChecklist({
     setIsVoiceMode(prev => !prev);
   }, []);
 
+  // When scratchpad dictation starts, turn off checklist voice mode so both
+  // don't compete for the microphone.
+  useEffect(() => {
+    return subscribeScratchpadEvents(action => {
+      if (action === 'stop-voice') setIsVoiceMode(false);
+    });
+  }, []);
+
   const toggleReadExpectedState = useCallback(() => {
     setReadExpectedState(prev => {
       const next = !prev;
       try { localStorage.setItem('voice_read_expected_state', String(next)); } catch { /* quota */ }
+      return next;
+    });
+  }, []);
+
+  const toggleReadAnnotations = useCallback(() => {
+    setReadAnnotations(prev => {
+      const next = !prev;
+      try { localStorage.setItem('voice_read_annotations', String(next)); } catch { /* quota */ }
       return next;
     });
   }, []);
@@ -266,6 +305,10 @@ export function useVoiceChecklist({
     }
 
     function itemText(item: PhaseItem): string {
+      if (item.isAnnotation) {
+        const prefix = item.annotationType ? item.annotationType.toUpperCase() : 'NOTE';
+        return `${prefix}: ${item.label}`;
+      }
       return item.expectedState && readExpectedStateRef.current
         ? `${item.label}... ${item.expectedState}`
         : item.label;
@@ -278,10 +321,10 @@ export function useVoiceChecklist({
       const next = itemId ? allItemsRef.current.find(i => i.id === itemId) : null;
 
       // Whenever we leave the current phase (including finishing the checklist),
-      // check off any items that were left unchecked in the departing phase.
+      // check off any non-annotation items that were left unchecked in the departing phase.
       if (prevPhase && (!next || prevPhase !== next.phaseTitle)) {
         allItemsRef.current
-          .filter(i => i.phaseTitle === prevPhase && !checkedItemsRef.current[i.id])
+          .filter(i => i.phaseTitle === prevPhase && !i.isAnnotation && !checkedItemsRef.current[i.id])
           .forEach(i => onCheckItemRef.current(i.id));
       }
 
@@ -292,11 +335,32 @@ export function useVoiceChecklist({
       }
 
       setCurrentItemId(itemId);
-      if (next && prevPhase !== next.phaseTitle) {
+      if (next?.isAnnotation) {
+        // Annotation: speak it then auto-advance to next real item
+        const text = prevPhase !== next.phaseTitle
+          ? `${next.phaseTitle}. ${itemText(next)}`
+          : itemText(next);
+        speakText(text, () => navigateTo(getNextFrom(itemId)));
+      } else if (next && prevPhase !== next.phaseTitle) {
         speakText(`${next.phaseTitle}. ${itemText(next)}`);
       } else if (next) {
         speakText(itemText(next));
       }
+    }
+
+    function getNextFrom(fromId: string): string | null {
+      const items = allItemsRef.current;
+      const checked = checkedItemsRef.current;
+      const idx = items.findIndex(i => i.id === fromId);
+      for (let i = idx + 1; i < items.length; i++) {
+        if (items[i].isAnnotation) {
+          // Include annotation items only when readAnnotations is on
+          if (readAnnotationsRef.current) return items[i].id;
+          continue;
+        }
+        if (!checked[items[i].id]) return items[i].id;
+      }
+      return null;
     }
 
     function getNext(): string | null {
@@ -305,6 +369,10 @@ export function useVoiceChecklist({
       const checked = checkedItemsRef.current;
       const idx = cur ? items.findIndex(i => i.id === cur) : -1;
       for (let i = idx + 1; i < items.length; i++) {
+        if (items[i].isAnnotation) {
+          if (readAnnotationsRef.current) return items[i].id;
+          continue;
+        }
         if (!checked[items[i].id]) return items[i].id;
       }
       return null;
@@ -316,6 +384,7 @@ export function useVoiceChecklist({
       const checked = checkedItemsRef.current;
       const idx = cur ? items.findIndex(i => i.id === cur) : items.length;
       for (let i = idx - 1; i >= 0; i--) {
+        if (items[i].isAnnotation) continue; // skip annotations when going back
         if (!checked[items[i].id]) return items[i].id;
       }
       return null;
@@ -327,7 +396,7 @@ export function useVoiceChecklist({
       const currentPhase = phasesList.find(p => p.items.some(i => i.id === cur));
       if (!currentPhase) return;
 
-      // Bulk-check all unchecked items in the current phase in one state update.
+      // Bulk-check all unchecked non-annotation items in the current phase in one state update.
       // We bypass navigateTo here to avoid its per-item onCheckItemRef loop, which
       // reads a stale checkedItems snapshot and causes only the last item to be saved.
       const unchecked = currentPhase.items
@@ -384,6 +453,9 @@ export function useVoiceChecklist({
       'go abnormal', 'open abnormal', 'abnormal',
       'go emergency', 'open emergency', 'emergency',
       'reference tables', 'go reference', 'open reference', 'reference',
+      'open notepad', 'notepad', 'note pad', 'scratchpad', 'scratch pad',
+      'clear notes', 'erase notes', 'erase',
+      'dictate',
     ];
 
     // Timestamp of the last fired command — prevents double-firing when
@@ -420,7 +492,8 @@ export function useVoiceChecklist({
         ['check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
           'done', 'complete', 'correct', 'checked', 'good'].some(w => cmd.includes(w))
       ) {
-        if (cur && !checkedItemsRef.current[cur]) {
+        const curItem = cur ? allItemsRef.current.find(i => i.id === cur) : null;
+        if (cur && !curItem?.isAnnotation && !checkedItemsRef.current[cur]) {
           onCheckItemRef.current(cur);
         }
         navigateTo(getNext());
@@ -431,6 +504,18 @@ export function useVoiceChecklist({
       } else if (['back', 'previous', 'go back'].some(w => cmd.includes(w))) {
         const p = getPrev();
         if (p) navigateTo(p);
+
+      } else if (['open notepad', 'notepad', 'note pad', 'scratchpad', 'scratch pad'].some(w => cmd.includes(w))) {
+        dispatchScratchpadEvent('toggle');
+
+      } else if (['clear notes', 'erase notes', 'erase'].some(w => cmd.includes(w))) {
+        dispatchScratchpadEvent('erase');
+
+      } else if (cmd.includes('dictate')) {
+        // Stop checklist mic first (Chrome allows only one SpeechRecognition at a time),
+        // then open scratchpad and start dictation
+        setIsVoiceMode(false);
+        setTimeout(() => dispatchScratchpadEvent('dictate'), 400);
       }
     }
 
@@ -528,8 +613,8 @@ export function useVoiceChecklist({
     setCurrentItemId(first?.id ?? null);
 
     const intro = first
-      ? `Voice checklist active. ${first.phaseTitle}. ${itemText(first)}`
-      : 'Voice checklist active. No items found.';
+      ? `${first.phaseTitle}. ${itemText(first)}`
+      : 'No items found.';
     speakFirst(intro);
 
     return () => {
@@ -555,5 +640,5 @@ export function useVoiceChecklist({
     };
   }, [isVoiceMode]); // RecognitionClass is stable (memo on []); all volatile data via refs
 
-  return { isVoiceMode, isListening, isSupported, currentItemId, lastTranscript, recognitionError, toggleVoiceMode, readExpectedState, toggleReadExpectedState };
+  return { isVoiceMode, isListening, isSupported, currentItemId, lastTranscript, recognitionError, toggleVoiceMode, readExpectedState, toggleReadExpectedState, readAnnotations, toggleReadAnnotations };
 }

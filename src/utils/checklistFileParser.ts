@@ -10,10 +10,16 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 const TABLE_NOTE_PREFIX = 'data:table/json,';
 const EM_DASH = '\u2014'; // —
 
+interface JsAnnotation {
+  type: 'caution' | 'note' | 'warning';
+  text: string;
+}
+
 interface JsPhaseData {
   name: string;
   type: string;
-  items: string[];
+  /** Ordered list: string = checklist item text, JsAnnotation = caution/note/warning */
+  items: Array<string | JsAnnotation>;
 }
 
 interface RefTableData {
@@ -29,7 +35,8 @@ function htmlToTitleCase(str: string): string {
 
 /**
  * Extract the content between the opening bracket at `startBracket` and its
- * matching closing bracket, tracking string literals to avoid false matches.
+ * matching closing bracket, tracking string literals (including backticks) to
+ * avoid false matches.
  */
 function extractBracketContent(text: string, startBracket: number): string {
   let depth = 0;
@@ -38,11 +45,11 @@ function extractBracketContent(text: string, startBracket: number): string {
   for (let i = startBracket; i < text.length; i++) {
     const c = text[i];
     if (inString) {
-      if (c === '\\') { i++; continue; }
+      if (c === '\\' && stringChar !== '`') { i++; continue; }
       if (c === stringChar) inString = false;
       continue;
     }
-    if (c === '"' || c === "'") { inString = true; stringChar = c; continue; }
+    if (c === '"' || c === "'" || c === '`') { inString = true; stringChar = c; continue; }
     if (c === '[' || c === '{') depth++;
     else if (c === ']' || c === '}') {
       depth--;
@@ -53,13 +60,112 @@ function extractBracketContent(text: string, startBracket: number): string {
 }
 
 /**
+ * Walk the raw items-array content and return an ordered list of string items
+ * and annotation objects, preserving their original interleaved order.
+ * Comment lines (// ...) are skipped.
+ */
+function parseItemsFromArray(
+  content: string,
+): Array<string | JsAnnotation> {
+  const result: Array<string | JsAnnotation> = [];
+  let i = 0;
+
+  while (i < content.length) {
+    const c = content[i];
+
+    // Whitespace / commas
+    if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === ',') { i++; continue; }
+
+    // Line comment
+    if (c === '/' && content[i + 1] === '/') {
+      while (i < content.length && content[i] !== '\n') i++;
+      continue;
+    }
+
+    // Quoted string item (" or ')
+    if (c === '"' || c === "'") {
+      let str = '';
+      let j = i + 1;
+      while (j < content.length) {
+        const ch = content[j];
+        if (ch === '\\') { str += content[j + 1] ?? ''; j += 2; continue; }
+        if (ch === c) { j++; break; }
+        str += ch;
+        j++;
+      }
+      const raw = str.trim();
+      if (raw.length > 0) result.push(raw);
+      i = j;
+      continue;
+    }
+
+    // Backtick template literal at top level → plain string item
+    if (c === '`') {
+      let str = '';
+      let j = i + 1;
+      while (j < content.length) {
+        const ch = content[j];
+        if (ch === '\\') { str += content[j + 1] ?? ''; j += 2; continue; }
+        if (ch === '`') { j++; break; }
+        str += ch;
+        j++;
+      }
+      const raw = str.trim();
+      if (raw.length > 0) result.push(raw);
+      i = j;
+      continue;
+    }
+
+    // Object item { type: "caution"|"note"|"warning", text: `...` }
+    if (c === '{') {
+      let depth = 1;
+      let j = i + 1;
+      let inStr = false;
+      let strCh = '';
+      while (j < content.length && depth > 0) {
+        const ch = content[j];
+        if (inStr) {
+          if (ch === '\\' && strCh !== '`') { j += 2; continue; }
+          if (ch === strCh) inStr = false;
+        } else {
+          if (ch === '"' || ch === "'" || ch === '`') { inStr = true; strCh = ch; }
+          else if (ch === '{') depth++;
+          else if (ch === '}') depth--;
+        }
+        j++;
+      }
+      const objText = content.slice(i, j);
+
+      const typeMatch = objText.match(/\btype\s*:\s*["']([^"']+)["']/);
+      const textBtMatch = objText.match(/\btext\s*:\s*`([\s\S]*?)`/);
+      const textQMatch = objText.match(/\btext\s*:\s*["']((?:[^"'\\]|\\.)*)["']/);
+
+      const type = typeMatch?.[1]?.toLowerCase();
+      const text = (textBtMatch?.[1] ?? textQMatch?.[1] ?? '').trim();
+
+      if ((type === 'caution' || type === 'note' || type === 'warning') && text.length > 0) {
+        result.push({ type: type as 'caution' | 'note' | 'warning', text });
+      }
+
+      i = j;
+      continue;
+    }
+
+    i++;
+  }
+
+  return result;
+}
+
+/**
  * Parse a single phase object from its JS source text.
  * Expected shape: { name: "...", type: "...", items: ["...", ...] }
  */
 function parsePhaseObject(objText: string): JsPhaseData | null {
   const nameMatch = objText.match(/name:\s*"([^"]+)"/);
+  if (!nameMatch) return null;
   const typeMatch = objText.match(/type:\s*"([^"]+)"/);
-  if (!nameMatch || !typeMatch) return null;
+  const type = typeMatch ? typeMatch[1] : 'normal';
 
   const itemsStart = objText.indexOf('items:');
   if (itemsStart === -1) return null;
@@ -67,16 +173,9 @@ function parsePhaseObject(objText: string): JsPhaseData | null {
   if (bracketIdx === -1) return null;
 
   const itemsContent = extractBracketContent(objText, bracketIdx);
+  const mixedItems = parseItemsFromArray(itemsContent);
 
-  const items: string[] = [];
-  const itemRegex = /"((?:[^"\\]|\\.)*)"/g;
-  let m: RegExpExecArray | null;
-  while ((m = itemRegex.exec(itemsContent)) !== null) {
-    const raw = m[1].trim();
-    if (raw.length > 0) items.push(raw);
-  }
-
-  return { name: nameMatch[1], type: typeMatch[1], items };
+  return { name: nameMatch[1], type, items: mixedItems };
 }
 
 /**
@@ -101,11 +200,12 @@ function parseJsPhasesFromScript(scriptText: string): JsPhaseData[] {
   for (let i = 0; i < arrContent.length; i++) {
     const c = arrContent[i];
     if (inStr) {
-      if (c === '\\') { i++; continue; }
+      // Backtick strings don't use backslash escapes the same way as " and '
+      if (c === '\\' && strChar !== '`') { i++; continue; }
       if (c === strChar) inStr = false;
       continue;
     }
-    if (c === '"' || c === "'") { inStr = true; strChar = c; continue; }
+    if (c === '"' || c === "'" || c === '`') { inStr = true; strChar = c; continue; }
     if (c === '{') {
       if (objDepth === 0) objStart = i;
       objDepth++;
@@ -201,9 +301,16 @@ function parseRefTablesFromScript(scriptText: string): RefTableData[] {
  *    Each phase: { name: "NAME", type: "normal"|"emergency"|"abnormal", items: ["Label — State", ...] }
  *  - Reference tables in AIRCRAFT_PERFORMANCE / CHARTS JS objects as HTML template literals
  */
+// Phase types that map to named categories (not the main checklist)
+const CATEGORY_PHASE_TYPES: Record<string, string> = {
+  emergency: 'Emergency',
+  abnormal: 'Abnormal',
+  performance: 'Performance',
+};
+
 export function parseHtmlChecklist(
   htmlText: string,
-): { plane: Plane; checklist: PlaneChecklist } {
+): { plane: Plane; checklist: PlaneChecklist; categories: Record<string, PlaneChecklist> } {
   const doc = new DOMParser().parseFromString(htmlText, 'text/html');
 
   // Extract plane name from <title>
@@ -219,36 +326,59 @@ export function parseHtmlChecklist(
   // Parse checklist phases from JS
   const jsPhases = parseJsPhasesFromScript(scriptText);
 
-  const checklistPhases: ChecklistPhase[] = jsPhases.map((p, i) => {
-    const typePrefix = p.type !== 'normal'
-      ? p.type.charAt(0).toUpperCase() + p.type.slice(1) + ': '
-      : '';
-    const title = typePrefix + htmlToTitleCase(p.name);
-    const phaseId = `phase-${p.type}-${i}`;
+  // Bucket phases: normal → main checklist, others → named categories
+  const mainPhases: ChecklistPhase[] = [];
+  const categoryPhaseMap: Record<string, ChecklistPhase[]> = {};
 
+  jsPhases.forEach((p, i) => {
+    const phaseId = `phase-${p.type}-${i}`;
+    const title = htmlToTitleCase(p.name);
+
+    let itemIdx = 0;
     const items: ChecklistItem[] = p.items
-      .filter(raw => raw.trim().length > 0)
-      .map((raw, j) => {
-        // Items use em-dash separator: "Label — Expected State"
+      .filter(entry => {
+        if (typeof entry === 'string') return entry.trim().length > 0;
+        return true; // keep all annotation objects
+      })
+      .map((entry) => {
+        if (typeof entry !== 'string') {
+          // Annotation object — stored inline as a special ChecklistItem
+          const ann = entry as JsAnnotation;
+          return {
+            id: `${phaseId}-ann-${itemIdx++}`,
+            label: ann.text,
+            annotationType: ann.type,
+          };
+        }
+        // Regular checklist item
+        const raw = entry;
         const sepIdx = raw.indexOf(` ${EM_DASH} `);
         const label = sepIdx >= 0 ? raw.slice(0, sepIdx).trim() : raw.trim();
         const expectedState = sepIdx >= 0 ? raw.slice(sepIdx + 3).trim() : undefined;
         return {
-          id: `${phaseId}-item-${j}`,
+          id: `${phaseId}-item-${itemIdx++}`,
           label,
           expectedState: expectedState || undefined,
         };
       });
 
-    return { id: phaseId, title, items };
+    if (items.length === 0) return;
+
+    const phase: ChecklistPhase = { id: phaseId, title, items };
+
+    const categoryName = CATEGORY_PHASE_TYPES[p.type.toLowerCase()];
+    if (categoryName) {
+      (categoryPhaseMap[categoryName] ??= []).push(phase);
+    } else {
+      mainPhases.push(phase);
+    }
   });
 
-  // Parse reference tables from JS template literals
+  // Parse reference tables from JS template literals → Reference Tables category
   const refTables = parseRefTablesFromScript(scriptText);
-
   if (refTables.length > 0) {
     const refPhaseId = 'phase-reference-tables';
-    checklistPhases.push({
+    (categoryPhaseMap['Reference Tables'] ??= []).push({
       id: refPhaseId,
       title: 'Reference Tables',
       items: refTables.map((t, i) => ({
@@ -259,9 +389,7 @@ export function parseHtmlChecklist(
     });
   }
 
-  const nonEmptyPhases = checklistPhases.filter(p => p.items.length > 0);
-
-  if (nonEmptyPhases.length === 0) {
+  if (mainPhases.length === 0 && Object.keys(categoryPhaseMap).length === 0) {
     throw new Error(
       'No checklist data found in this HTML file. ' +
       'The parser expects a HTML checklist with a const phases = [...] array in a <script> block.',
@@ -276,12 +404,14 @@ export function parseHtmlChecklist(
     type: 'GA',
   };
 
-  const checklist: PlaneChecklist = {
-    planeId,
-    phases: nonEmptyPhases,
-  };
+  const checklist: PlaneChecklist = { planeId, phases: mainPhases };
 
-  return { plane, checklist };
+  const categories: Record<string, PlaneChecklist> = {};
+  for (const [catName, phases] of Object.entries(categoryPhaseMap)) {
+    categories[catName] = { planeId, phases };
+  }
+
+  return { plane, checklist, categories };
 }
 
 /**
