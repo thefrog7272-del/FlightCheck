@@ -434,7 +434,7 @@ export function useImportHandlers({
           const dedupMap = crossDeduplicateCategories({
             ...categoryPhases,
             __main__: mainPhases,
-          } as Record<string, (typeof mainPhases)[number] extends never ? never : (typeof mainPhases)[number] extends object ? { title: string; items: { label: string }[] } & (typeof mainPhases)[number] : never>);
+          } as unknown as Record<string, { title: string; items: { label: string }[] }[]>);
           const dedupedMain = (dedupMap['__main__'] ?? mainPhases) as typeof mainPhases;
           for (const cat of CATEGORY_KEYS) {
             categoryPhases[cat] = (dedupMap[cat] ?? categoryPhases[cat]) as typeof categoryPhases[typeof cat];
