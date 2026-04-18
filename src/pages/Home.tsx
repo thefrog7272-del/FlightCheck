@@ -11,12 +11,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useImportHandlers } from '../hooks/useImportHandlers';
 import { createSharedChecklist, createPendingSubmission, listSharedPlanes, listAllSharedChecklists, updateSharedChecklist, deleteSharedPlane, deleteSharedChecklist } from '../api/sharedPlanes';
 import type { PlaneChecklist } from '../data/types';
+import { ABILITY_VARIANTS } from '../data/types';
 import { exportPlaneAsJson, exportPlaneAsHtml, exportPlaneAsChecklistJson } from '../utils/exportPlane';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
-  const { planes, checklists, getProgress, recentlyUsed, addPlane, addCategory, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, addCategory, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes, getCategories } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +61,18 @@ export function Home() {
       })
       .slice(0, 3);
   }, [recentlyUsed, getPlaneProgress]);
+
+  // Map planeId → ability variant category names (beginner/advanced/expert/professional)
+  const abilityVariants = useMemo(() => {
+    const result: Record<string, string[]> = {};
+    for (const plane of planes) {
+      const found = getCategories(plane.id).filter(cat =>
+        (ABILITY_VARIANTS as readonly string[]).includes(cat.toLowerCase()),
+      );
+      if (found.length > 0) result[plane.id] = found;
+    }
+    return result;
+  }, [planes, getCategories]);
 
   const handleEditImage = useCallback((planeId: string) => {
     setEditingImagePlaneId(planeId);
@@ -289,6 +302,7 @@ listAllSharedChecklists()]);
                   onDownloadJson={handleDownloadJson}
                   onDownloadChecklistJson={handleDownloadChecklistJson}
                   onDownloadHtml={handleDownloadHtml}
+                  abilityVariants={abilityVariants[plane.id]}
                 />
               );
             })}
@@ -331,6 +345,7 @@ listAllSharedChecklists()]);
               onDownloadJson={handleDownloadJson}
               onDownloadChecklistJson={handleDownloadChecklistJson}
               onDownloadHtml={handleDownloadHtml}
+              abilityVariants={abilityVariants[plane.id]}
             />
           ))}
         </div>

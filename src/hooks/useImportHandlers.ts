@@ -13,6 +13,7 @@ import {
   deleteSharedChecklist as _deleteSharedChecklist,
 } from '../api/sharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
+import { ABILITY_VARIANTS } from '../data/types';
 
 // ── Suppress unused import warning (deleteSharedChecklist kept for future use) ──
 void _deleteSharedChecklist;
@@ -429,6 +430,50 @@ export function useImportHandlers({
           });
 
           const checklist = { planeId, phases: mainPhases };
+
+          // ── Ability variant detection ──
+          // If the nickname contains a variant keyword (beginner/advanced/expert/professional),
+          // this is ALWAYS a variant checklist — never a new plane.
+          // Find the existing plane by aircraft name and attach the checklist as a category.
+          const nickname = typeof json.nickname === 'string' ? (json.nickname as string).toLowerCase() : '';
+          const detectedVariant = (ABILITY_VARIANTS as readonly string[]).find(v => nickname.includes(v)) ?? null;
+
+          if (detectedVariant) {
+            const existingPlaneForVariant = planes.find(p => p.name.toLowerCase() === name.toLowerCase());
+
+            if (!existingPlaneForVariant) {
+              setImportSummary(
+                `Could not import ${detectedVariant} variant: no plane named "${name}" found. Import the base plane first.`,
+              );
+              return;
+            }
+
+            const variantPlaneId = existingPlaneForVariant.id;
+            const variantChecklist = { planeId: variantPlaneId, phases: mainPhases };
+
+            if (isAdmin) {
+              const allCl = await listAllSharedChecklists();
+              const existingVariantCl = allCl.find(c => c.plane_id === variantPlaneId && c.category === detectedVariant);
+              if (existingVariantCl) {
+                await updateSharedChecklist(existingVariantCl.id, JSON.stringify(mainPhases));
+              } else {
+                await createSharedChecklist({ plane_id: variantPlaneId, category: detectedVariant, phases: JSON.stringify(mainPhases) });
+              }
+              try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
+              await refreshSharedPlanes();
+            } else {
+              addCategory(variantPlaneId, detectedVariant, variantChecklist);
+            }
+
+            const variantItemCount = mainPhases.reduce((s, p) => s + p.items.length, 0);
+            setImportSummary(
+              `Imported "${name}" ${detectedVariant} variant with ${mainPhases.length} phase(s) and ${variantItemCount} item(s).` +
+              `${isAdmin ? ' (shared)' : ''}`,
+            );
+            onImportComplete?.();
+            return;
+          }
+
           await importPlane(plane, checklist);
 
           const importedCategories: string[] = [];

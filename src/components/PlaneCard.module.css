@@ -223,3 +223,79 @@ a.author:hover {
     font-size: 0.8rem;
   }
 }
+
+/* Card with ability variants — disable hover lift since the card itself isn't clickable */
+.cardNoClick:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Ability variant buttons row */
+.abilityVariantButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.abilityVariantButton {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.abilityVariantButton:hover {
+  transform: translateY(-1px);
+}
+
+/* Skill-level colour coding */
+.abilityVariantBeginner {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+.abilityVariantBeginner:hover {
+  background: #22c55e;
+  color: #fff;
+  border-color: #22c55e;
+}
+
+.abilityVariantAdvanced {
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+.abilityVariantAdvanced:hover {
+  background: #f59e0b;
+  color: #fff;
+  border-color: #f59e0b;
+}
+
+.abilityVariantExpert {
+  border-color: #f97316;
+  color: #f97316;
+}
+.abilityVariantExpert:hover {
+  background: #f97316;
+  color: #fff;
+  border-color: #f97316;
+}
+
+.abilityVariantProfessional {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+.abilityVariantProfessional:hover {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+}
