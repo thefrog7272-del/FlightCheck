@@ -433,22 +433,22 @@ export function useImportHandlers({
 
           // ── Ability-variant detection ──
           // If the nickname contains an ability-variant keyword (beginner/advanced/expert/professional),
-          // this is ALWAYS an ability-variant checklist — never a new plane.
-          // Find the existing plane by aircraft name and attach the checklist as a category.
+          // this is ALWAYS an ability-variant checklist.
+          // If the plane doesn't exist yet the first import creates it; all ability-variant imports
+          // attach their checklist as a named category.
           const nickname = typeof json.nickname === 'string' ? (json.nickname as string).toLowerCase() : '';
           const detectedAbilityVariant = (ABILITY_VARIANTS as readonly string[]).find(v => nickname.includes(v)) ?? null;
 
           if (detectedAbilityVariant) {
-            const existingPlaneForAbilityVariant = planes.find(p => p.name.toLowerCase() === name.toLowerCase());
+            const planeAlreadyExists = planes.some(p => p.name.toLowerCase() === name.toLowerCase());
 
-            if (!existingPlaneForAbilityVariant) {
-              setImportSummary(
-                `Could not import ${detectedAbilityVariant} ability variant: no plane named "${name}" found. Import the base plane first.`,
-              );
-              return;
+            if (!planeAlreadyExists) {
+              // Create the plane entry with an empty main checklist so subsequent category
+              // imports have a plane to attach to.
+              await importPlane(plane, { planeId, phases: [] });
             }
 
-            const abilityVariantPlaneId = existingPlaneForAbilityVariant.id;
+            const abilityVariantPlaneId = planeId;
             const abilityVariantChecklist = { planeId: abilityVariantPlaneId, phases: mainPhases };
 
             if (isAdmin) {
