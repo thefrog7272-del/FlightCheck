@@ -11,10 +11,20 @@ interface Props {
   onDictateRef?: MutableRefObject<(() => void) | null>;
 }
 
-type WSARecognitionCtor = new () => SpeechRecognition;
 type WSAResult = { isFinal: boolean; 0: { transcript: string } };
 type WSAEvent = Event & { results: ArrayLike<WSAResult>; resultIndex: number };
 type WSAErrorEvent = Event & { error: string };
+type WSARecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((e: WSAEvent) => void) | null;
+  onerror: ((e: WSAErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+};
+type WSARecognitionCtor = new () => WSARecognition;
 
 function getRecognitionClass(): WSARecognitionCtor | null {
   if (typeof window === 'undefined') return null;
@@ -40,7 +50,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
 
   const panelRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<InstanceType<WSARecognitionCtor> | null>(null);
+  const recognitionRef = useRef<WSARecognition | null>(null);
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   // Track isListening in a ref so recognition callbacks don't get stale closures
   const isListeningRef = useRef(false);
