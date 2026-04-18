@@ -3,32 +3,47 @@
     {
       "path": "Generate-Layout.ps1",
       "size": 896,
-      "date": 134210014300000000
+      "date": 134210124270000000
+    },
+    {
+      "path": "README.md",
+      "size": 1484,
+      "date": 134210124270000000
     },
     {
       "path": "flightcheck-panel/manifest.json",
       "size": 326,
-      "date": 134210013960000000
+      "date": 134210181720000000
     },
     {
       "path": "flightcheck-panel/html_ui/InstrumentsReact/FlightCheck/FlightCheck.html",
       "size": 2099,
-      "date": 134210014060000000
+      "date": 134210124270000000
+    },
+    {
+      "path": "flightcheck-panel/html_ui/Pages/ToolBar/ToolBar_FlightCheck/FC_Icon.svg",
+      "size": 312,
+      "date": 134210163460000000
+    },
+    {
+      "path": "flightcheck-panel/html_ui/Pages/ToolBar/ToolBar_FlightCheck/ToolBar_FlightCheck.html",
+      "size": 1537,
+      "date": 134210181850000000
     },
     {
       "path": "flightcheck-panel/SimObjects/Misc/flightcheck_obj/aircraft.cfg",
       "size": 189,
-      "date": 134210014120000000
+      "date": 134210124270000000
     },
     {
       "path": "flightcheck-panel/SimObjects/Misc/flightcheck_obj/model/model.cfg",
       "size": 19,
-      "date": 134210014150000000
+      "date": 134210124270000000
     },
     {
       "path": "flightcheck-panel/SimObjects/Misc/flightcheck_obj/panel/panel.cfg",
-      "size": 162,
-      "date": 134210014180000000
+      "size": 246,
+      "date": 134210163640000000
     }
   ]
 }

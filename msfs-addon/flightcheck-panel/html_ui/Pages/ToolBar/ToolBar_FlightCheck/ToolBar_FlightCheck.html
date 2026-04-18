@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FlightCheck</title>
+  <script type="text/javascript">
+    "use strict";
+
+    // Assign synchronously — ToolBar.onRegister must be set before the
+    // toolbar system queries this page, not deferred to DOMContentLoaded.
+    if (typeof ToolBar !== "undefined") {
+      ToolBar.onRegister = function (element) {
+        element.id = "FLIGHTCHECK";
+        element.setAttribute("icon", "coui://html_ui/Pages/ToolBar/ToolBar_FlightCheck/FC_Icon.svg");
+        element.setAttribute("title", "FlightCheck");
+        element.setAttribute("panel", "FLIGHTCHECK");
+      };
+    } else {
+      // Fallback: toolbar not yet available — poll until it is
+      var _pollCount = 0;
+      var _poll = setInterval(function () {
+        _pollCount++;
+        if (typeof ToolBar !== "undefined") {
+          clearInterval(_poll);
+          ToolBar.onRegister = function (element) {
+            element.id = "FLIGHTCHECK";
+            element.setAttribute("icon", "coui://html_ui/Pages/ToolBar/ToolBar_FlightCheck/FC_Icon.svg");
+            element.setAttribute("title", "FlightCheck");
+            element.setAttribute("panel", "FLIGHTCHECK");
+          };
+        } else if (_pollCount > 60) {
+          clearInterval(_poll);
+        }
+      }, 500);
+    }
+  </script>
+</head>
+<body></body>
+</html>

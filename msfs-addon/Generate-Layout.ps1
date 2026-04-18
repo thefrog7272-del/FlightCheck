@@ -2,7 +2,7 @@
 # Run this from the msfs-addon/flightcheck-panel directory before packing the addon.
 # It scans all files and writes layout.json with correct sizes and timestamps.
 
-$root = $PSScriptRoot
+$root = Join-Path $PSScriptRoot "flightcheck-panel"
 $outputFile = Join-Path $root "layout.json"
 
 $entries = @()

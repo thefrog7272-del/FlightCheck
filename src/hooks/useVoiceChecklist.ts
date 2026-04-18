@@ -304,14 +304,20 @@ export function useVoiceChecklist({
       window.speechSynthesis.speak(utt);
     }
 
+    function stripAsterisk(text: string): string {
+      return text.replace(/\*+/g, '').trim();
+    }
+
     function itemText(item: PhaseItem): string {
       if (item.isAnnotation) {
         const prefix = item.annotationType ? item.annotationType.toUpperCase() : 'NOTE';
-        return `${prefix}: ${item.label}`;
+        return `${prefix}: ${stripAsterisk(item.label)}`;
       }
-      return item.expectedState && readExpectedStateRef.current
-        ? `${item.label}... ${item.expectedState}`
-        : item.label;
+      const label = stripAsterisk(item.label);
+      const state = item.expectedState ? stripAsterisk(item.expectedState) : undefined;
+      return state && readExpectedStateRef.current
+        ? `${label}... ${state}`
+        : label;
     }
 
     function navigateTo(itemId: string | null) {

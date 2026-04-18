@@ -12,6 +12,7 @@ import { useImportHandlers } from '../hooks/useImportHandlers';
 import { createSharedChecklist, createPendingSubmission, listSharedPlanes, listAllSharedChecklists, updateSharedChecklist, deleteSharedPlane, deleteSharedChecklist } from '../api/sharedPlanes';
 import type { PlaneChecklist } from '../data/types';
 import { exportPlaneAsJson, exportPlaneAsHtml, exportPlaneAsChecklistJson } from '../utils/exportPlane';
+import { deduplicateChecklistWithCategories } from '../utils/checklistDedup';
 
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
@@ -352,6 +353,17 @@ listAllSharedChecklists()]);
         <FileImportModal
           initialFile={fileImportFile}
           onImport={async (plane, checklist, categorys) => {
+            // Cross-dedup: remove lower-priority categories with near-identical phases
+            console.log('[Home onImport] Starting dedup. categories:', Object.keys(categorys ?? {}));
+            const dedupResult = deduplicateChecklistWithCategories(
+              plane.id,
+              checklist,
+              categorys ?? {},
+            );
+            checklist = dedupResult.checklist;
+            categorys = dedupResult.categories;
+            console.log('[Home onImport] After dedup. categories:', Object.keys(categorys ?? {}));
+
             await importPlane(plane, checklist);
             if (categorys && Object.keys(categorys).length > 0) {
               for (const [categoryName, categoryChecklist] of Object.entries(categorys)) {
@@ -369,6 +381,8 @@ listAllSharedChecklists()]);
               }
             }
             setFileImportFile(null);
+            setFilterType('All');
+            setSearchQuery('');
             if (!isAdmin) {
               const submitToAll = window.confirm(`Would you also like to submit "${plane.name}" for all users? (Requires admin approval)`);
               if (submitToAll) {

@@ -1,8 +1,27 @@
 import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDatabase } from './useDatabase';
 import { useSharedPlanes } from './useSharedPlanes';
-import type { Plane, PlaneChecklist } from '../data/types';
+import type { Plane, PlaneChecklist, ChecklistPhase } from '../data/types';
 import { checklists as staticChecklists } from '../data/checklists';
+
+/**
+ * Remove duplicate phases from a checklist.
+ * Two phases are considered identical when they have the same title (case-insensitive)
+ * and the same items (matching label + expectedState for every item in the same order).
+ * The first occurrence is kept; subsequent duplicates are dropped.
+ */
+function deduplicatePhases(phases: ChecklistPhase[]): ChecklistPhase[] {
+  const seen = new Set<string>();
+  return phases.filter(phase => {
+    const key = JSON.stringify({
+      title: phase.title.trim().toLowerCase(),
+      items: phase.items.map(i => ({ label: i.label.trim(), expectedState: i.expectedState ?? '' })),
+    });
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 export function useFleet() {
   const { data, loading, updateKey, resetAll } = useDatabase();
@@ -79,7 +98,11 @@ export function useFleet() {
   );
 
   const addPlane = useCallback((newPlane: Plane, newChecklist: PlaneChecklist) => {
-    console.log('[useFleet addPlane] Adding plane:', newPlane.id, newPlane.name, 'checklist phases:', newChecklist.phases.length, 'checklist keys:', Object.keys(newChecklist));
+    const dedupedChecklist: PlaneChecklist = {
+      ...newChecklist,
+      phases: deduplicatePhases(newChecklist.phases),
+    };
+    console.log('[useFleet addPlane] Adding plane:', newPlane.id, newPlane.name, 'checklist phases:', dedupedChecklist.phases.length, '(deduped from', newChecklist.phases.length, ')');
     // If it was a deleted static plane, restore it
     if (deletedStaticIds.includes(newPlane.id)) {
       updateKey('deleted_static_planes', deletedStaticIds.filter(id => id !== newPlane.id));
@@ -96,7 +119,7 @@ export function useFleet() {
     }
     console.log('>>>> [useFleet addPlane] Saving checklist for:', newPlane.id);
     // Use functional update to avoid stale closure over customChecklists
-    updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => ({ ...prev, [newPlane.id]: newChecklist }));
+    updateKey('custom_checklists', (prev: Record<string, PlaneChecklist>) => ({ ...prev, [newPlane.id]: dedupedChecklist }));
   }, [customPlanes, customChecklists, deletedStaticIds, updateKey]);
 
   const updateChecklist = useCallback((planeId: string, checklist: PlaneChecklist) => {

@@ -3,6 +3,15 @@ import type { Plane, PlaneChecklist } from '../data/types';
 const EM_DASH = '\u2014';
 const TABLE_NOTE_PREFIX = 'data:table/json,';
 
+/**
+ * Callouts that are exported as "_comment": "callout response" in the
+ * checklist-reader format. Matching is exact, case-insensitive.
+ */
+const ACTION_CALLOUT_PATTERNS = [
+  'rotate',
+  'landing gear up',
+];
+
 // Strip any "Category: " prefix that was baked in during HTML import
 // e.g. "Abnormal: Ac Door Illuminated" → "Ac Door Illuminated"
 const CATEGORY_PREFIXES = ['emergency: ', 'abnormal: ', 'reference: ', 'reference tables: ', 'caution: ', 'note: '];
@@ -91,17 +100,34 @@ export function exportPlaneAsChecklistJson(
   const allPhases: Array<{
     title: string;
     type?: string;
-    items: Array<{ callout: string; response?: string }>;
+    items: Array<{ callout: string; response?: string } | { _comment: string }>;
   }> = [];
 
   const addPhases = (cl: PlaneChecklist, type?: string) => {
     for (const phase of cl.phases) {
       const items = phase.items
-        .filter(item => !item.annotationType && !item.reference?.startsWith(TABLE_NOTE_PREFIX))
-        .map(item => ({
-          callout: item.label,
-          ...(item.expectedState ? { response: item.expectedState } : {}),
-        }));
+        .filter(item => {
+          if (item.reference?.startsWith(TABLE_NOTE_PREFIX)) return false;
+          if (item.annotationType === 'warning') return false;
+          return true;
+        })
+        .map(item => {
+          if (item.annotationType === 'caution' || item.annotationType === 'note') {
+            return { _comment: item.label };
+          }
+          const calloutLower = item.label.toLowerCase();
+          const isActionCallout = ACTION_CALLOUT_PATTERNS.some(p => calloutLower === p);
+          if (isActionCallout) {
+            const combined = item.expectedState
+              ? `${item.label} ${item.expectedState}`
+              : item.label;
+            return { _comment: combined };
+          }
+          return {
+            callout: item.label,
+            ...(item.expectedState ? { response: item.expectedState } : {}),
+          };
+        });
       if (items.length === 0) continue;
       allPhases.push({
         title: stripCategoryPrefix(phase.title),
@@ -121,9 +147,11 @@ export function exportPlaneAsChecklistJson(
     addPhases(cl, categoryName.toLowerCase());
   }
 
+  const nickname = plane.name.replace(/\bprofessional\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+
   const json = {
     aircraft: plane.name,
-    nickname: plane.name,
+    nickname,
     checklist: allPhases,
   };
 

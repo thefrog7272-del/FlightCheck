@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { parsePlaneCsv } from '../utils/csvParser';
+import { crossDeduplicateCategories } from '../utils/checklistDedup';
 import { enrichPlane } from '../utils/enrichPlane';
 import { validateChecklist, formatWarnings } from '../utils/checklistValidator';
 import {
@@ -428,7 +429,18 @@ export function useImportHandlers({
             }
           });
 
-          const checklist = { planeId, phases: mainPhases };
+          // Cross-category dedup: if Emergency and Abnormal have the same phase
+          // (same title + ≥70% item similarity), keep only the Emergency one.
+          const dedupMap = crossDeduplicateCategories({
+            ...categoryPhases,
+            __main__: mainPhases,
+          } as Record<string, (typeof mainPhases)[number] extends never ? never : (typeof mainPhases)[number] extends object ? { title: string; items: { label: string }[] } & (typeof mainPhases)[number] : never>);
+          const dedupedMain = (dedupMap['__main__'] ?? mainPhases) as typeof mainPhases;
+          for (const cat of CATEGORY_KEYS) {
+            categoryPhases[cat] = (dedupMap[cat] ?? categoryPhases[cat]) as typeof categoryPhases[typeof cat];
+          }
+
+          const checklist = { planeId, phases: dedupedMain };
           await importPlane(plane, checklist);
 
           const importedCategories: string[] = [];
@@ -451,10 +463,10 @@ export function useImportHandlers({
           }
 
           const fmt6Warnings = formatWarnings(validateChecklist(checklist, plane));
-          const mainItemCount = mainPhases.reduce((s, p) => s + p.items.length, 0);
+          const mainItemCount = dedupedMain.reduce((s, p) => s + p.items.length, 0);
           const catSummary = importedCategories.length > 0 ? ` + categories: ${importedCategories.join(', ')}` : '';
           setImportSummary(
-            `Imported "${name}" with ${mainPhases.length} phase(s) and ${mainItemCount} item(s)${catSummary}.` +
+            `Imported "${name}" with ${dedupedMain.length} phase(s) and ${mainItemCount} item(s)${catSummary}.` +
             `${isAdmin ? ' (shared)' : ''}${fmt6Warnings}`,
           );
           return;

@@ -21,14 +21,59 @@ export interface PlaneEnrichment {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Map of model nicknames → canonical search terms for Wikipedia */
+const KNOWN_AIRCRAFT_NAMES: Record<string, string> = {
+  'baron': 'Beechcraft Baron',
+  'bonanza': 'Beechcraft Bonanza',
+  'king air': 'Beechcraft King Air',
+  'twin otter': 'De Havilland Canada DHC-6 Twin Otter',
+  'caravan': 'Cessna Caravan',
+  'citation': 'Cessna Citation',
+  'skylane': 'Cessna 182 Skylane',
+  'skyhawk': 'Cessna 172 Skyhawk',
+  '172': 'Cessna 172',
+  '182': 'Cessna 182',
+  '208': 'Cessna 208',
+  'arrow': 'Piper Arrow',
+  'cherokee': 'Piper Cherokee',
+  'seneca': 'Piper Seneca',
+  'navajo': 'Piper Navajo',
+  'sr22': 'Cirrus SR22',
+  'sr20': 'Cirrus SR20',
+  'tbm': 'Daher TBM',
+  'pc-12': 'Pilatus PC-12',
+  'pc-21': 'Pilatus PC-21',
+  'da40': 'Diamond DA40',
+  'da42': 'Diamond DA42',
+  '737': 'Boeing 737',
+  '747': 'Boeing 747',
+  '777': 'Boeing 777',
+  '787': 'Boeing 787',
+  'a320': 'Airbus A320',
+  'a330': 'Airbus A330',
+  'a350': 'Airbus A350',
+  'a380': 'Airbus A380',
+  'spitfire': 'Supermarine Spitfire',
+  'mustang': 'North American P-51 Mustang',
+  'pitts': 'Pitts Special',
+  'xcub': 'CubCrafters XCub',
+};
+
 /** Clean up the plane name into a good search term */
 function buildSearchTerm(planeName: string): string {
-  return planeName
+  const stripped = planeName
     .replace(/\s+v[\d.]+$/i, '')           // strip version suffixes like "v2.4"
     .replace(/\s+professional\b/i, '')      // strip "Professional"
     .replace(/^[A-Z]{2,6}\s+/, '')          // strip all-caps prefixes (PMDG, FBW, FSL)
     .replace(/^[A-Z][a-z]+[A-Z][a-zA-Z]{0,5}\s+/, '') // strip CamelCase prefixes (BkSq, FlyByWire)
     .trim();
+
+  // Check if the stripped name (or a token) matches a known aircraft
+  const lower = stripped.toLowerCase();
+  for (const [key, canonical] of Object.entries(KNOWN_AIRCRAFT_NAMES)) {
+    if (lower.includes(key)) return canonical;
+  }
+  return stripped;
 }
 
 /** Derive aircraft type from a Wikipedia description / categories */
