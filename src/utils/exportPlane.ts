@@ -25,7 +25,7 @@ export function exportPlaneAsJson(
 ): void {
   // Collect all checklist phases, tagging each phase with its category type
   const allPhases: Array<{
-    name: string;
+    title: string;
     type?: string;
     items: Array<{ callout: string; response?: string }>;
   }> = [];
@@ -35,11 +35,14 @@ export function exportPlaneAsJson(
   if (mainChecklist) {
     for (const phase of mainChecklist.phases) {
       allPhases.push({
-        name: stripCategoryPrefix(phase.title),
-        items: phase.items.map(item => ({
-          callout: item.label,
-          ...(item.expectedState ? { response: item.expectedState } : {}),
-        })),
+        title: stripCategoryPrefix(phase.title),
+        items: phase.items.map(item => {
+          if (item.annotationType) return { type: item.annotationType, callout: item.label };
+          return {
+            callout: item.label,
+            ...(item.expectedState ? { response: item.expectedState } : {}),
+          };
+        }),
       });
     }
   }
@@ -48,15 +51,18 @@ export function exportPlaneAsJson(
   for (const [key, cl] of Object.entries(checklists)) {
     if (!key.startsWith(`${plane.id}::`)) continue;
     const categoryName = key.split('::')[1];
-    const typeValue = categoryName.toLowerCase(); // "emergency", "abnormal", "reference tables" etc.
+    const typeValue = categoryName.toLowerCase();
     for (const phase of cl.phases) {
       allPhases.push({
-        name: stripCategoryPrefix(phase.title),
+        title: stripCategoryPrefix(phase.title),
         type: typeValue,
-        items: phase.items.map(item => ({
-          callout: item.label,
-          ...(item.expectedState ? { response: item.expectedState } : {}),
-        })),
+        items: phase.items.map(item => {
+          if (item.annotationType) return { type: item.annotationType, callout: item.label };
+          return {
+            callout: item.label,
+            ...(item.expectedState ? { response: item.expectedState } : {}),
+          };
+        }),
       });
     }
   }
@@ -70,6 +76,60 @@ export function exportPlaneAsJson(
   triggerDownload(
     JSON.stringify(json, null, 2),
     `${plane.id}-checklist.json`,
+    'application/json',
+  );
+}
+
+/**
+ * Export a plane's checklists as a reader-friendly JSON (no reference table items).
+ * Phases with no remaining items are omitted. Reference Tables category is excluded entirely.
+ */
+export function exportPlaneAsChecklistJson(
+  plane: Plane,
+  checklists: Record<string, PlaneChecklist>,
+): void {
+  const allPhases: Array<{
+    title: string;
+    type?: string;
+    items: Array<{ callout: string; response?: string }>;
+  }> = [];
+
+  const addPhases = (cl: PlaneChecklist, type?: string) => {
+    for (const phase of cl.phases) {
+      const items = phase.items
+        .filter(item => !item.annotationType && !item.reference?.startsWith(TABLE_NOTE_PREFIX))
+        .map(item => ({
+          callout: item.label,
+          ...(item.expectedState ? { response: item.expectedState } : {}),
+        }));
+      if (items.length === 0) continue;
+      allPhases.push({
+        title: stripCategoryPrefix(phase.title),
+        ...(type ? { type } : {}),
+        items,
+      });
+    }
+  };
+
+  const mainChecklist = checklists[plane.id];
+  if (mainChecklist) addPhases(mainChecklist);
+
+  for (const [key, cl] of Object.entries(checklists)) {
+    if (!key.startsWith(`${plane.id}::`)) continue;
+    const categoryName = key.split('::')[1];
+    if (categoryName.toLowerCase() === 'reference tables') continue;
+    addPhases(cl, categoryName.toLowerCase());
+  }
+
+  const json = {
+    aircraft: plane.name,
+    nickname: plane.name,
+    checklist: allPhases,
+  };
+
+  triggerDownload(
+    JSON.stringify(json, null, 2),
+    `${plane.id}-checklist-reader.json`,
     'application/json',
   );
 }
@@ -93,7 +153,7 @@ export function exportPlaneAsHtml(
   interface ExportPhase {
     name: string;
     type: string;
-    items: string[];
+    items: Array<string | { type: string; text: string }>;
     refTables?: Array<{ label: string; rows: string[][] }>;
   }
 
@@ -101,10 +161,15 @@ export function exportPlaneAsHtml(
 
   const addPhases = (cl: PlaneChecklist, type: string) => {
     for (const phase of cl.phases) {
-      const items: string[] = [];
+      const items: Array<string | { type: string; text: string }> = [];
       const refTables: Array<{ label: string; rows: string[][] }> = [];
 
+      // Inline annotations and regular items in order
       for (const item of phase.items) {
+        if (item.annotationType) {
+          items.push({ type: item.annotationType, text: item.label });
+          continue;
+        }
         if (item.reference?.startsWith(TABLE_NOTE_PREFIX)) {
           try {
             const rawRows = item.reference.slice(TABLE_NOTE_PREFIX.length);
@@ -141,7 +206,14 @@ export function exportPlaneAsHtml(
   const phasesJs = exportPhases
     .map(p => {
       const itemsJs = p.items
-        .map(i => `"${i.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+        .map(i => {
+          if (typeof i === 'string') {
+            return `"${i.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+          }
+          // Annotation object — use backtick string for text to match source format
+          const escapedText = i.text.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+          return `{ type: "${i.type}", text: \`${escapedText}\` }`;
+        })
         .join(',\n        ');
       return `  {
     name: "${p.name.replace(/"/g, '\\"')}",

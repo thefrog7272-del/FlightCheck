@@ -1,8 +1,11 @@
-import { Plane, Coffee, Sun, Moon, Lock, Shield } from 'lucide-react';
+import { Plane, Coffee, Sun, Moon, Lock, Shield, NotebookPen } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../contexts/AuthContext';
 import { OfflineIndicator } from './OfflineIndicator';
+import { Scratchpad } from './Scratchpad';
+import { subscribeScratchpadEvents } from '../hooks/useScratchpad';
 import styles from './Layout.module.css';
 
 function GitHubIcon() {
@@ -16,6 +19,26 @@ function GitHubIcon() {
 export function Layout() {
   const { theme, toggleTheme } = useTheme();
   const { isAdmin } = useAuth();
+  const [showScratchpad, setShowScratchpad] = useState(false);
+  const eraseRef = useRef<(() => void) | null>(null);
+  const dictateRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return subscribeScratchpadEvents(action => {
+      if (action === 'toggle') setShowScratchpad(s => !s);
+      if (action === 'erase') eraseRef.current?.();
+      if (action === 'dictate') {
+        setShowScratchpad(s => {
+          if (!s) {
+            setTimeout(() => dictateRef.current?.(), 50);
+            return true;
+          }
+          dictateRef.current?.();
+          return s;
+        });
+      }
+    });
+  }, []);
 
   return (
     <div className={styles.container}>
@@ -52,6 +75,7 @@ export function Layout() {
               <Coffee size={18} />
               <span>Buy me a coffee</span>
             </a>
+
           </nav>
         </div>
       </header>
@@ -76,6 +100,8 @@ export function Layout() {
           </Link>
         )}
       </footer>
+
+      {showScratchpad && <Scratchpad onClose={() => setShowScratchpad(false)} onEraseRef={eraseRef} onDictateRef={dictateRef} />}
     </div>
   );
 }

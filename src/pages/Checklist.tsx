@@ -4,7 +4,9 @@ import { ChecklistItem } from '../components/ChecklistItem';
 import { KeyboardHints } from '../components/KeyboardHints';
 import { Timer } from '../components/Timer';
 import styles from './Checklist.module.css';
-import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff, NotebookPen } from 'lucide-react';
+import { dispatchScratchpadEvent } from '../hooks/useScratchpad';
+import { subscribeScratchpadEvents } from '../hooks/useScratchpad';
 import { useVoiceChecklist } from '../hooks/useVoiceChecklist';
 import { useFleet } from '../hooks/useFleet';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,6 +74,8 @@ export function Checklist() {
     toggleVoiceMode,
     readExpectedState,
     toggleReadExpectedState,
+    readAnnotations,
+    toggleReadAnnotations,
   } = useVoiceChecklist({
     phases: checklist?.phases ?? [],
     checkedItems,
@@ -84,6 +88,14 @@ export function Checklist() {
   const { confirm, ConfirmDialog } = useConfirm();
   const { playCheck, isMuted, toggleMute } = useSound();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
+
+  // Track scratchpad open state so the button can show active styling
+  const [showScratchpad, setShowScratchpad] = useState(false);
+  useEffect(() => {
+    return subscribeScratchpadEvents(action => {
+      if (action === 'toggle') setShowScratchpad(s => !s);
+    });
+  }, []);
   const [isEditing, setIsEditing] = useState(false);
   useChecklistNavigation(!isEditing);
   const [insertAt, setInsertAt] = useState<{ phaseId: string; index: number } | null>(null);
@@ -96,6 +108,7 @@ export function Checklist() {
   const [addImagePhaseId, setAddImagePhaseId] = useState<string | null>(null);
   const [addImageLabel, setAddImageLabel] = useState('');
   const [showAddTableModal, setShowAddTableModal] = useState(false);
+  const [phaseContextMenu, setPhaseContextMenu] = useState<{ phaseId: string; x: number; y: number } | null>(null);
   const plane = planes.find(p => p.id === planeId);
   const categories = planeId ? getCategories(planeId) : ['Standard'];
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
@@ -462,6 +475,48 @@ export function Checklist() {
     updateChecklist(checklistKey, updated);
   };
 
+  /**
+   * Move a phase to a different category checklist (Normal / Emergency / Abnormal / etc.).
+   * Removes it from the current checklist and appends it to the target.
+   * "Normal" corresponds to the Standard (base) checklist (key = planeId).
+   */
+  const movePhaseToCategory = (phaseId: string, targetCategory: string) => {
+    if (!planeId) return;
+    const phase = checklist.phases.find(p => p.id === phaseId);
+    if (!phase) return;
+
+    // Remove from current checklist
+    const updatedCurrent: PlaneChecklist = {
+      ...checklist,
+      phases: checklist.phases.filter(p => p.id !== phaseId),
+    };
+    updateChecklist(checklistKey, updatedCurrent);
+
+    // Add to target checklist
+    const targetKey = targetCategory === 'Standard' ? planeId : `${planeId}::${targetCategory}`;
+    const targetChecklist: PlaneChecklist = checklists[targetKey] ?? { planeId, phases: [] };
+    const updatedTarget: PlaneChecklist = {
+      ...targetChecklist,
+      planeId,
+      phases: [...targetChecklist.phases, phase],
+    };
+    updateChecklist(targetKey, updatedTarget);
+
+    // If target category doesn't exist yet, register it
+    if (!(targetKey in checklists) && targetCategory !== 'Standard') {
+      addCategory(planeId, targetCategory, updatedTarget);
+    }
+
+    showToast(`Phase moved to ${targetCategory}`);
+    setPhaseContextMenu(null);
+    if (targetCategory === 'Standard') {
+      navigate(`/checklist/${planeId}`);
+    } else {
+      navigate(`/checklist/${planeId}/${encodeURIComponent(targetCategory)}`);
+    }
+  };
+
+
   const toggleAllPhaseItems = (phaseItemIds: string[], checkAll: boolean) => {
     const updated = { ...checkedItems };
     for (const id of phaseItemIds) {
@@ -574,6 +629,14 @@ export function Checklist() {
                   {isVoiceMode ? 'Voice On' : 'Voice'}
                 </button>
               )}
+              <button
+                onClick={() => dispatchScratchpadEvent('toggle')}
+                className={showScratchpad ? styles.voiceTabActive : styles.voiceTab}
+                title={showScratchpad ? 'Hide notepad' : 'Open notepad'}
+              >
+                <NotebookPen size={12} />
+                Notepad
+              </button>
             </CategorySelector>
           </div>
           <div className={styles.headerActions}>
@@ -654,8 +717,15 @@ export function Checklist() {
             >
               {readExpectedState ? 'Label + state' : 'Label only'}
             </button>
+            <button
+              onClick={toggleReadAnnotations}
+              className={styles.readStateBtn}
+              title={readAnnotations ? 'Currently reading caution/note/warnings — click to skip them' : 'Currently skipping caution/note/warnings — click to read them'}
+            >
+              {readAnnotations ? 'Notes on' : 'Notes off'}
+            </button>
             <span className={styles.voiceHints}>
-              "check" · "next" · "back" · "repeat" · "stop" · "go normal/abnormal/emergency/reference"
+              "check" · "next" · "back" · "repeat" · "stop" · "go normal/abnormal/emergency/reference" · "notepad/scratchpad" · "dictate" · "erase"
             </span>
           </div>
         )}
@@ -702,7 +772,14 @@ export function Checklist() {
           const phaseComplete = progress === 100;
 
           return (
-            <div key={phase.id} className={`${styles.phase} ${phaseComplete ? styles.phaseComplete : ''}`}>
+            <div
+              key={phase.id}
+              className={`${styles.phase} ${phaseComplete ? styles.phaseComplete : ''}`}
+              onContextMenu={e => {
+                e.preventDefault();
+                setPhaseContextMenu({ phaseId: phase.id, x: e.clientX, y: e.clientY });
+              }}
+            >
               <div className={styles.phaseHeaderRow}>
                 <div
                   className={styles.phaseHeader}
@@ -909,6 +986,87 @@ export function Checklist() {
       <KeyboardHints />
       {ConfirmDialog}
       {toast && <Toast message={toast.message} action={toast.action} onDismiss={dismissToast} />}
+      {/* Phase right-click context menu */}
+      {phaseContextMenu && planeId && (() => {
+        const ctxPhase = checklist.phases.find(p => p.id === phaseContextMenu.phaseId);
+        if (!ctxPhase) return null;
+        const checkableItems = ctxPhase.items.filter(i => !i.annotationType);
+        const phaseIsComplete = checkableItems.length > 0 && checkableItems.every(i => checkedItems[i.id]);
+        const phaseIdx = checklist.phases.indexOf(ctxPhase);
+        const MOVE_CATEGORIES = ['Standard', 'Emergency', 'Abnormal'];
+        const currentCat = activeCategory;
+        const moveTargets = MOVE_CATEGORIES.filter(c => c !== currentCat);
+        return (
+          <>
+            <div
+              className={styles.contextMenuBackdrop}
+              onClick={() => setPhaseContextMenu(null)}
+              onContextMenu={e => { e.preventDefault(); setPhaseContextMenu(null); }}
+            />
+            <div
+              className={styles.phaseContextMenu}
+              style={{ top: phaseContextMenu.y, left: phaseContextMenu.x }}
+              role="menu"
+            >
+              <div className={styles.phaseContextMenuHeader}>{ctxPhase.title}</div>
+              {!isReferenceCategory && checkableItems.length > 0 && (
+                <button
+                  className={styles.phaseContextMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    toggleAllPhaseItems(checkableItems.map(i => i.id), !phaseIsComplete);
+                    setPhaseContextMenu(null);
+                  }}
+                >
+                  {phaseIsComplete ? <RotateCcw size={14} /> : <CheckCheck size={14} />}
+                  {phaseIsComplete ? 'Uncheck all items' : 'Complete phase'}
+                </button>
+              )}
+              {checklist.phases.length > 1 && (
+                <>
+                  <div className={styles.phaseContextMenuDivider} />
+                  <button
+                    className={styles.phaseContextMenuItem}
+                    role="menuitem"
+                    disabled={phaseIdx === 0}
+                    onClick={() => { movePhase(ctxPhase.id, 'up'); setPhaseContextMenu(null); }}
+                  >
+                    <ArrowUp size={14} />
+                    Move up
+                  </button>
+                  <button
+                    className={styles.phaseContextMenuItem}
+                    role="menuitem"
+                    disabled={phaseIdx === checklist.phases.length - 1}
+                    onClick={() => { movePhase(ctxPhase.id, 'down'); setPhaseContextMenu(null); }}
+                  >
+                    <ArrowDown size={14} />
+                    Move down
+                  </button>
+                </>
+              )}
+              {user && moveTargets.length > 0 && (
+                <>
+                  <div className={styles.phaseContextMenuDivider} />
+                  <div className={styles.phaseContextMenuLabel}>Move to…</div>
+                  {moveTargets.map(cat => (
+                    <button
+                      key={cat}
+                      className={styles.phaseContextMenuItem}
+                      role="menuitem"
+                      onClick={() => movePhaseToCategory(ctxPhase.id, cat)}
+                    >
+                      <span className={`${styles.phaseContextMenuDot} ${styles[`dot${cat}`]}`} />
+                      {cat}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          </>
+        );
+      })()}
+
       {showAddTableModal && plane && (
         <AddReferenceTableModal
           planeName={plane.name}
