@@ -22,7 +22,7 @@ interface PlaneCardProps {
   onDownloadHtml?: (id: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
-  abilityVariants?: string[];
+  abilityVariants?: { label: string; planeId: string }[];
 }
 
 export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadChecklistJson, onDownloadHtml, isFavorite, onToggleFavorite, abilityVariants }: PlaneCardProps) {
@@ -179,15 +179,15 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
           <div className={styles.abilityVariantButtons}>
             {abilityVariants!.map(av => (
               <button
-                key={av}
-                className={`${styles.abilityVariantButton} ${ABILITY_VARIANT_CLASSES[av] ?? ''}`}
+                key={av.planeId}
+                className={`${styles.abilityVariantButton} ${ABILITY_VARIANT_CLASSES[av.label.toLowerCase()] ?? ''}`}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  window.location.href = `/checklist/${plane.id}/${encodeURIComponent(av)}`;
+                  window.location.href = `/checklist/${av.planeId}`;
                 }}
               >
-                {av.charAt(0).toUpperCase() + av.slice(1)}
+                {av.label}
               </button>
             ))}
           </div>

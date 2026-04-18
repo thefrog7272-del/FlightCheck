@@ -12,6 +12,10 @@ export interface Plane {
   sim?: SimPlatform;
   author?: string;
   author_weblink?: string;
+  /** The ability-variant this plane represents, e.g. 'expert'. Set only on variant planes. */
+  abilityVariant?: AbilityVariant;
+  /** ID of the group/base plane. Set on variant planes so they can be grouped under one card. */
+  groupId?: string;
 }
 
 export interface ChecklistItem {

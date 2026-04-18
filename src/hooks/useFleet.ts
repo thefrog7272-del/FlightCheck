@@ -176,7 +176,7 @@ export function useFleet() {
       for (const key of Object.keys(source)) {
         if (key.startsWith(`${planeId}::`) && !seen.has(key)) {
           seen.add(key);
-          categories.push(key.slice(planeId.length + 2));
+          categories.push(key.split('::')[1]);
         }
       }
     }

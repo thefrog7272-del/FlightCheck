@@ -373,12 +373,12 @@ export function useImportHandlers({
           const name = String(json.aircraft);
           const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           const isChecklistReaderFormat = 'nickname' in json;
-          const plane = {
+          const plane: Plane = {
             id: planeId,
             name,
             manufacturer: '',
             image: '',
-            type: 'GA' as const,
+            type: 'GA',
             ...(isChecklistReaderFormat ? {
               author: 'Checklist based on SimFlightChris Checklist Reader format',
               author_weblink: 'https://flightsim.to/addon/96054/checklist-reader-voice-controlled-checklist-tool-beta-v1-0-0',
@@ -433,70 +433,69 @@ export function useImportHandlers({
 
           // ── Ability-variant detection ──
           // If the nickname contains an ability-variant keyword (beginner/advanced/expert/professional),
-          // treat this as a skill-level variant of an existing plane.
-          // The variant's Normal phases are stored as a category `{planeId}::{variant}`.
-          // Its sub-categories (Emergency/Abnormal/Reference) are stored as
-          // `{planeId}::{variant}::{subCategory}` so they remain scoped to the variant
-          // and don't bleed across to other variants of the same plane.
+          // create a separate plane for this variant (e.g. "boeing-777-300er--expert").
+          // That variant plane owns its own Normal checklist and its own category tabs
+          // (Emergency/Abnormal/Reference) — exactly like any other plane.
+          // A lightweight "group" base plane (no checklist) ties the variants together on
+          // the Home screen so they all appear under one card.
           const nickname = typeof json.nickname === 'string' ? (json.nickname as string).toLowerCase() : '';
-          const detectedAbilityVariant = (ABILITY_VARIANTS as readonly string[]).find(v => nickname.includes(v)) ?? null;
+          const detectedAbilityVariant = ABILITY_VARIANTS.find(v => nickname.includes(v)) ?? null;
 
           if (detectedAbilityVariant) {
-            const planeAlreadyExists = planes.some(p => p.name.toLowerCase() === name.toLowerCase());
+            // Base/group plane ID derived from the aircraft name alone (no variant suffix)
+            const groupPlaneId = planeId;
+            const groupPlane: Plane = { ...plane, id: groupPlaneId };
+            delete groupPlane.abilityVariant;
+            delete groupPlane.groupId;
 
-            if (!planeAlreadyExists) {
-              // Create the plane entry with an empty main checklist so subsequent variant
-              // imports have a plane to attach to.
-              await importPlane(plane, { planeId, phases: [] });
+            // Variant plane has its own ID and points back to the group
+            const variantPlaneId = `${groupPlaneId}--${detectedAbilityVariant}`;
+            const variantPlane: Plane = {
+              ...plane,
+              id: variantPlaneId,
+              abilityVariant: detectedAbilityVariant,
+              groupId: groupPlaneId,
+            };
+            const variantChecklist = { planeId: variantPlaneId, phases: mainPhases };
+
+            // Ensure the group/base plane exists (with an empty checklist placeholder)
+            const groupAlreadyExists = planes.some(p => p.id === groupPlaneId);
+            if (!groupAlreadyExists) {
+              await importPlane(groupPlane, { planeId: groupPlaneId, phases: [] });
             }
 
-            const abilityVariantPlaneId = planeId;
-            // Key used for variant-scoped sub-category storage, e.g. "boeing-777::expert"
-            const variantContextId = `${abilityVariantPlaneId}::${detectedAbilityVariant}`;
+            // Save the variant plane + its Normal checklist
+            await importPlane(variantPlane, variantChecklist);
+
+            // Save Emergency/Abnormal/Reference as categories of the variant plane
+            const importedSubCats: string[] = [];
+            for (const cat of CATEGORY_KEYS) {
+              if (categoryPhases[cat].length > 0) {
+                const catChecklist = { planeId: variantPlaneId, phases: categoryPhases[cat] };
+                if (isAdmin) {
+                  const allCl = await listAllSharedChecklists();
+                  const existing = allCl.find(c => c.plane_id === variantPlaneId && c.category === cat);
+                  if (existing) {
+                    await updateSharedChecklist(existing.id, JSON.stringify(categoryPhases[cat]));
+                  } else {
+                    await createSharedChecklist({ plane_id: variantPlaneId, category: cat, phases: JSON.stringify(categoryPhases[cat]) });
+                  }
+                } else {
+                  addCategory(variantPlaneId, cat, catChecklist);
+                }
+                importedSubCats.push(cat);
+              }
+            }
 
             if (isAdmin) {
-              const allCl = await listAllSharedChecklists();
-
-              // Save the variant's Normal (main) phases as the ability-variant category
-              const existingVariantCl = allCl.find(c => c.plane_id === abilityVariantPlaneId && c.category === detectedAbilityVariant);
-              if (existingVariantCl) {
-                await updateSharedChecklist(existingVariantCl.id, JSON.stringify(mainPhases));
-              } else {
-                await createSharedChecklist({ plane_id: abilityVariantPlaneId, category: detectedAbilityVariant, phases: JSON.stringify(mainPhases) });
-              }
-
-              // Save Emergency/Abnormal/Reference scoped to this variant
-              for (const cat of CATEGORY_KEYS) {
-                if (categoryPhases[cat].length > 0) {
-                  const compoundCategory = `${detectedAbilityVariant}::${cat}`;
-                  const existingCat = allCl.find(c => c.plane_id === abilityVariantPlaneId && c.category === compoundCategory);
-                  if (existingCat) {
-                    await updateSharedChecklist(existingCat.id, JSON.stringify(categoryPhases[cat]));
-                  } else {
-                    await createSharedChecklist({ plane_id: abilityVariantPlaneId, category: compoundCategory, phases: JSON.stringify(categoryPhases[cat]) });
-                  }
-                }
-              }
-
               try { localStorage.removeItem('shared_planes_cache'); } catch { /* */ }
               await refreshSharedPlanes();
-            } else {
-              // Store Normal phases as the ability-variant category
-              addCategory(abilityVariantPlaneId, detectedAbilityVariant, { planeId: variantContextId, phases: mainPhases });
-
-              // Store Emergency/Abnormal/Reference scoped to this variant
-              for (const cat of CATEGORY_KEYS) {
-                if (categoryPhases[cat].length > 0) {
-                  addCategory(variantContextId, cat, { planeId: variantContextId, phases: categoryPhases[cat] });
-                }
-              }
             }
 
-            const abilityVariantItemCount = mainPhases.reduce((s, p) => s + p.items.length, 0);
-            const variantSubCats = CATEGORY_KEYS.filter(c => categoryPhases[c].length > 0);
-            const subCatSummary = variantSubCats.length > 0 ? ` + sub-categories: ${variantSubCats.join(', ')}` : '';
+            const variantItemCount = mainPhases.reduce((s, p) => s + p.items.length, 0);
+            const subCatSummary = importedSubCats.length > 0 ? ` + categories: ${importedSubCats.join(', ')}` : '';
             setImportSummary(
-              `Imported "${name}" ${detectedAbilityVariant} variant with ${mainPhases.length} phase(s) and ${abilityVariantItemCount} item(s)${subCatSummary}.` +
+              `Imported "${name}" ${detectedAbilityVariant} variant with ${mainPhases.length} phase(s) and ${variantItemCount} item(s)${subCatSummary}.` +
               `${isAdmin ? ' (shared)' : ''}`,
             );
             onImportComplete?.();
