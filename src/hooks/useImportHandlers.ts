@@ -372,9 +372,28 @@ export function useImportHandlers({
             return null;
           };
 
-          const name = String(json.aircraft);
-          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           const isChecklistReaderFormat = 'nickname' in json;
+
+          // ── AbilityVariant detection ───────────────────────────────────────────
+          // Check nickname first; if the variant keyword isn't there, also scan the
+          // aircraft name itself (e.g. "737 Classic Beginner" → variant='beginner',
+          // baseName='737 Classic').  Detection is done here so name/planeId can
+          // reflect the stripped base name before any other state is derived.
+          const nicknameLower = typeof json.nickname === 'string' ? (json.nickname as string).toLowerCase() : '';
+          let detectedAbilityVariant: string | null = ABILITY_VARIANTS.find(v => nicknameLower.includes(v)) ?? null;
+
+          let name = String(json.aircraft);
+          if (!detectedAbilityVariant) {
+            const variantInName = ABILITY_VARIANTS.find(v => name.toLowerCase().includes(v)) ?? null;
+            if (variantInName) {
+              detectedAbilityVariant = variantInName;
+              // Strip the variant keyword (case-insensitive) from the aircraft name
+              // to produce a clean base plane name shared across all abilityVariants.
+              name = name.replace(new RegExp(`\\b${variantInName}\\b`, 'gi'), '').replace(/\s{2,}/g, ' ').trim();
+            }
+          }
+
+          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           const plane: Plane = {
             id: planeId,
             name,
@@ -432,14 +451,6 @@ export function useImportHandlers({
           });
 
           const checklist = { planeId, phases: mainPhases };
-
-          // ── AbilityVariant detection ───────────────────────────────────────────
-          // If the nickname contains an abilityVariant keyword (beginner/advanced/expert/professional)
-          // the JSON represents one abilityVariant checklist for this plane.
-          // Store it in ability_variant_checklists[planeId][abilityVariant][category].
-          // The plane itself is created/updated normally — no extra plane records.
-          const nickname = typeof json.nickname === 'string' ? (json.nickname as string).toLowerCase() : '';
-          const detectedAbilityVariant = ABILITY_VARIANTS.find(v => nickname.includes(v)) ?? null;
 
           if (detectedAbilityVariant) {
             // Ensure the plane exists first
