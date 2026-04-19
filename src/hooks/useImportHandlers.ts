@@ -375,23 +375,14 @@ export function useImportHandlers({
           const isChecklistReaderFormat = 'nickname' in json;
 
           // ── AbilityVariant detection ───────────────────────────────────────────
-          // Check nickname first; if the variant keyword isn't there, also scan the
-          // aircraft name itself (e.g. "737 Classic Beginner" → variant='beginner',
-          // baseName='737 Classic').  Detection is done here so name/planeId can
-          // reflect the stripped base name before any other state is derived.
+          // The abilityVariant (beginner/advanced/expert/professional) is identified
+          // exclusively from the nickname field.  The aircraft name is used as-is
+          // for the plane name and planeId — it must be identical across all files
+          // that belong to the same plane.
           const nicknameLower = typeof json.nickname === 'string' ? (json.nickname as string).toLowerCase() : '';
-          let detectedAbilityVariant: string | null = ABILITY_VARIANTS.find(v => nicknameLower.includes(v)) ?? null;
+          const detectedAbilityVariant = ABILITY_VARIANTS.find(v => nicknameLower.includes(v)) ?? null;
 
-          let name = String(json.aircraft);
-          if (!detectedAbilityVariant) {
-            const variantInName = ABILITY_VARIANTS.find(v => name.toLowerCase().includes(v)) ?? null;
-            if (variantInName) {
-              detectedAbilityVariant = variantInName;
-              // Strip the variant keyword (case-insensitive) from the aircraft name
-              // to produce a clean base plane name shared across all abilityVariants.
-              name = name.replace(new RegExp(`\\b${variantInName}\\b`, 'gi'), '').replace(/\s{2,}/g, ' ').trim();
-            }
-          }
+          const name = String(json.aircraft);
 
           const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           const plane: Plane = {
