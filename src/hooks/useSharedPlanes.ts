@@ -50,25 +50,37 @@ function mapToChecklist(record: SharedChecklistRecord): PlaneChecklist {
   };
 }
 
+/** Maps a DB lowercase category to the capitalized category ID used in the app. */
+function toAppCategory(dbCat: string): string {
+  if (dbCat === 'normal') return 'Standard';
+  if (dbCat === 'abnormal') return 'Abnormal';
+  if (dbCat === 'emergency') return 'Emergency';
+  if (dbCat === 'reference_table') return 'Reference Tables';
+  return dbCat;
+}
+
 function checklistKey(record: SharedChecklistRecord): string {
-  if (record.category && record.category.toLowerCase() !== 'normal') {
-    return `${record.plane_id}::${record.category}`;
+  const appCategory = toAppCategory(record.category);
+  if (appCategory !== 'Standard') {
+    return `${record.plane_id}::${appCategory}`;
   }
   return record.plane_id;
 }
 
 /** Returns true when a shared_checklists record belongs to an abilityVariant checklist.
- *  Convention: plane_id = "${basePlaneId}||${abilityVariant}" */
+ *  Convention: variant_name is a non-'Standard' value (e.g. 'expert', 'beginner'). */
 function isAbilityVariantRecord(record: SharedChecklistRecord): boolean {
-  return record.plane_id.includes('||');
+  return !!(record.variant_name && record.variant_name.toLowerCase() !== 'standard');
 }
 
 function parseAbilityVariantRecord(
   record: SharedChecklistRecord,
 ): { basePlaneId: string; abilityVariant: string; category: string } {
-  const [basePlaneId, abilityVariant] = record.plane_id.split('||');
-  const category = record.category && record.category.toLowerCase() !== 'normal' ? record.category : 'Standard';
-  return { basePlaneId, abilityVariant, category };
+  return {
+    basePlaneId: record.plane_id,
+    abilityVariant: record.variant_name,
+    category: toAppCategory(record.category),
+  };
 }
 
 export function useSharedPlanes() {

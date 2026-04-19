@@ -49,4 +49,4 @@ Plane  (one record per aircraft)
 
 - Base checklist categories: `custom_checklists` keyed by `planeId::categoryName`
 - AbilityVariant checklists: `ability_variant_checklists[planeId][abilityVariant][categoryName]`
-- For Supabase (shared): abilityVariant records use `plane_id = planeId + '||' + abilityVariant`, `category = categoryName`
+- For Supabase (shared): abilityVariant records use `plane_id = planeId`, `variant_name = abilityVariant`, `category = lowercase_db_value` where db values are `normal` / `abnormal` / `emergency` / `reference_table`

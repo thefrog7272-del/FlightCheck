@@ -84,12 +84,13 @@ export function useImportHandlers({
           });
           const existingChecklists = await listAllSharedChecklists();
           const existingCl = existingChecklists.find(
-            c => c.plane_id === plane.id && c.category.toLowerCase() === 'normal',
+            c => c.plane_id === plane.id && c.category.toLowerCase() === 'normal' &&
+              (!c.variant_name || c.variant_name.toLowerCase() === 'standard'),
           );
           if (existingCl) {
             await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
           } else {
-            await createSharedChecklist({ plane_id: plane.id, category: 'normal', phases: JSON.stringify(checklist.phases) });
+            await createSharedChecklist({ plane_id: plane.id, variant_name: 'Standard', category: 'normal', phases: JSON.stringify(checklist.phases) });
           }
           supabaseSuccess = true;
         } else {
@@ -108,6 +109,7 @@ export function useImportHandlers({
             console.log('[FlightCheck Import] Plane created, saving checklist...');
             await createSharedChecklist({
               plane_id: plane.id,
+              variant_name: 'Standard',
               category: 'normal',
               phases: JSON.stringify(checklist.phases),
             });
@@ -441,25 +443,33 @@ export function useImportHandlers({
             }
           });
 
+          // Maps app category names to the DB CHECK-constraint lowercase values.
+          const toDbCategory = (appCat: string): string => {
+            if (appCat === 'Standard') return 'normal';
+            if (appCat === 'Abnormal') return 'abnormal';
+            if (appCat === 'Emergency') return 'emergency';
+            if (appCat === 'Reference Tables') return 'reference_table';
+            return appCat.toLowerCase();
+          };
+
           const checklist = { planeId, phases: mainPhases };
 
           if (detectedAbilityVariant) {
-            // Ensure the plane exists first
+            // Ensure the base plane record exists first
             const planeAlreadyExists = planes.some(p => p.id === planeId);
             if (!planeAlreadyExists) {
               await importPlane(plane, { planeId, phases: [] });
             }
 
             // Store Normal phases for this abilityVariant.
-            // Supabase: plane_id = "${planeId}||${abilityVariant}", category = "Standard"
+            // Supabase: plane_id = basePlaneId, variant_name = abilityVariant, category = 'normal'
             if (isAdmin) {
-              const avPlaneId = `${planeId}||${detectedAbilityVariant}`;
               const allCl = await listAllSharedChecklists();
-              const existing = allCl.find(c => c.plane_id === avPlaneId && c.category === 'Standard');
+              const existing = allCl.find(c => c.plane_id === planeId && c.variant_name === detectedAbilityVariant && c.category === 'normal');
               if (existing) {
                 await updateSharedChecklist(existing.id, JSON.stringify(mainPhases));
               } else {
-                await createSharedChecklist({ plane_id: avPlaneId, category: 'Standard', phases: JSON.stringify(mainPhases) });
+                await createSharedChecklist({ plane_id: planeId, variant_name: detectedAbilityVariant, category: 'normal', phases: JSON.stringify(mainPhases) });
               }
             } else {
               setAbilityVariantChecklist(planeId, detectedAbilityVariant, 'Standard', { planeId, phases: mainPhases });
@@ -470,13 +480,13 @@ export function useImportHandlers({
             for (const cat of CATEGORY_KEYS) {
               if (categoryPhases[cat].length > 0) {
                 if (isAdmin) {
-                  const avPlaneId = `${planeId}||${detectedAbilityVariant}`;
+                  const dbCat = toDbCategory(cat);
                   const allCl = await listAllSharedChecklists();
-                  const existing = allCl.find(c => c.plane_id === avPlaneId && c.category === cat);
+                  const existing = allCl.find(c => c.plane_id === planeId && c.variant_name === detectedAbilityVariant && c.category === dbCat);
                   if (existing) {
                     await updateSharedChecklist(existing.id, JSON.stringify(categoryPhases[cat]));
                   } else {
-                    await createSharedChecklist({ plane_id: avPlaneId, category: cat, phases: JSON.stringify(categoryPhases[cat]) });
+                    await createSharedChecklist({ plane_id: planeId, variant_name: detectedAbilityVariant, category: dbCat, phases: JSON.stringify(categoryPhases[cat]) });
                   }
                 } else {
                   setAbilityVariantChecklist(planeId, detectedAbilityVariant, cat, { planeId, phases: categoryPhases[cat] });
@@ -507,12 +517,13 @@ export function useImportHandlers({
             if (categoryPhases[cat].length > 0) {
               const categoryChecklist = { planeId, phases: categoryPhases[cat] };
               if (isAdmin) {
+                const dbCat = toDbCategory(cat);
                 const allCl = await listAllSharedChecklists();
-                const existing = allCl.find(c => c.plane_id === planeId && c.category === cat);
+                const existing = allCl.find(c => c.plane_id === planeId && (!c.variant_name || c.variant_name.toLowerCase() === 'standard') && c.category === dbCat);
                 if (existing) {
                   await updateSharedChecklist(existing.id, JSON.stringify(categoryPhases[cat]));
                 } else {
-                  await createSharedChecklist({ plane_id: planeId, category: cat, phases: JSON.stringify(categoryPhases[cat]) });
+                  await createSharedChecklist({ plane_id: planeId, variant_name: 'Standard', category: dbCat, phases: JSON.stringify(categoryPhases[cat]) });
                 }
               } else {
                 addCategory(planeId, cat, categoryChecklist);
