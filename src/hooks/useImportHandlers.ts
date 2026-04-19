@@ -361,14 +361,14 @@ export function useImportHandlers({
             return '';
           };
 
-          const CATEGORY_KEYS = ['Emergency', 'Abnormal', 'Reference'] as const;
+          const CATEGORY_KEYS = ['Emergency', 'Abnormal', 'Reference Tables'] as const;
           type CategoryKey = typeof CATEGORY_KEYS[number];
           const normaliseCategory = (raw: unknown): CategoryKey | null => {
             if (!raw || typeof raw !== 'string') return null;
             const lower = raw.trim().toLowerCase();
             if (lower === 'emergency') return 'Emergency';
             if (lower === 'abnormal') return 'Abnormal';
-            if (lower === 'reference') return 'Reference';
+            if (lower === 'reference') return 'Reference Tables';
             return null;
           };
 
@@ -388,7 +388,7 @@ export function useImportHandlers({
           };
 
           const categoryPhases: Record<CategoryKey, Array<{ id: string; title: string; items: { id: string; label: string; expectedState?: string }[] }>> = {
-            Emergency: [], Abnormal: [], Reference: [],
+            Emergency: [], Abnormal: [], 'Reference Tables': [],
           };
           const mainPhases: typeof categoryPhases['Emergency'] = [];
 
@@ -398,7 +398,7 @@ export function useImportHandlers({
             const phaseCategory = normaliseCategory(phase['type']);
 
             const buckets: Record<'main' | CategoryKey, { id: string; label: string; expectedState?: string; annotationType?: 'caution' | 'note' | 'warning' }[]> = {
-              main: [], Emergency: [], Abnormal: [], Reference: [],
+              main: [], Emergency: [], Abnormal: [], 'Reference Tables': [],
             };
 
             ((phase['items'] ?? []) as Array<Record<string, unknown>>).forEach((item, ii) => {
