@@ -1,5 +1,12 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useParams, Navigate, Link, useNavigate } from 'react-router-dom';
+import { ChecklistItem } from '../components/ChecklistItem';
+import { KeyboardHints } from '../components/KeyboardHints';
+import { Timer } from '../components/Timer';
+import styles from './Checklist.module.css';
+import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff, NotebookPen } from 'lucide-react';
+import { dispatchScratchpadEvent, subscribeScratchpadEvents } from '../hooks/useScratchpad';
+import { useVoiceChecklist } from '../hooks/useVoiceChecklist';
 import { useFleet } from '../hooks/useFleet';
 import { useAuth } from '../contexts/AuthContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -299,9 +306,6 @@ export function Checklist() {
     return <Navigate to={abilityVariant ? `/checklist/${planeId}/av/${abilityVariant}` : `/checklist/${planeId}`} replace />;
   }
 
-  const checklistKey = abilityVariant
-    ? `av||${abilityVariant}||${activeCategory}`
-    : (categoryKey ?? (plane?.id || ''));
   const isReferenceCategory = activeCategory === 'Reference Tables';
 
   /** Routes checklist saves to the correct store (abilityVariant or base). */

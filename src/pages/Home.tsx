@@ -16,7 +16,7 @@ import { exportPlaneAsJson, exportPlaneAsHtml, exportPlaneAsChecklistJson } from
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
-  const { planes, checklists, getProgress, recentlyUsed, addPlane, addCategory, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes, getCategories, getAbilityVariants, setAbilityVariantChecklist } = useFleet();
+  const { planes, checklists, getProgress, recentlyUsed, addPlane, addCategory, resetFleet, deletePlane, updateChecklist, updatePlaneImage, exportFleet, importFleet, favoriteIds, toggleFavorite, refreshSharedPlanes, getAbilityVariants, setAbilityVariantChecklist } = useFleet();
   const { confirm, ConfirmDialog } = useConfirm();
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
