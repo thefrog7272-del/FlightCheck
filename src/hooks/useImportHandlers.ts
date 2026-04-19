@@ -374,22 +374,24 @@ export function useImportHandlers({
           };
 
           const nicknameLower = typeof json.nickname === 'string' ? json.nickname.toLowerCase() : '';
-          let detectedAbilityVariant = normalizeAbilityVariant(
-            ABILITY_VARIANTS.find(v => nicknameLower.includes(v)) ?? null,
+          let name = String(json.aircraft);
+
+          // Detect variant from nickname first, then fall back to aircraft name
+          const detectedAbilityVariant = normalizeAbilityVariant(
+            ABILITY_VARIANTS.find(v => nicknameLower.includes(v)) ??
+            ABILITY_VARIANTS.find(v => name.toLowerCase().includes(v)) ??
+            null,
           );
 
-          let name = String(json.aircraft);
-          if (!detectedAbilityVariant) {
-            const variantInName = normalizeAbilityVariant(
-              ABILITY_VARIANTS.find(v => name.toLowerCase().includes(v)) ?? null,
-            );
-            if (variantInName) {
-              detectedAbilityVariant = variantInName;
-              name = name
-                .replace(new RegExp(`\\b${variantInName}\\b`, 'gi'), '')
-                .replace(/\s{2,}/g, ' ')
-                .trim();
-            }
+          // Always strip the variant keyword from the aircraft name so that
+          // "Boeing 777-300ER Beginner", "Boeing 777-300ER Advanced", and
+          // "Boeing 777-300ER Expert" all produce the same base planeId.
+          if (detectedAbilityVariant) {
+            const stripped = name
+              .replace(new RegExp(`\\b${detectedAbilityVariant}\\b`, 'gi'), '')
+              .replace(/\s{2,}/g, ' ')
+              .trim();
+            if (stripped) name = stripped;
           }
           const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           const isChecklistReaderFormat = 'nickname' in json;
