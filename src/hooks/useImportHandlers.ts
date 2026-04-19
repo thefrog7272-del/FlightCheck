@@ -368,7 +368,8 @@ export function useImportHandlers({
             const lower = raw.trim().toLowerCase();
             if (lower === 'emergency') return 'Emergency';
             if (lower === 'abnormal') return 'Abnormal';
-            if (lower === 'reference') return 'Reference Tables';
+            // Checklist Reader files can use either "Reference" or "Reference Tables".
+            if (lower === 'reference' || lower === 'reference tables') return 'Reference Tables';
             return null;
           };
 

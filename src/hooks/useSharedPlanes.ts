@@ -49,7 +49,7 @@ export function useSharedPlanes() {
       ]);
 
       console.log(`[FlightCheck SharedPlanes] API returned ${planeRecords.length} planes, ${checklistRecords.length} checklists`);
-      if (planeRecords.length > 0 || checklistRecords.length > 0) {
+      if (planeRecords.length > 0) {
         const planes = planeRecords.map(mapToPlane);
         const checklists: Record<string, PlaneChecklist> = {};
         const abilityVariantChecklists: Record<string, Record<string, Record<string, PlaneChecklist>>> = {};
@@ -61,7 +61,12 @@ export function useSharedPlanes() {
               const abilityVariant = normalizeAbilityVariant(abilityVariantRaw);
               if (!basePlaneIdRaw || !abilityVariant) continue;
               const basePlaneId = basePlaneIdRaw.toLowerCase();
-              const category = record.category && record.category.toLowerCase() !== 'normal' ? record.category : 'Standard';
+              const normalizedCategory = record.category?.trim().toLowerCase();
+              const category = !normalizedCategory || normalizedCategory === 'normal'
+                ? 'Standard'
+                : normalizedCategory === 'reference'
+                  ? 'Reference Tables'
+                  : record.category;
               if (!abilityVariantChecklists[basePlaneId]) abilityVariantChecklists[basePlaneId] = {};
               if (!abilityVariantChecklists[basePlaneId][abilityVariant]) abilityVariantChecklists[basePlaneId][abilityVariant] = {};
               abilityVariantChecklists[basePlaneId][abilityVariant][category] = mapToChecklist({
