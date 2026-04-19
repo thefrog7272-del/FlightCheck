@@ -22,13 +22,15 @@ import { AddReferenceTableModal } from '../components/AddReferenceTableModal';
 import { Toast } from '../components/Toast';
 import { encodeChecklist } from '../utils/shareCodec';
 import type { PlaneChecklist } from '../data/types';
+import { normalizeAbilityVariant } from '../utils/abilityVariants';
 
 export function Checklist() {
   console.log('>>>> CHECKLIST COMPONENT MOUNTED, planeId from params:', typeof window !== 'undefined' ? window.location.pathname : 'unknown');
-  const { planeId, categoryName: rawCategoryName } = useParams();
+  const { planeId, abilityVariant: rawAbilityVariant, categoryName: rawCategoryName } = useParams();
+  const abilityVariant = normalizeAbilityVariant(rawAbilityVariant);
   const activeCategory = rawCategoryName ?? 'Standard';
   const navigate = useNavigate();
-  const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getCategories, addCategory, deleteCategory } = useFleet();
+  const { planes, checklists, loading, updateChecklist, getProgress, setProgress, trackRecentUse, getNote, setNote, getTimerData, saveTimerBest, getCategories, addCategory, deleteCategory, getAbilityVariantChecklist, getAbilityVariantCategories, setAbilityVariantChecklist, deleteAbilityVariantChecklist } = useFleet();
 
   // Force console log
   console.log('>>>> CHECKLIST planeId=', planeId, 'checklist keys count=', Object.keys(checklists).length, 'key test=', planeId ? (checklists[planeId] ? 'FOUND' : 'NOT FOUND') : 'no id');
@@ -38,13 +40,26 @@ export function Checklist() {
   }, [planeId, trackRecentUse]);
 
   // Compute these early — needed both by voice hook (below) and normal render logic.
-  const categoryKey = activeCategory !== 'Standard' && planeId ? `${planeId}::${activeCategory}` : null;
+  const categoryKey = !abilityVariant && activeCategory !== 'Standard' && planeId ? `${planeId}::${activeCategory}` : null;
   const baseChecklist = planeId ? checklists[planeId] : null;
   console.log('[Checklist] baseChecklist for key', planeId, ':', baseChecklist ? 'found with ' + baseChecklist.phases.length + ' phases' : 'NOT FOUND');
   console.log('[Checklist] planeId:', planeId, 'categoryKey:', categoryKey, 'checklists keys (sample):', Object.keys(checklists).slice(0, 20), 'baseChecklist found:', !!baseChecklist, 'baseChecklist phases:', baseChecklist?.phases.length);
-  const checklist = (categoryKey ? checklists[categoryKey] : null) ?? baseChecklist;
+  const checklist = abilityVariant && planeId
+    ? (getAbilityVariantChecklist(planeId, abilityVariant, activeCategory) ?? null)
+    : ((categoryKey ? checklists[categoryKey] : null) ?? baseChecklist);
   console.log('[Checklist] final checklist:', !!checklist, 'phases:', checklist?.phases.length);
-  const checkedItems = planeId ? getProgress(planeId, activeCategory) : {};
+  const checkedItems = planeId
+    ? getProgress(planeId, abilityVariant ? `av||${abilityVariant}||${activeCategory}` : activeCategory)
+    : {};
+
+  const saveChecklist = useCallback((updated: PlaneChecklist) => {
+    if (!planeId) return;
+    if (abilityVariant) {
+      setAbilityVariantChecklist(planeId, abilityVariant, activeCategory, updated);
+      return;
+    }
+    updateChecklist(categoryKey ?? planeId, updated);
+  }, [planeId, abilityVariant, activeCategory, setAbilityVariantChecklist, updateChecklist, categoryKey]);
 
   // Voice checklist — hook must be called unconditionally (before any early return).
   // We use a stable wrapper + ref so toggleItem (defined after the guard clause)
@@ -110,17 +125,25 @@ export function Checklist() {
   const [showAddTableModal, setShowAddTableModal] = useState(false);
   const [phaseContextMenu, setPhaseContextMenu] = useState<{ phaseId: string; x: number; y: number } | null>(null);
   const plane = planes.find(p => p.id === planeId);
-  const categories = planeId ? getCategories(planeId) : ['Standard'];
+  const categories = abilityVariant && planeId
+    ? getAbilityVariantCategories(planeId, abilityVariant)
+    : (planeId ? getCategories(planeId) : ['Standard']);
   const setCheckedItems = (updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => {
     if (!planeId) return;
     const newValue = typeof updater === 'function' ? updater(checkedItems) : updater;
-    setProgress(planeId, newValue, activeCategory);
+    const progressKey = abilityVariant ? `av||${abilityVariant}||${activeCategory}` : activeCategory;
+    setProgress(planeId, newValue, progressKey);
   };
 
   const handleDuplicateCategory = () => {
     if (!planeId || !checklist) return;
     const name = prompt('Enter sub-checklist name:');
     if (!name?.trim()) return;
+    if (abilityVariant) {
+      setAbilityVariantChecklist(planeId, abilityVariant, name.trim(), checklist);
+      navigate(`/checklist/${planeId}/av/${encodeURIComponent(abilityVariant)}/${encodeURIComponent(name.trim())}`);
+      return;
+    }
     addCategory(planeId, name.trim(), checklist);
     navigate(`/checklist/${planeId}/${encodeURIComponent(name.trim())}`);
   };
@@ -150,7 +173,6 @@ export function Checklist() {
   // DnD reorder callbacks (must be before guard clause)
   const reorderItems = useCallback((phaseId: string, fromIndex: number, toIndex: number) => {
     if (!checklist || !plane) return;
-    const key = categoryKey ?? plane.id;
     const updated: PlaneChecklist = {
       ...checklist,
       phases: checklist.phases.map(phase => {
@@ -161,17 +183,16 @@ export function Checklist() {
         return { ...phase, items };
       }),
     };
-    updateChecklist(key, updated);
-  }, [checklist, plane, categoryKey, updateChecklist]);
+    saveChecklist(updated);
+  }, [checklist, plane, saveChecklist]);
 
   const reorderPhases = useCallback((fromIndex: number, toIndex: number) => {
     if (!checklist || !plane) return;
-    const key = categoryKey ?? plane.id;
     const phases = [...checklist.phases];
     const [moved] = phases.splice(fromIndex, 1);
     phases.splice(toIndex, 0, moved);
-    updateChecklist(key, { ...checklist, phases });
-  }, [checklist, plane, categoryKey, updateChecklist]);
+    saveChecklist({ ...checklist, phases });
+  }, [checklist, plane, saveChecklist]);
 
   const { handleDragStart, handleDragEnd, handleDragOver, handleDropItem, handleDropPhase: _handleDropPhase } = useDragReorder(reorderItems, reorderPhases);
   void _handleDropPhase; // phases use up/down arrows instead of DnD
@@ -284,11 +305,14 @@ export function Checklist() {
     return <Navigate to="/" replace />;
   }
 
-  if (rawCategoryName && !categories.includes(rawCategoryName)) {
+  if (rawAbilityVariant && !abilityVariant) {
     return <Navigate to={`/checklist/${planeId}`} replace />;
   }
 
-  const checklistKey = categoryKey ?? (plane?.id || '');
+  if (rawCategoryName && !categories.includes(rawCategoryName)) {
+    return <Navigate to={abilityVariant ? `/checklist/${planeId}/av/${abilityVariant}` : `/checklist/${planeId}`} replace />;
+  }
+
   const isReferenceCategory = activeCategory === 'Reference Tables';
 
   const autoAdvancePhase = (updatedItems: Record<string, boolean>) => {
@@ -341,9 +365,13 @@ export function Checklist() {
   voiceCategoryNavigateRef.current = (category: string) => {
     if (!planeId) return;
     if (category === 'Standard') {
-      navigate(`/checklist/${planeId}`);
+      navigate(abilityVariant
+        ? `/checklist/${planeId}/av/${encodeURIComponent(abilityVariant)}`
+        : `/checklist/${planeId}`);
     } else {
-      navigate(`/checklist/${planeId}/${encodeURIComponent(category)}`);
+      navigate(abilityVariant
+        ? `/checklist/${planeId}/av/${encodeURIComponent(abilityVariant)}/${encodeURIComponent(category)}`
+        : `/checklist/${planeId}/${encodeURIComponent(category)}`);
     }
   };
 
@@ -352,7 +380,8 @@ export function Checklist() {
     if (!planeId || itemIds.length === 0) return;
     const updated = { ...checkedItems };
     for (const id of itemIds) updated[id] = true;
-    setProgress(planeId, updated, activeCategory);
+    const progressKey = abilityVariant ? `av||${abilityVariant}||${activeCategory}` : activeCategory;
+    setProgress(planeId, updated, progressKey);
   };
 
   const togglePhase = (phaseId: string) => {
@@ -405,7 +434,7 @@ export function Checklist() {
       }),
     };
 
-    updateChecklist(checklistKey, updated);
+    saveChecklist(updated);
     setInsertAt(null);
     setNewLabel('');
     setNewState('');
@@ -422,7 +451,7 @@ export function Checklist() {
         }
       ),
     };
-    updateChecklist(checklistKey, updated);
+    saveChecklist(updated);
     setAddImagePhaseId(null);
     setAddImageLabel('');
   };
@@ -435,7 +464,7 @@ export function Checklist() {
         return { ...phase, items: phase.items.filter(i => i.id !== itemId) };
       }),
     };
-    updateChecklist(checklistKey, updated);
+    saveChecklist(updated);
   };
 
   const addPhase = () => {
@@ -445,7 +474,7 @@ export function Checklist() {
       ...checklist,
       phases: [...checklist.phases, { id: phaseId, title: newPhaseTitle.trim(), items: [] }],
     };
-    updateChecklist(checklistKey, updated);
+    saveChecklist(updated);
     setNewPhaseTitle('');
     setIsAddingPhase(false);
   };
@@ -461,7 +490,7 @@ export function Checklist() {
       ...checklist,
       phases: checklist.phases.filter(p => p.id !== phaseId),
     };
-    updateChecklist(checklistKey, updated);
+    saveChecklist(updated);
   };
 
   const movePhase = (phaseId: string, direction: 'up' | 'down') => {
@@ -472,7 +501,7 @@ export function Checklist() {
     const phases = [...checklist.phases];
     [phases[idx], phases[newIdx]] = [phases[newIdx], phases[idx]];
     const updated: PlaneChecklist = { ...checklist, phases };
-    updateChecklist(checklistKey, updated);
+    saveChecklist(updated);
   };
 
   /**
@@ -490,29 +519,38 @@ export function Checklist() {
       ...checklist,
       phases: checklist.phases.filter(p => p.id !== phaseId),
     };
-    updateChecklist(checklistKey, updatedCurrent);
+    saveChecklist(updatedCurrent);
 
-    // Add to target checklist
-    const targetKey = targetCategory === 'Standard' ? planeId : `${planeId}::${targetCategory}`;
-    const targetChecklist: PlaneChecklist = checklists[targetKey] ?? { planeId, phases: [] };
+    const targetChecklist: PlaneChecklist = abilityVariant
+      ? (getAbilityVariantChecklist(planeId, abilityVariant, targetCategory) ?? { planeId, phases: [] })
+      : (() => {
+        const targetKey = targetCategory === 'Standard' ? planeId : `${planeId}::${targetCategory}`;
+        return checklists[targetKey] ?? { planeId, phases: [] };
+      })();
     const updatedTarget: PlaneChecklist = {
       ...targetChecklist,
       planeId,
       phases: [...targetChecklist.phases, phase],
     };
-    updateChecklist(targetKey, updatedTarget);
 
-    // If target category doesn't exist yet, register it
-    if (!(targetKey in checklists) && targetCategory !== 'Standard') {
-      addCategory(planeId, targetCategory, updatedTarget);
+    if (abilityVariant) {
+      setAbilityVariantChecklist(planeId, abilityVariant, targetCategory, updatedTarget);
+    } else {
+      const targetKey = targetCategory === 'Standard' ? planeId : `${planeId}::${targetCategory}`;
+      updateChecklist(targetKey, updatedTarget);
+      if (!(targetKey in checklists) && targetCategory !== 'Standard') {
+        addCategory(planeId, targetCategory, updatedTarget);
+      }
     }
 
     showToast(`Phase moved to ${targetCategory}`);
     setPhaseContextMenu(null);
     if (targetCategory === 'Standard') {
-      navigate(`/checklist/${planeId}`);
+      navigate(abilityVariant ? `/checklist/${planeId}/av/${encodeURIComponent(abilityVariant)}` : `/checklist/${planeId}`);
     } else {
-      navigate(`/checklist/${planeId}/${encodeURIComponent(targetCategory)}`);
+      navigate(abilityVariant
+        ? `/checklist/${planeId}/av/${encodeURIComponent(abilityVariant)}/${encodeURIComponent(targetCategory)}`
+        : `/checklist/${planeId}/${encodeURIComponent(targetCategory)}`);
     }
   };
 
@@ -599,23 +637,45 @@ export function Checklist() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <Link to={activeCategory !== 'Standard' ? `/checklist/${planeId}` : '/'} className={styles.backLink}>
+        <Link
+          to={
+            abilityVariant && activeCategory !== 'Standard'
+              ? `/checklist/${planeId}/av/${encodeURIComponent(abilityVariant)}`
+              : activeCategory !== 'Standard'
+                ? `/checklist/${planeId}`
+                : '/'
+          }
+          className={styles.backLink}
+        >
           <ChevronLeft /> {activeCategory !== 'Standard' ? 'Back to Checklist' : 'Back to Fleet'}
         </Link>
         <div className={styles.headerContent}>
           <div>
             <h1 className={styles.title}>
-              {plane.name} {activeCategory !== 'Standard' ? `— ${activeCategory}` : 'Checklist'}
+              {abilityVariant
+                ? `${plane.name} — ${abilityVariant.charAt(0).toUpperCase() + abilityVariant.slice(1)}${activeCategory !== 'Standard' ? ` ${activeCategory}` : ' Checklist'}`
+                : `${plane.name} ${activeCategory !== 'Standard' ? `— ${activeCategory}` : 'Checklist'}`}
             </h1>
             <span className={styles.subtitle}>{plane.manufacturer}</span>
             <CategorySelector
-              planeId={planeId!}
+              basePath={abilityVariant
+                ? `/checklist/${planeId}/av/${encodeURIComponent(abilityVariant)}`
+                : `/checklist/${planeId}`}
               categories={categories}
               activeCategory={activeCategory}
               onDuplicate={handleDuplicateCategory}
               onDelete={(v) => {
-                if (planeId) deleteCategory(planeId, v);
-                if (v === activeCategory) navigate(`/checklist/${planeId}`);
+                if (!planeId) return;
+                if (abilityVariant) {
+                  deleteAbilityVariantChecklist(planeId, abilityVariant, v);
+                } else {
+                  deleteCategory(planeId, v);
+                }
+                if (v === activeCategory) {
+                  navigate(abilityVariant
+                    ? `/checklist/${planeId}/av/${encodeURIComponent(abilityVariant)}`
+                    : `/checklist/${planeId}`);
+                }
               }}
               isEditing={isEditing}
             >
@@ -1073,7 +1133,7 @@ export function Checklist() {
           planeId={plane.id}
           existingChecklist={checklist}
           onSave={updated => {
-            updateChecklist(checklistKey, updated);
+            saveChecklist(updated);
             setShowAddTableModal(false);
           }}
           onCancel={() => setShowAddTableModal(false)}

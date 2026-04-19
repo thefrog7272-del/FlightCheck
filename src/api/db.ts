@@ -5,6 +5,7 @@ const API_BASE = '/api';
 export interface DbState {
   custom_planes: Plane[];
   custom_checklists: Record<string, PlaneChecklist>;
+  ability_variant_checklists: Record<string, Record<string, Record<string, PlaneChecklist>>>;
   deleted_static_planes: string[];
   checklist_progress: Record<string, Record<string, boolean>>;
   favorite_planes: string[];

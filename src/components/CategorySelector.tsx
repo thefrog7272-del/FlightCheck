@@ -11,16 +11,16 @@ const FIXED_TABS = [
 ] as const;
 
 interface CategorySelectorProps {
-  planeId: string;
   categories: string[];
   activeCategory: string;
   onDuplicate: () => void;
   onDelete: (category: string) => void;
   isEditing: boolean;
+  basePath: string;
   children?: ReactNode;
 }
 
-export function CategorySelector({ planeId, categories, activeCategory, onDelete, isEditing, children }: CategorySelectorProps) {
+export function CategorySelector({ categories, activeCategory, onDelete, isEditing, basePath, children }: CategorySelectorProps) {
   const visibleTabs = FIXED_TABS.filter(
     tab => tab.categoryId === 'Standard' || categories.includes(tab.categoryId),
   );
@@ -32,10 +32,9 @@ export function CategorySelector({ planeId, categories, activeCategory, onDelete
     <div className={styles.tabBar}>
       {visibleTabs.map(({ label, categoryId, color }) => {
         const isActive = activeCategory === categoryId;
-        const href =
-          categoryId === 'Standard'
-            ? `/checklist/${planeId}`
-            : `/checklist/${planeId}/${encodeURIComponent(categoryId)}`;
+        const href = categoryId === 'Standard'
+          ? basePath
+          : `${basePath}/${encodeURIComponent(categoryId)}`;
         return (
           <div key={categoryId} className={styles.tabItem}>
             <Link

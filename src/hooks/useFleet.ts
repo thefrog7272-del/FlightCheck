@@ -2,14 +2,16 @@ import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDatabase } from './useDatabase';
 import { useSharedPlanes } from './useSharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
+import { normalizeAbilityVariant, sortAbilityVariants } from '../utils/abilityVariants';
 import { checklists as staticChecklists } from '../data/checklists';
 
 export function useFleet() {
   const { data, loading, updateKey, resetAll } = useDatabase();
-  const { sharedPlanes, sharedChecklists, sharedLoading, refreshSharedPlanes } = useSharedPlanes();
+  const { sharedPlanes, sharedChecklists, sharedAbilityVariantChecklists, sharedLoading, refreshSharedPlanes } = useSharedPlanes();
 
   const customPlanes = data?.custom_planes ?? [];
   const customChecklists = data?.custom_checklists ?? {};
+  const customAbilityVariantChecklists = data?.ability_variant_checklists ?? {};
   const deletedStaticIds = data?.deleted_static_planes ?? [];
   const favoriteIds = data?.favorite_planes ?? [];
   const recentlyUsed = data?.recently_used ?? [];
@@ -183,6 +185,89 @@ export function useFleet() {
     return categories;
   }, [sharedChecklists, customChecklists, staticChecklists]);
 
+  const getAbilityVariants = useCallback((planeId: string): string[] => {
+    const normalizedPlaneId = planeId.toLowerCase();
+    const allKeys: string[] = [];
+    for (const source of [sharedAbilityVariantChecklists, customAbilityVariantChecklists]) {
+      const variants = source[normalizedPlaneId];
+      if (variants) allKeys.push(...Object.keys(variants));
+    }
+    return sortAbilityVariants(allKeys);
+  }, [sharedAbilityVariantChecklists, customAbilityVariantChecklists]);
+
+  const getAbilityVariantCategories = useCallback((planeId: string, abilityVariant: string): string[] => {
+    const normalizedPlaneId = planeId.toLowerCase();
+    const normalizedAbilityVariant = normalizeAbilityVariant(abilityVariant);
+    if (!normalizedAbilityVariant) return ['Standard'];
+    const found = new Set<string>();
+    for (const source of [sharedAbilityVariantChecklists, customAbilityVariantChecklists]) {
+      const variantEntry = source[normalizedPlaneId]?.[normalizedAbilityVariant];
+      if (!variantEntry) continue;
+      for (const category of Object.keys(variantEntry)) {
+        found.add(category);
+      }
+    }
+    const categories = ['Standard'];
+    for (const category of found) {
+      if (category !== 'Standard') categories.push(category);
+    }
+    return categories;
+  }, [sharedAbilityVariantChecklists, customAbilityVariantChecklists]);
+
+  const getAbilityVariantChecklist = useCallback((planeId: string, abilityVariant: string, category: string): PlaneChecklist | null => {
+    const normalizedPlaneId = planeId.toLowerCase();
+    const normalizedAbilityVariant = normalizeAbilityVariant(abilityVariant);
+    if (!normalizedAbilityVariant) return null;
+    return (
+      customAbilityVariantChecklists[normalizedPlaneId]?.[normalizedAbilityVariant]?.[category] ??
+      sharedAbilityVariantChecklists[normalizedPlaneId]?.[normalizedAbilityVariant]?.[category] ??
+      null
+    );
+  }, [customAbilityVariantChecklists, sharedAbilityVariantChecklists]);
+
+  const setAbilityVariantChecklist = useCallback((planeId: string, abilityVariant: string, category: string, checklist: PlaneChecklist) => {
+    const normalizedPlaneId = planeId.toLowerCase();
+    const normalizedAbilityVariant = normalizeAbilityVariant(abilityVariant);
+    if (!normalizedAbilityVariant) return;
+    updateKey('ability_variant_checklists', (prev: Record<string, Record<string, Record<string, PlaneChecklist>>>) => ({
+      ...prev,
+      [normalizedPlaneId]: {
+        ...prev[normalizedPlaneId],
+        [normalizedAbilityVariant]: {
+          ...prev[normalizedPlaneId]?.[normalizedAbilityVariant],
+          [category]: checklist,
+        },
+      },
+    }));
+  }, [updateKey]);
+
+  const deleteAbilityVariantChecklist = useCallback((planeId: string, abilityVariant: string, category?: string) => {
+    const normalizedPlaneId = planeId.toLowerCase();
+    const normalizedAbilityVariant = normalizeAbilityVariant(abilityVariant);
+    if (!normalizedAbilityVariant) return;
+    updateKey('ability_variant_checklists', (prev: Record<string, Record<string, Record<string, PlaneChecklist>>>) => {
+      const planeEntry = { ...(prev[normalizedPlaneId] ?? {}) };
+      if (!planeEntry[normalizedAbilityVariant]) return prev;
+      if (category) {
+        const variantEntry = { ...planeEntry[normalizedAbilityVariant] };
+        delete variantEntry[category];
+        if (Object.keys(variantEntry).length === 0) {
+          delete planeEntry[normalizedAbilityVariant];
+        } else {
+          planeEntry[normalizedAbilityVariant] = variantEntry;
+        }
+      } else {
+        delete planeEntry[normalizedAbilityVariant];
+      }
+      if (Object.keys(planeEntry).length === 0) {
+        const next = { ...prev };
+        delete next[normalizedPlaneId];
+        return next;
+      }
+      return { ...prev, [normalizedPlaneId]: planeEntry };
+    });
+  }, [updateKey]);
+
   const addCategory = useCallback((planeId: string, categoryName: string, checklist: PlaneChecklist) => {
     const categoryKey = `${planeId}::${categoryName}`;
     console.log('[useFleet addCategory] Adding category:', categoryName, 'for plane:', planeId, 'categoryKey:', categoryKey);
@@ -301,6 +386,11 @@ export function useFleet() {
     getCategories,
     addCategory,
     deleteCategory,
+    getAbilityVariants,
+    getAbilityVariantCategories,
+    getAbilityVariantChecklist,
+    setAbilityVariantChecklist,
+    deleteAbilityVariantChecklist,
     refreshSharedPlanes,
   };
 }

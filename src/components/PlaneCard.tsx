@@ -3,6 +3,13 @@ import type { Plane } from '../data/types';
 import styles from './PlaneCard.module.css';
 import { Plane as PlaneIcon, Star } from 'lucide-react';
 
+const ABILITY_VARIANT_CLASSES: Record<string, string> = {
+  beginner: styles.abilityVariantBeginner,
+  advanced: styles.abilityVariantAdvanced,
+  expert: styles.abilityVariantExpert,
+  professional: styles.abilityVariantProfessional,
+};
+
 interface PlaneCardProps {
   plane: Plane;
   progress?: number;
@@ -15,12 +22,14 @@ interface PlaneCardProps {
   onDownloadHtml?: (id: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
+  abilityVariants?: string[];
 }
 
-export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadChecklistJson, onDownloadHtml, isFavorite, onToggleFavorite }: PlaneCardProps) {
+export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadChecklistJson, onDownloadHtml, isFavorite, onToggleFavorite, abilityVariants }: PlaneCardProps) {
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const hasAbilityVariants = (abilityVariants?.length ?? 0) > 0;
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -100,17 +109,17 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
   return (
     <>
       <div
-        className={styles.card}
-        style={{ cursor: 'pointer', zIndex: 1 }}
+        className={`${styles.card}${hasAbilityVariants ? ` ${styles.cardNoClick}` : ''}`}
+        style={{ cursor: hasAbilityVariants ? 'default' : 'pointer', zIndex: 1 }}
         onContextMenu={handleContextMenu}
-        onClick={() => {
+        onClick={hasAbilityVariants ? undefined : () => {
           console.log('>>>> CLICK fired for:', plane.id);
           window.location.href = `/checklist/${plane.id}`;
         }}
-        onKeyDown={handleKeyDown}
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${plane.name} checklist`}
+        onKeyDown={hasAbilityVariants ? undefined : handleKeyDown}
+        role={hasAbilityVariants ? undefined : 'button'}
+        tabIndex={hasAbilityVariants ? undefined : 0}
+        aria-label={hasAbilityVariants ? undefined : `Open ${plane.name} checklist`}
       >
         <div className={styles.imageWrapper}>
           {imgError || !plane.image ? (
@@ -163,6 +172,23 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
         {typeof progress === 'number' && progress > 0 && (
           <div className={styles.progressBar}>
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+          </div>
+        )}
+        {hasAbilityVariants && (
+          <div className={styles.abilityVariantButtons}>
+            {abilityVariants?.map(av => (
+              <button
+                key={av}
+                className={`${styles.abilityVariantButton} ${ABILITY_VARIANT_CLASSES[av] ?? ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.location.href = `/checklist/${plane.id}/av/${encodeURIComponent(av)}`;
+                }}
+              >
+                {av.charAt(0).toUpperCase() + av.slice(1)}
+              </button>
+            ))}
           </div>
         )}
       </div>

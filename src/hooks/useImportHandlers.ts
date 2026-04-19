@@ -12,7 +12,8 @@ import {
   updateSharedChecklist,
   deleteSharedChecklist as _deleteSharedChecklist,
 } from '../api/sharedPlanes';
-import type { Plane, PlaneChecklist } from '../data/types';
+import { ABILITY_VARIANTS, type Plane, type PlaneChecklist } from '../data/types';
+import { normalizeAbilityVariant } from '../utils/abilityVariants';
 
 // ── Suppress unused import warning (deleteSharedChecklist kept for future use) ──
 void _deleteSharedChecklist;
@@ -21,6 +22,7 @@ interface UseImportHandlersParams {
   planes: Plane[];
   addPlane: (plane: Plane, checklist: PlaneChecklist) => void;
   addCategory: (planeId: string, categoryName: string, checklist: PlaneChecklist) => void;
+  setAbilityVariantChecklist: (planeId: string, abilityVariant: string, category: string, checklist: PlaneChecklist) => void;
   importFleet: (json: unknown) => { planes: number; checklists: number; progress: number };
   isAdmin: boolean;
   refreshSharedPlanes: () => Promise<void | boolean>;
@@ -31,6 +33,7 @@ export function useImportHandlers({
   planes,
   addPlane,
   addCategory,
+  setAbilityVariantChecklist,
   importFleet,
   isAdmin,
   refreshSharedPlanes,
@@ -358,18 +361,35 @@ export function useImportHandlers({
             return '';
           };
 
-          const CATEGORY_KEYS = ['Emergency', 'Abnormal', 'Reference'] as const;
+          const CATEGORY_KEYS = ['Emergency', 'Abnormal', 'Reference Tables'] as const;
           type CategoryKey = typeof CATEGORY_KEYS[number];
           const normaliseCategory = (raw: unknown): CategoryKey | null => {
             if (!raw || typeof raw !== 'string') return null;
             const lower = raw.trim().toLowerCase();
             if (lower === 'emergency') return 'Emergency';
             if (lower === 'abnormal') return 'Abnormal';
-            if (lower === 'reference') return 'Reference';
+            if (lower === 'reference') return 'Reference Tables';
             return null;
           };
 
-          const name = String(json.aircraft);
+          const nicknameLower = typeof json.nickname === 'string' ? json.nickname.toLowerCase() : '';
+          let detectedAbilityVariant = normalizeAbilityVariant(
+            ABILITY_VARIANTS.find(v => nicknameLower.includes(v)) ?? null,
+          );
+
+          let name = String(json.aircraft);
+          if (!detectedAbilityVariant) {
+            const variantInName = normalizeAbilityVariant(
+              ABILITY_VARIANTS.find(v => name.toLowerCase().includes(v)) ?? null,
+            );
+            if (variantInName) {
+              detectedAbilityVariant = variantInName;
+              name = name
+                .replace(new RegExp(`\\b${variantInName}\\b`, 'gi'), '')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
+            }
+          }
           const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
           const isChecklistReaderFormat = 'nickname' in json;
           const plane = {
@@ -385,7 +405,7 @@ export function useImportHandlers({
           };
 
           const categoryPhases: Record<CategoryKey, Array<{ id: string; title: string; items: { id: string; label: string; expectedState?: string }[] }>> = {
-            Emergency: [], Abnormal: [], Reference: [],
+            Emergency: [], Abnormal: [], 'Reference Tables': [],
           };
           const mainPhases: typeof categoryPhases['Emergency'] = [];
 
@@ -395,7 +415,7 @@ export function useImportHandlers({
             const phaseCategory = normaliseCategory(phase['type']);
 
             const buckets: Record<'main' | CategoryKey, { id: string; label: string; expectedState?: string; annotationType?: 'caution' | 'note' | 'warning' }[]> = {
-              main: [], Emergency: [], Abnormal: [], Reference: [],
+              main: [], Emergency: [], Abnormal: [], 'Reference Tables': [],
             };
 
             ((phase['items'] ?? []) as Array<Record<string, unknown>>).forEach((item, ii) => {
@@ -429,6 +449,58 @@ export function useImportHandlers({
           });
 
           const checklist = { planeId, phases: mainPhases };
+
+          if (detectedAbilityVariant) {
+            if (!planes.some(p => p.id === planeId)) {
+              await importPlane(plane, { planeId, phases: [] });
+            }
+
+            if (isAdmin) {
+              const allCl = await listAllSharedChecklists();
+              const abilityVariantPlaneId = `${planeId}||${detectedAbilityVariant}`;
+              const existing = allCl.find(c => c.plane_id === abilityVariantPlaneId && c.category === 'Standard');
+              if (existing) {
+                await updateSharedChecklist(existing.id, JSON.stringify(mainPhases));
+              } else {
+                await createSharedChecklist({ plane_id: abilityVariantPlaneId, category: 'Standard', phases: JSON.stringify(mainPhases) });
+              }
+            } else {
+              setAbilityVariantChecklist(planeId, detectedAbilityVariant, 'Standard', checklist);
+            }
+
+            const importedCategories: string[] = [];
+            for (const cat of CATEGORY_KEYS) {
+              if (categoryPhases[cat].length > 0) {
+                if (isAdmin) {
+                  const allCl = await listAllSharedChecklists();
+                  const abilityVariantPlaneId = `${planeId}||${detectedAbilityVariant}`;
+                  const existing = allCl.find(c => c.plane_id === abilityVariantPlaneId && c.category === cat);
+                  if (existing) {
+                    await updateSharedChecklist(existing.id, JSON.stringify(categoryPhases[cat]));
+                  } else {
+                    await createSharedChecklist({ plane_id: abilityVariantPlaneId, category: cat, phases: JSON.stringify(categoryPhases[cat]) });
+                  }
+                } else {
+                  setAbilityVariantChecklist(planeId, detectedAbilityVariant, cat, { planeId, phases: categoryPhases[cat] });
+                }
+                importedCategories.push(cat);
+              }
+            }
+
+            if (isAdmin) {
+              await refreshSharedPlanes();
+            }
+
+            const mainItemCount = mainPhases.reduce((s, p) => s + p.items.length, 0);
+            const catSummary = importedCategories.length > 0 ? ` + categories: ${importedCategories.join(', ')}` : '';
+            setImportSummary(
+              `Imported "${name}" (${detectedAbilityVariant}) with ${mainPhases.length} phase(s) and ${mainItemCount} item(s)${catSummary}.` +
+              `${isAdmin ? ' (shared)' : ''}`,
+            );
+            onImportComplete?.();
+            return;
+          }
+
           await importPlane(plane, checklist);
 
           const importedCategories: string[] = [];

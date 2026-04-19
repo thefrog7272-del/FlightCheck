@@ -1,5 +1,8 @@
 export type SimPlatform = 'msfs2020' | 'msfs2024' | 'both';
 
+export const ABILITY_VARIANTS = ['beginner', 'advanced', 'expert', 'professional'] as const;
+export type AbilityVariant = typeof ABILITY_VARIANTS[number];
+
 export interface Plane {
   id: string;
   name: string;
