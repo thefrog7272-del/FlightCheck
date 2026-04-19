@@ -9,6 +9,7 @@ const CACHE_KEY = 'shared_planes_cache';
 interface CachedData {
   planes: Plane[];
   checklists: Record<string, PlaneChecklist>;
+  abilityVariantChecklists: Record<string, Record<string, Record<string, PlaneChecklist>>>;
   timestamp: number;
 }
 
@@ -56,6 +57,20 @@ function checklistKey(record: SharedChecklistRecord): string {
   return record.plane_id;
 }
 
+/** Returns true when a shared_checklists record belongs to an abilityVariant checklist.
+ *  Convention: plane_id = "${basePlaneId}||${abilityVariant}" */
+function isAbilityVariantRecord(record: SharedChecklistRecord): boolean {
+  return record.plane_id.includes('||');
+}
+
+function parseAbilityVariantRecord(
+  record: SharedChecklistRecord,
+): { basePlaneId: string; abilityVariant: string; category: string } {
+  const [basePlaneId, abilityVariant] = record.plane_id.split('||');
+  const category = record.category && record.category.toLowerCase() !== 'normal' ? record.category : 'Standard';
+  return { basePlaneId, abilityVariant, category };
+}
+
 export function useSharedPlanes() {
   // Read cache fresh on each mount so newly imported planes are visible
   // immediately without waiting for the API round-trip.
@@ -67,6 +82,9 @@ export function useSharedPlanes() {
   const [sharedChecklists, setSharedChecklists] = useState<Record<string, PlaneChecklist>>(
     () => loadCache()?.checklists ?? {},
   );
+  const [sharedAbilityVariantChecklists, setSharedAbilityVariantChecklists] = useState<
+    Record<string, Record<string, Record<string, PlaneChecklist>>>
+  >(() => loadCache()?.abilityVariantChecklists ?? {});
   const [loading, setLoading] = useState(() => {
     const cache = loadCache();
     return !cache || cache.planes.length === 0;
@@ -84,15 +102,24 @@ export function useSharedPlanes() {
       if (planeRecords.length > 0) {
         const planes = planeRecords.map(mapToPlane);
         const checklists: Record<string, PlaneChecklist> = {};
+        const abilityVariantChecklists: Record<string, Record<string, Record<string, PlaneChecklist>>> = {};
         for (const record of checklistRecords) {
           try {
-            checklists[checklistKey(record)] = mapToChecklist(record);
+            if (isAbilityVariantRecord(record)) {
+              const { basePlaneId, abilityVariant, category } = parseAbilityVariantRecord(record);
+              if (!abilityVariantChecklists[basePlaneId]) abilityVariantChecklists[basePlaneId] = {};
+              if (!abilityVariantChecklists[basePlaneId][abilityVariant]) abilityVariantChecklists[basePlaneId][abilityVariant] = {};
+              abilityVariantChecklists[basePlaneId][abilityVariant][category] = mapToChecklist(record);
+            } else {
+              checklists[checklistKey(record)] = mapToChecklist(record);
+            }
           } catch { /* skip invalid JSON */ }
         }
 
         setSharedPlanes(planes);
         setSharedChecklists(checklists);
-        saveCache({ planes, checklists, timestamp: Date.now() });
+        setSharedAbilityVariantChecklists(abilityVariantChecklists);
+        saveCache({ planes, checklists, abilityVariantChecklists, timestamp: Date.now() });
         return true;
       }
       console.log('[FlightCheck SharedPlanes] API returned 0 planes');
@@ -129,6 +156,7 @@ export function useSharedPlanes() {
   return { 
     sharedPlanes, 
     sharedChecklists, 
+    sharedAbilityVariantChecklists,
     sharedLoading: loading, 
     refreshSharedPlanes: fetchFromApi 
   };

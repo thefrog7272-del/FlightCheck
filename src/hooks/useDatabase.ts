@@ -86,11 +86,11 @@ function loadFromLocalStorage(): DbState {
   // Also try migrating old-style keys
   const migrated = migrateFromLocalStorage();
   if (migrated) {
-    const db = { ...({ custom_planes: [], custom_checklists: {}, deleted_static_planes: [], checklist_progress: {}, favorite_planes: [], recently_used: [], item_notes: {}, timer_data: {} } as DbState), ...migrated };
+    const db = { ...({ custom_planes: [], custom_checklists: {}, ability_variant_checklists: {}, deleted_static_planes: [], checklist_progress: {}, favorite_planes: [], recently_used: [], item_notes: {}, timer_data: {} } as DbState), ...migrated };
     clearMigratedLocalStorage();
     return db;
   }
-  return { custom_planes: [], custom_checklists: {}, deleted_static_planes: [], checklist_progress: {}, favorite_planes: [], recently_used: [], item_notes: {}, timer_data: {} };
+  return { custom_planes: [], custom_checklists: {}, ability_variant_checklists: {}, deleted_static_planes: [], checklist_progress: {}, favorite_planes: [], recently_used: [], item_notes: {}, timer_data: {} };
 }
 
 function saveToLocalStorage(data: DbState) {
@@ -174,7 +174,7 @@ export function useDatabase() {
   );
 
   const resetAll = useCallback(async () => {
-    const fresh: DbState = { custom_planes: [], custom_checklists: {}, deleted_static_planes: [], checklist_progress: {}, favorite_planes: [], recently_used: [], item_notes: {}, timer_data: {} };
+    const fresh: DbState = { custom_planes: [], custom_checklists: {}, ability_variant_checklists: {}, deleted_static_planes: [], checklist_progress: {}, favorite_planes: [], recently_used: [], item_notes: {}, timer_data: {} };
     if (useApi) {
       await apiResetDb();
       setData(await loadDb());

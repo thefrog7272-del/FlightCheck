@@ -16,6 +16,8 @@ function App() {
           <Route index element={<Home />} />
           <Route path="checklist/:planeId" element={<Checklist />} />
           <Route path="checklist/:planeId/:categoryName" element={<Checklist />} />
+          <Route path="checklist/:planeId/av/:abilityVariant" element={<Checklist />} />
+          <Route path="checklist/:planeId/av/:abilityVariant/:categoryName" element={<Checklist />} />
           <Route path="/share" element={<ShareImport />} />
           <Route path="admin/login" element={<AdminLogin />} />
           <Route path="admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />

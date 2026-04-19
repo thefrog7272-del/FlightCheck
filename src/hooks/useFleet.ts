@@ -2,14 +2,16 @@ import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDatabase } from './useDatabase';
 import { useSharedPlanes } from './useSharedPlanes';
 import type { Plane, PlaneChecklist } from '../data/types';
+import { ABILITY_VARIANTS } from '../data/types';
 import { checklists as staticChecklists } from '../data/checklists';
 
 export function useFleet() {
   const { data, loading, updateKey, resetAll } = useDatabase();
-  const { sharedPlanes, sharedChecklists, sharedLoading, refreshSharedPlanes } = useSharedPlanes();
+  const { sharedPlanes, sharedChecklists, sharedAbilityVariantChecklists, sharedLoading, refreshSharedPlanes } = useSharedPlanes();
 
   const customPlanes = data?.custom_planes ?? [];
   const customChecklists = data?.custom_checklists ?? {};
+  const customAbilityVariantChecklists = data?.ability_variant_checklists ?? {};
   const deletedStaticIds = data?.deleted_static_planes ?? [];
   const favoriteIds = data?.favorite_planes ?? [];
   const recentlyUsed = data?.recently_used ?? [];
@@ -167,19 +169,19 @@ export function useFleet() {
     updateKey('checklist_progress', { ...progressData, [key]: progress });
   }, [progressData, updateKey]);
 
-  // Category management
+  // Category management — categories are tabs within a specific checklist (Normal/Abnormal/Emergency/Reference).
+  // AbilityVariant names are never returned here; they are a separate dimension entirely.
   const getCategories = useCallback((planeId: string): string[] => {
     const categories = ['Standard'];
     const seen = new Set<string>();
     const prefix = `${planeId}::`;
-    // Check shared (Supabase), custom (localStorage), and static checklists
+    const abilityVariantSet = new Set<string>(ABILITY_VARIANTS as readonly string[]);
     for (const source of [sharedChecklists, customChecklists, staticChecklists]) {
       for (const key of Object.keys(source)) {
         if (key.startsWith(prefix)) {
-          // Only the first segment after the prefix is a direct child.
-          // e.g. prefix="boeing-777::", key="boeing-777::expert::Abnormal" → directChild="expert"
           const directChild = key.slice(prefix.length).split('::')[0];
-          if (!seen.has(directChild)) {
+          // Never include abilityVariant names as categories
+          if (!seen.has(directChild) && !abilityVariantSet.has(directChild.toLowerCase())) {
             seen.add(directChild);
             categories.push(directChild);
           }
@@ -188,6 +190,83 @@ export function useFleet() {
     }
     return categories;
   }, [sharedChecklists, customChecklists, staticChecklists]);
+
+  // ── AbilityVariant checklist management ────────────────────────────────────
+  // AbilityVariants (beginner/advanced/expert/professional) are independent checklists
+  // that belong to a plane. Each has its own set of categories (Normal/Abnormal/Emergency/Reference).
+  // They are stored in ability_variant_checklists[planeId][abilityVariant][category].
+
+  /** Returns the abilityVariant names that have checklists for the given plane. */
+  const getAbilityVariants = useCallback((planeId: string): string[] => {
+    const found = new Set<string>();
+    for (const source of [sharedAbilityVariantChecklists, customAbilityVariantChecklists]) {
+      const planeEntry = source[planeId];
+      if (planeEntry) {
+        for (const av of Object.keys(planeEntry)) {
+          found.add(av);
+        }
+      }
+    }
+    return Array.from(found);
+  }, [sharedAbilityVariantChecklists, customAbilityVariantChecklists]);
+
+  /** Returns the category names present for a specific abilityVariant checklist. Always includes 'Standard'. */
+  const getAbilityVariantCategories = useCallback((planeId: string, abilityVariant: string): string[] => {
+    const found = new Set<string>();
+    for (const source of [sharedAbilityVariantChecklists, customAbilityVariantChecklists]) {
+      const avEntry = source[planeId]?.[abilityVariant];
+      if (avEntry) {
+        for (const cat of Object.keys(avEntry)) {
+          found.add(cat);
+        }
+      }
+    }
+    const categories = ['Standard'];
+    for (const cat of found) {
+      if (cat !== 'Standard') categories.push(cat);
+    }
+    return categories;
+  }, [sharedAbilityVariantChecklists, customAbilityVariantChecklists]);
+
+  /** Retrieves the checklist for an abilityVariant + category combination. */
+  const getAbilityVariantChecklist = useCallback((planeId: string, abilityVariant: string, category: string): PlaneChecklist | null => {
+    return (
+      customAbilityVariantChecklists[planeId]?.[abilityVariant]?.[category] ??
+      sharedAbilityVariantChecklists[planeId]?.[abilityVariant]?.[category] ??
+      null
+    );
+  }, [customAbilityVariantChecklists, sharedAbilityVariantChecklists]);
+
+  /** Saves a checklist for an abilityVariant + category combination. */
+  const setAbilityVariantChecklist = useCallback((planeId: string, abilityVariant: string, category: string, checklist: PlaneChecklist) => {
+    updateKey('ability_variant_checklists', (prev: Record<string, Record<string, Record<string, PlaneChecklist>>>) => ({
+      ...prev,
+      [planeId]: {
+        ...prev[planeId],
+        [abilityVariant]: {
+          ...prev[planeId]?.[abilityVariant],
+          [category]: checklist,
+        },
+      },
+    }));
+  }, [updateKey]);
+
+  /** Deletes a category from an abilityVariant checklist.
+   *  If no category is specified, deletes the entire abilityVariant entry. */
+  const deleteAbilityVariantChecklist = useCallback((planeId: string, abilityVariant: string, category?: string) => {
+    updateKey('ability_variant_checklists', (prev: Record<string, Record<string, Record<string, PlaneChecklist>>>) => {
+      const planeEntry = { ...prev[planeId] };
+      if (!planeEntry[abilityVariant]) return prev;
+      if (category) {
+        const avEntry = { ...planeEntry[abilityVariant] };
+        delete avEntry[category];
+        planeEntry[abilityVariant] = avEntry;
+      } else {
+        delete planeEntry[abilityVariant];
+      }
+      return { ...prev, [planeId]: planeEntry };
+    });
+  }, [updateKey]);
 
   const addCategory = useCallback((planeId: string, categoryName: string, checklist: PlaneChecklist) => {
     const categoryKey = `${planeId}::${categoryName}`;
@@ -307,6 +386,11 @@ export function useFleet() {
     getCategories,
     addCategory,
     deleteCategory,
+    getAbilityVariants,
+    getAbilityVariantCategories,
+    getAbilityVariantChecklist,
+    setAbilityVariantChecklist,
+    deleteAbilityVariantChecklist,
     refreshSharedPlanes,
   };
 }

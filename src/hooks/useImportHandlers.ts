@@ -22,6 +22,7 @@ interface UseImportHandlersParams {
   planes: Plane[];
   addPlane: (plane: Plane, checklist: PlaneChecklist) => void;
   addCategory: (planeId: string, categoryName: string, checklist: PlaneChecklist) => void;
+  setAbilityVariantChecklist: (planeId: string, abilityVariant: string, category: string, checklist: PlaneChecklist) => void;
   importFleet: (json: unknown) => { planes: number; checklists: number; progress: number };
   isAdmin: boolean;
   refreshSharedPlanes: () => Promise<void | boolean>;
@@ -32,6 +33,7 @@ export function useImportHandlers({
   planes,
   addPlane,
   addCategory,
+  setAbilityVariantChecklist,
   importFleet,
   isAdmin,
   refreshSharedPlanes,
@@ -431,52 +433,53 @@ export function useImportHandlers({
 
           const checklist = { planeId, phases: mainPhases };
 
-          // ── Ability-variant detection ──
-          // If the nickname contains an ability-variant keyword (beginner/advanced/expert/professional),
-          // this checklist belongs to that variant of an existing plane.
-          // Store the variant's Normal phases under key  planeId::variant
-          // Store Emergency/Abnormal/Reference under keys  planeId::variant::Emergency etc.
-          // The plane itself is created/updated normally; no extra plane records are needed.
+          // ── AbilityVariant detection ───────────────────────────────────────────
+          // If the nickname contains an abilityVariant keyword (beginner/advanced/expert/professional)
+          // the JSON represents one abilityVariant checklist for this plane.
+          // Store it in ability_variant_checklists[planeId][abilityVariant][category].
+          // The plane itself is created/updated normally — no extra plane records.
           const nickname = typeof json.nickname === 'string' ? (json.nickname as string).toLowerCase() : '';
           const detectedAbilityVariant = ABILITY_VARIANTS.find(v => nickname.includes(v)) ?? null;
 
           if (detectedAbilityVariant) {
-            // Ensure the plane exists first (importPlane is a no-op if it already exists)
+            // Ensure the plane exists first
             const planeAlreadyExists = planes.some(p => p.id === planeId);
             if (!planeAlreadyExists) {
               await importPlane(plane, { planeId, phases: [] });
             }
 
-            // Save the variant's Normal checklist as a category of the plane
+            // Store Normal phases for this abilityVariant.
+            // Supabase: plane_id = "${planeId}||${abilityVariant}", category = "Standard"
             if (isAdmin) {
+              const avPlaneId = `${planeId}||${detectedAbilityVariant}`;
               const allCl = await listAllSharedChecklists();
-              const existingVariantCl = allCl.find(c => c.plane_id === planeId && c.category === detectedAbilityVariant);
-              if (existingVariantCl) {
-                await updateSharedChecklist(existingVariantCl.id, JSON.stringify(mainPhases));
+              const existing = allCl.find(c => c.plane_id === avPlaneId && c.category === 'Standard');
+              if (existing) {
+                await updateSharedChecklist(existing.id, JSON.stringify(mainPhases));
               } else {
-                await createSharedChecklist({ plane_id: planeId, category: detectedAbilityVariant, phases: JSON.stringify(mainPhases) });
+                await createSharedChecklist({ plane_id: avPlaneId, category: 'Standard', phases: JSON.stringify(mainPhases) });
               }
             } else {
-              addCategory(planeId, detectedAbilityVariant, { planeId: `${planeId}::${detectedAbilityVariant}`, phases: mainPhases });
+              setAbilityVariantChecklist(planeId, detectedAbilityVariant, 'Standard', { planeId, phases: mainPhases });
             }
 
-            // Save Emergency/Abnormal/Reference as sub-categories of the variant
-            const importedSubCats: string[] = [];
+            // Store each category (Abnormal/Emergency/Reference) for this abilityVariant
+            const importedCategories: string[] = [];
             for (const cat of CATEGORY_KEYS) {
               if (categoryPhases[cat].length > 0) {
-                const compoundCategory = `${detectedAbilityVariant}::${cat}`;
                 if (isAdmin) {
+                  const avPlaneId = `${planeId}||${detectedAbilityVariant}`;
                   const allCl = await listAllSharedChecklists();
-                  const existing = allCl.find(c => c.plane_id === planeId && c.category === compoundCategory);
+                  const existing = allCl.find(c => c.plane_id === avPlaneId && c.category === cat);
                   if (existing) {
                     await updateSharedChecklist(existing.id, JSON.stringify(categoryPhases[cat]));
                   } else {
-                    await createSharedChecklist({ plane_id: planeId, category: compoundCategory, phases: JSON.stringify(categoryPhases[cat]) });
+                    await createSharedChecklist({ plane_id: avPlaneId, category: cat, phases: JSON.stringify(categoryPhases[cat]) });
                   }
                 } else {
-                  addCategory(planeId, compoundCategory, { planeId: `${planeId}::${compoundCategory}`, phases: categoryPhases[cat] });
+                  setAbilityVariantChecklist(planeId, detectedAbilityVariant, cat, { planeId, phases: categoryPhases[cat] });
                 }
-                importedSubCats.push(cat);
+                importedCategories.push(cat);
               }
             }
 
@@ -485,10 +488,10 @@ export function useImportHandlers({
               await refreshSharedPlanes();
             }
 
-            const variantItemCount = mainPhases.reduce((s, p) => s + p.items.length, 0);
-            const subCatSummary = importedSubCats.length > 0 ? ` + categories: ${importedSubCats.join(', ')}` : '';
+            const itemCount = mainPhases.reduce((s, p) => s + p.items.length, 0);
+            const catSummary = importedCategories.length > 0 ? ` + categories: ${importedCategories.join(', ')}` : '';
             setImportSummary(
-              `Imported "${name}" ${detectedAbilityVariant} variant with ${mainPhases.length} phase(s) and ${variantItemCount} item(s)${subCatSummary}.` +
+              `Imported "${name}" (${detectedAbilityVariant}) with ${mainPhases.length} phase(s) and ${itemCount} item(s)${catSummary}.` +
               `${isAdmin ? ' (shared)' : ''}`,
             );
             onImportComplete?.();

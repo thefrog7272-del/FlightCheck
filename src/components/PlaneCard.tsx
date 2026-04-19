@@ -184,7 +184,7 @@ export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAd
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  window.location.href = `/checklist/${plane.id}/${encodeURIComponent(av)}`;
+                  window.location.href = `/checklist/${plane.id}/av/${encodeURIComponent(av)}`;
                 }}
               >
                 {av.charAt(0).toUpperCase() + av.slice(1)}
