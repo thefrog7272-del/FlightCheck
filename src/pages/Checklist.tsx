@@ -51,6 +51,16 @@ export function Checklist() {
 
   console.log('[Checklist] final checklist:', !!checklist, 'phases:', checklist?.phases.length);
 
+  /** Routes checklist saves to the correct store (abilityVariant or base).
+   *  Must be declared here (before any early returns) to satisfy Rules of Hooks. */
+  const saveChecklist = useCallback((updated: PlaneChecklist) => {
+    if (abilityVariant && planeId) {
+      setAbilityVariantChecklist(planeId, abilityVariant, activeCategory, updated);
+    } else {
+      updateChecklist(categoryKey ?? planeId!, updated);
+    }
+  }, [abilityVariant, planeId, activeCategory, setAbilityVariantChecklist, updateChecklist, categoryKey]);
+
   const checkedItems = planeId
     ? getProgress(planeId, abilityVariant ? `av||${abilityVariant}||${activeCategory}` : activeCategory)
     : {};
@@ -307,15 +317,6 @@ export function Checklist() {
   }
 
   const isReferenceCategory = activeCategory === 'Reference Tables';
-
-  /** Routes checklist saves to the correct store (abilityVariant or base). */
-  const saveChecklist = useCallback((updated: PlaneChecklist) => {
-    if (abilityVariant && planeId) {
-      setAbilityVariantChecklist(planeId, abilityVariant, activeCategory, updated);
-    } else {
-      updateChecklist(categoryKey ?? planeId!, updated);
-    }
-  }, [abilityVariant, planeId, activeCategory, setAbilityVariantChecklist, updateChecklist, categoryKey]);
 
   const autoAdvancePhase = (updatedItems: Record<string, boolean>) => {
     if (isEditing) return;
