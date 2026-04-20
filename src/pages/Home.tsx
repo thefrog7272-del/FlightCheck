@@ -4,7 +4,7 @@ import { ImageEditModal } from '../components/ImageEditModal';
 import { FileImportModal } from '../components/FileImportModal';
 import { AddReferenceTableModal } from '../components/AddReferenceTableModal';
 import styles from './Home.module.css';
-import { Search, Plus, Eye, ChevronDown, Download, Upload } from 'lucide-react';
+import { Search, Plus, Eye, ChevronDown, Download, Upload, Star } from 'lucide-react';
 import { useFleet } from '../hooks/useFleet';
 import { useConfirm } from '../hooks/useConfirm';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +23,7 @@ export function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [filterType, setFilterType] = useState('All');
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingImagePlaneId, setEditingImagePlaneId] = useState<string | null>(null);
   const [addTablePlaneId, setAddTablePlaneId] = useState<string | null>(null);
@@ -219,7 +220,8 @@ listAllSharedChecklists()]);
       const matchesSearch = plane.name.toLowerCase().includes(query) ||
         plane.manufacturer.toLowerCase().includes(query);
       const matchesType = filterType === 'All' || plane.type === filterType;
-      return matchesSearch && matchesType;
+      const matchesFavorites = !showOnlyFavorites || favoriteIds.includes(plane.id);
+      return matchesSearch && matchesType && matchesFavorites;
     });
 
     result.sort((a, b) => {
@@ -245,7 +247,7 @@ listAllSharedChecklists()]);
     });
 
     return result;
-  }, [planes, searchQuery, filterType, sortBy, favoriteIds]);
+  }, [planes, searchQuery, filterType, sortBy, showOnlyFavorites, favoriteIds]);
 
   // Group filtered planes by `name` so multiple ability variants (same name,
   // different id) collapse into a single card. The first plane in each group
@@ -284,6 +286,13 @@ listAllSharedChecklists()]);
                 </button>
               </>
             )}
+            <button
+              className={`${styles.resetButton} ${showOnlyFavorites ? styles.activeButton : ''}`}
+              onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+              title={showOnlyFavorites ? 'Show all planes' : 'Show only favorites'}
+            >
+              <Star size={18} fill={showOnlyFavorites ? 'currentColor' : 'none'} /> Favorites
+            </button>
             <button className={styles.resetButton} onClick={handleShowAll}>
               <Eye size={18} /> Show All
             </button>

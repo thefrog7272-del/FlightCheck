@@ -39,11 +39,71 @@
   gap: 1rem;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .title {
   font-size: 2rem;
   font-weight: 700;
   margin: 0;
   color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.developerVariant {
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.variantButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.variantButton {
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.variantButtonActive {
+  font-size: 1rem;
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: rgba(var(--accent-rgb), 0.1);
+}
+
+.variantButtonActive:hover {
+  background-color: rgba(var(--accent-rgb), 0.15);
+}
+
+.variantButtonInactive {
+  font-size: 0.875rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  border-color: var(--border);
+  background-color: transparent;
+}
+
+.variantButtonInactive:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .subtitle {
