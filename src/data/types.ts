@@ -9,6 +9,19 @@ export interface Plane {
   sim?: SimPlatform;
   author?: string;
   author_weblink?: string;
+  /**
+   * Optional ability variant tag (Beginner, Intermediate, Expert, Advanced, Professional).
+   * When present, multiple Plane records can share the same `name` and differ
+   * only by `id` + `ability_variant`.
+   */
+  ability_variant?: string | null;
+  /**
+   * Optional MSFS addon developer tag (FlyByWire, iniBuilds, Asobo, Fenix, …).
+   * Multiple Plane records can share the same `name` and differ by the
+   * (`addon_developer_variant`, `ability_variant`) pair. Null means "default /
+   * stock" — the UI labels it "Default" in the variant picker.
+   */
+  addon_developer_variant?: string | null;
 }
 
 export interface ChecklistItem {

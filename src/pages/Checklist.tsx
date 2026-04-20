@@ -1,10 +1,9 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useParams, Navigate, Link, useNavigate } from 'react-router-dom';
 import { ChecklistItem } from '../components/ChecklistItem';
-import { KeyboardHints } from '../components/KeyboardHints';
 import { Timer } from '../components/Timer';
 import styles from './Checklist.module.css';
-import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Download, Pencil, Plus, X, Printer, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff, NotebookPen } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, RotateCcw, Pencil, Plus, X, ArrowUp, ArrowDown, CheckCheck, Volume2, VolumeX, Search, GripVertical, Share2, Mic, MicOff, NotebookPen } from 'lucide-react';
 import { dispatchScratchpadEvent } from '../hooks/useScratchpad';
 import { subscribeScratchpadEvents } from '../hooks/useScratchpad';
 import { useVoiceChecklist } from '../hooks/useVoiceChecklist';
@@ -633,14 +632,35 @@ export function Checklist() {
                 onClick={() => dispatchScratchpadEvent('toggle')}
                 className={showScratchpad ? styles.voiceTabActive : styles.voiceTab}
                 title={showScratchpad ? 'Hide notepad' : 'Open notepad'}
+                data-testid="notepad-button"
               >
                 <NotebookPen size={12} />
                 Notepad
               </button>
+              {!isReferenceCategory && (
+                <button
+                  onClick={toggleMute}
+                  className={styles.voiceTab}
+                  title={isMuted ? 'Unmute sounds' : 'Mute sounds'}
+                  data-testid="mute-button"
+                >
+                  {isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                </button>
+              )}
+              {!isReferenceCategory && (
+                <button
+                  onClick={resetChecklist}
+                  className={styles.voiceTab}
+                  title="Reset checklist"
+                >
+                  <RotateCcw size={12} />
+                  Reset
+                </button>
+              )}
             </CategorySelector>
           </div>
           <div className={styles.headerActions}>
-            {!isReferenceCategory && (
+            {user && !isReferenceCategory && (
               <button
                 onClick={() => { setIsEditing(!isEditing); setInsertAt(null); }}
                 className={isEditing ? styles.editButtonActive : styles.resetButton}
@@ -655,26 +675,7 @@ export function Checklist() {
                   <Share2 className={styles.resetIcon} />
                   Share
                 </button>
-                <button onClick={downloadCsv} className={styles.resetButton}>
-                  <Download className={styles.resetIcon} />
-                  Download CSV
-                </button>
-                <button onClick={() => window.print()} className={styles.resetButton}>
-                  <Printer className={styles.resetIcon} />
-                  Print
-                </button>
               </>
-            )}
-            {!isReferenceCategory && (
-              <button onClick={resetChecklist} className={styles.resetButton}>
-                <RotateCcw className={styles.resetIcon} />
-                Reset
-              </button>
-            )}
-            {!isReferenceCategory && (
-              <button onClick={toggleMute} className={styles.resetButton} title={isMuted ? 'Unmute sounds' : 'Mute sounds'}>
-                {isMuted ? <VolumeX className={styles.resetIcon} /> : <Volume2 className={styles.resetIcon} />}
-              </button>
             )}
             {user && isReferenceCategory && (
               <button
@@ -983,7 +984,6 @@ export function Checklist() {
           </div>
         )}
       </div>
-      <KeyboardHints />
       {ConfirmDialog}
       {toast && <Toast message={toast.message} action={toast.action} onDismiss={dismissToast} />}
       {/* Phase right-click context menu */}

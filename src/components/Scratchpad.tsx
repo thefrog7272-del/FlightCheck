@@ -9,6 +9,7 @@ interface Props {
   onClose: () => void;
   onEraseRef?: MutableRefObject<(() => void) | null>;
   onDictateRef?: MutableRefObject<(() => void) | null>;
+  currentChecklistId?: string | null;
 }
 
 type WSAResult = { isFinal: boolean; 0: { transcript: string } };
@@ -39,10 +40,51 @@ function defaultPos() {
   return { x: Math.max(0, window.innerWidth - 400), y: Math.max(0, window.innerHeight - 440) };
 }
 
-export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
+function getChecklistDefaultPos() {
+  // Position in upper right, below header and aligned with timer/search bar right edge
+  const header = document.querySelector('header');
+  const timerOrSearch = document.querySelector('[class*="timer"]') || document.querySelector('[class*="search"]');
+
+  if (!header) return defaultPos();
+
+  const headerRect = header.getBoundingClientRect();
+  const headerBottom = headerRect.bottom;
+
+  // Align with the right side of the timer/search area, or use right edge with padding
+  let x = window.innerWidth - 360 - 16; // Right aligned with 16px padding from edge
+
+  if (timerOrSearch) {
+    const timerRect = timerOrSearch.getBoundingClientRect();
+    x = timerRect.right - 360 + 16; // Align right edge of notepad with right edge of timer area
+  }
+
+  const y = headerBottom + 8; // 8px below header
+
+  return {
+    x: Math.max(0, Math.min(x, window.innerWidth - 360)),
+    y: Math.max(0, y),
+  };
+}
+
+export function Scratchpad({ onClose, onEraseRef, onDictateRef, currentChecklistId }: Props) {
   const [text, setText] = useLocalStorage<string>('scratchpad_text', '');
-  // Position state — default bottom-right corner, offset from edge
-  const [pos, setPos] = useLocalStorage<{ x: number; y: number }>('scratchpad_pos', defaultPos());
+
+  // Always use global position key (don't persist checklist-specific positions)
+  const [posFromStorage, setPos] = useLocalStorage<{ x: number; y: number }>('scratchpad_pos', defaultPos());
+
+  // While on a checklist, use local state for position (don't save to localStorage)
+  const [localPos, setLocalPos] = useState<{ x: number; y: number } | null>(null);
+  const pos = currentChecklistId && localPos ? localPos : posFromStorage;
+
+  const handleSetPos = useCallback((newPos: { x: number; y: number }) => {
+    if (currentChecklistId) {
+      // On a checklist — update local state only (don't persist)
+      setLocalPos(newPos);
+    } else {
+      // Not on a checklist — update localStorage
+      setPos(newPos);
+    }
+  }, [currentChecklistId, setPos]);
 
   const [minimized, setMinimized] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -52,6 +94,28 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<WSARecognition | null>(null);
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const prevChecklistIdRef = useRef(currentChecklistId);
+  const posRef = useRef(pos);
+  useEffect(() => { posRef.current = pos; }, [pos]);
+
+  // Position the notepad when on a checklist or when checklist changes
+  useEffect(() => {
+    if (currentChecklistId) {
+      // On a checklist — position next to mute button (in local state, not persisted)
+      // Small delay to ensure DOM is ready and mute button is rendered
+      const timer = setTimeout(() => {
+        const newPos = getChecklistDefaultPos();
+        setLocalPos(newPos);
+      }, 50);
+      prevChecklistIdRef.current = currentChecklistId;
+      return () => clearTimeout(timer);
+    } else if (!currentChecklistId && prevChecklistIdRef.current) {
+      // Navigated away from checklist — clear local state, revert to saved position
+      setLocalPos(null);
+      prevChecklistIdRef.current = null;
+    }
+  }, [currentChecklistId]);
+
   // Track isListening in a ref so recognition callbacks don't get stale closures
   const isListeningRef = useRef(false);
   useEffect(() => { isListeningRef.current = isListening; }, [isListening]);
@@ -77,14 +141,14 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
       if (!el) return;
       const w = window.innerWidth;
       const h = window.innerHeight;
-      setPos(p => ({
-        x: Math.max(0, Math.min(p.x, w - el.offsetWidth)),
-        y: Math.max(0, Math.min(p.y, h - el.offsetHeight)),
-      }));
+      handleSetPos({
+        x: Math.max(0, Math.min(posRef.current.x, w - el.offsetWidth)),
+        y: Math.max(0, Math.min(posRef.current.y, h - el.offsetHeight)),
+      });
     };
     window.addEventListener('resize', clamp);
     return () => window.removeEventListener('resize', clamp);
-  }, [setPos]);
+  }, [handleSetPos]);
 
   // ── Drag ──────────────────────────────────────────────────────────────────
   const onDragStart = (e: React.MouseEvent | React.TouchEvent) => {
@@ -92,8 +156,8 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
     dragState.current = {
       startX: client.clientX,
       startY: client.clientY,
-      origX: pos.x,
-      origY: pos.y,
+      origX: posRef.current.x,
+      origY: posRef.current.y,
     };
     e.preventDefault();
   };
@@ -107,7 +171,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
       const el = panelRef.current;
       const newX = Math.max(0, Math.min(dragState.current.origX + dx, window.innerWidth - (el?.offsetWidth ?? 360)));
       const newY = Math.max(0, Math.min(dragState.current.origY + dy, window.innerHeight - (el?.offsetHeight ?? 80)));
-      setPos({ x: newX, y: newY });
+      handleSetPos({ x: newX, y: newY });
     };
     const onUp = () => { dragState.current = null; };
 
@@ -121,7 +185,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef }: Props) {
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onUp);
     };
-  }, [setPos]);
+  }, [handleSetPos]);
 
   // ── Speech recognition ────────────────────────────────────────────────────
   const stopListening = useCallback(() => {

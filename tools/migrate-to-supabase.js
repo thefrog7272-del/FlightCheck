@@ -63,10 +63,12 @@ function main() {
 
   const checklistEntries = Object.entries(checklists);
   lines.push(`-- Checklists: ${checklistEntries.length} records`);
-  lines.push('INSERT INTO shared_checklists (id, plane_id, variant_name, category, phases) VALUES');
+  lines.push('INSERT INTO shared_checklists (id, plane_id, category, phases) VALUES');
 
   const checklistValues = checklistEntries.map(([key, val]) => {
-    // Extract base plane ID for FK constraint (e.g. "plane::Emergency" -> "plane")
+    // Extract base plane ID for FK constraint (e.g. "plane::Emergency" -> "plane").
+    // The legacy "variant_name" part of the key is now only used to derive the
+    // checklist category; the column itself was dropped from shared_checklists.
     const parts = val.planeId.split('::');
     const basePlaneId = parts[0];
     const variantName = parts[1] || 'Standard';
@@ -79,7 +81,7 @@ function main() {
     else if (variantLower === 'reference tables') category = 'reference_table';
 
     const phasesJson = JSON.stringify(val.phases);
-    return `  (gen_random_uuid(), ${sqlEscape(basePlaneId)}, ${sqlEscape(variantName)}, ${sqlEscape(category)}, ${sqlEscape(phasesJson)})`;
+    return `  (gen_random_uuid(), ${sqlEscape(basePlaneId)}, ${sqlEscape(category)}, ${sqlEscape(phasesJson)})`;
   });
 
   lines.push(checklistValues.join(',\n') + ';');

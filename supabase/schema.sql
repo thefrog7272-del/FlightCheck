@@ -12,7 +12,13 @@ CREATE TABLE IF NOT EXISTS shared_planes (
   sim TEXT,
   sort_order INT,
   author TEXT,
-  author_weblink TEXT
+  author_weblink TEXT,
+  -- Optional ability variant tag (Beginner, Intermediate, Expert, Advanced, Professional).
+  -- Multiple rows can share the same `name` and differ only by `plane_id` + `ability_variant`.
+  ability_variant TEXT,
+  -- Optional MSFS addon developer tag (FlyByWire, iniBuilds, Asobo, Fenix, …).
+  -- Rows for the same `name` can differ by `addon_developer_variant` × `ability_variant`.
+  addon_developer_variant TEXT
 );
 
 ALTER TABLE shared_planes ENABLE ROW LEVEL SECURITY;
@@ -46,7 +52,6 @@ CREATE POLICY "Admins can delete shared planes"
 CREATE TABLE IF NOT EXISTS shared_checklists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plane_id TEXT NOT NULL REFERENCES shared_planes(plane_id) ON DELETE CASCADE,
-  variant_name TEXT NOT NULL DEFAULT 'Standard',
   category TEXT NOT NULL DEFAULT 'normal' CHECK(category IN ('normal', 'abnormal', 'emergency', 'reference_table')),
   phases TEXT NOT NULL
 );

@@ -78,23 +78,35 @@
 
 .clearBtn {
   padding: 0.25rem 0.75rem;
-  background: transparent;
+  background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 0.8125rem;
+  transition: all 0.2s;
+}
+
+.clearBtn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
 }
 
 .parseBtn {
   align-self: flex-start;
   padding: 0.375rem 1rem;
-  background: var(--accent);
-  color: #fff;
-  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 0.8125rem;
+  transition: all 0.2s;
+}
+
+.parseBtn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
 }
 
 .error {
@@ -112,22 +124,34 @@
 
 .cancelBtn {
   padding: 0.625rem 1.25rem;
-  background: transparent;
-  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
   font-weight: 500;
+  transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
 }
 
 .submitBtn {
   padding: 0.625rem 1.25rem;
-  background: var(--accent);
-  color: #fff;
-  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
   font-weight: 600;
+  transition: all 0.2s;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
 }
 
 .submitBtn:disabled {

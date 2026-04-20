@@ -11,6 +11,8 @@ export interface SharedPlaneRecord {
   sort_order?: number | null;
   author?: string | null;
   author_weblink?: string | null;
+  ability_variant?: string | null;
+  addon_developer_variant?: string | null;
 }
 
 export interface SharedChecklistRecord {
@@ -94,6 +96,8 @@ export async function createSharedPlane(plane: Omit<SharedPlaneRecord, 'id'>): P
         sort_order: plane.sort_order,
         author: plane.author,
         author_weblink: plane.author_weblink,
+        ability_variant: plane.ability_variant ?? null,
+        addon_developer_variant: plane.addon_developer_variant ?? null,
       }])
       .select()
       .single();
@@ -152,6 +156,8 @@ export async function updateSharedPlane(id: string, plane: Partial<Omit<SharedPl
         ...(plane.sort_order !== undefined && { sort_order: plane.sort_order }),
         ...(plane.author !== undefined && { author: plane.author }),
         ...(plane.author_weblink !== undefined && { author_weblink: plane.author_weblink }),
+        ...(plane.ability_variant !== undefined && { ability_variant: plane.ability_variant }),
+        ...(plane.addon_developer_variant !== undefined && { addon_developer_variant: plane.addon_developer_variant }),
       })
       .eq('id', id);
     if (error) throw error;

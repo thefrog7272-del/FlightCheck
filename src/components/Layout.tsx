@@ -1,6 +1,6 @@
 import { Plane, Coffee, Sun, Moon, Lock, Shield } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../contexts/AuthContext';
 import { OfflineIndicator } from './OfflineIndicator';
@@ -19,9 +19,15 @@ function GitHubIcon() {
 export function Layout() {
   const { theme, toggleTheme } = useTheme();
   const { isAdmin } = useAuth();
+  const location = useLocation();
   const [showScratchpad, setShowScratchpad] = useState(false);
   const eraseRef = useRef<(() => void) | null>(null);
   const dictateRef = useRef<(() => void) | null>(null);
+
+  // Extract planeId from checklist route (/checklist/:planeId or /checklist/:planeId/:categoryName)
+  const planeId = location.pathname.startsWith('/checklist/')
+    ? location.pathname.split('/')[2] ?? null
+    : null;
 
   useEffect(() => {
     return subscribeScratchpadEvents(action => {
@@ -101,7 +107,7 @@ export function Layout() {
         )}
       </footer>
 
-      {showScratchpad && <Scratchpad onClose={() => setShowScratchpad(false)} onEraseRef={eraseRef} onDictateRef={dictateRef} />}
+      {showScratchpad && <Scratchpad onClose={() => setShowScratchpad(false)} onEraseRef={eraseRef} onDictateRef={dictateRef} currentChecklistId={planeId} />}
     </div>
   );
 }

@@ -18,6 +18,109 @@ import type { Plane, PlaneChecklist } from '../data/types';
 // ── Suppress unused import warning (deleteSharedChecklist kept for future use) ──
 void _deleteSharedChecklist;
 
+// ── Ability variants ─────────────────────────────────────────────────────────
+// A JSON import's `nickname` field is scanned (case-insensitive) for one of
+// these keywords to tag the plane with an ability variant. Multiple variants
+// of the same aircraft coexist as separate shared_planes rows that share `name`
+// but have distinct `plane_id`s (slug + variant suffix).
+const ABILITY_VARIANTS = ['Beginner', 'Assist', 'Easy', 'Basic', 'Essential', 'Intermediate', 'Paper', 'Original Plus', 'Original', 'Normal', 'Standard',  'Advanced', 'Extended', 'Expert', 'Professional'] as const;
+type AbilityVariant = typeof ABILITY_VARIANTS[number];
+
+export function deriveAbilityVariant(nickname: unknown): {
+  variant: AbilityVariant | null;
+  slugSuffix: string;
+} {
+  if (typeof nickname !== 'string' || !nickname.trim()) {
+    return { variant: null, slugSuffix: '' };
+  }
+  const lower = nickname.toLowerCase();
+  for (const v of ABILITY_VARIANTS) {
+    if (lower.includes(v.toLowerCase())) {
+      return { variant: v, slugSuffix: `-${v.toLowerCase()}` };
+    }
+  }
+  return { variant: null, slugSuffix: '' };
+}
+
+// ── Addon developer variants ─────────────────────────────────────────────────
+// The `nickname` (and as a fallback, the `aircraft` field itself) is scanned
+// for one of these known MSFS addon developer names. The matched keyword
+// becomes `addon_developer_variant` and contributes a slug suffix to plane_id,
+// so rows like FlyByWire A320neo and iniBuilds A320neo coexist under the same
+// display `name` but with distinct `plane_id`s.
+//
+// ORDER MATTERS. The first keyword whose lowercase appears in the nickname
+// wins, so longer / more specific brand names must come before any keyword
+// that is a substring of them (e.g. "FlyByWire" before a hypothetical "Fly").
+const ADDON_DEVELOPERS = [
+  'FlyByWire',
+  'Horizon Simulations',
+  'Hype Performance Group',
+  'Working Title',
+  'IndiaFoxtEcho',
+  'Aeroplane Heaven',
+  'BlueBird Simulations',
+  'BlackBox Simulations',
+  'NEMETH Designs',
+  'Just Flight',
+  'Parallel 42',
+  'DC Designs',
+  'SC Designs',
+  'iniBuilds',
+  'Aerosoft',
+  'Leonardo',
+  'Headwind',
+  'Flysimware',
+  'CowanSim',
+  'Carenado',
+  'Milviz',
+  'Fenix',
+  'PMDG',
+  'Salty',
+  'FSReborn',
+  'Got Friends',
+  'Asobo',
+] as const;
+type AddonDeveloper = typeof ADDON_DEVELOPERS[number];
+
+export function deriveAddonDeveloper(...sources: unknown[]): {
+  developer: AddonDeveloper | null;
+  slugSuffix: string;
+} {
+  const haystack = sources
+    .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+    .join(' ')
+    .toLowerCase();
+  if (!haystack) return { developer: null, slugSuffix: '' };
+  for (const dev of ADDON_DEVELOPERS) {
+    if (haystack.includes(dev.toLowerCase())) {
+      const slug = dev.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      return { developer: dev, slugSuffix: `-${slug}` };
+    }
+  }
+  return { developer: null, slugSuffix: '' };
+}
+
+// Remove a matched keyword (developer or ability) from an aircraft name string
+// so different variants of the same airframe collapse to a single display name
+// (e.g. "FlyByWire A320neo" + "iniBuilds A320neo" both become "A320neo" and
+// group into one PlaneCard). Strips any leftover separators / double spaces.
+// Falls back to the original name if stripping would leave an empty string.
+export function stripVariantKeywordFromName(name: string, keyword: string | null): string {
+  if (!keyword) return name;
+  // Allow flexible whitespace inside multi-word keywords ("Just Flight").
+  const escaped = keyword
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\s+/g, '\\s+');
+  const cleaned = name
+    .replace(new RegExp(escaped, 'gi'), '')
+    // Collapse whitespace + dangling separators (-, _, slashes) created by the strip.
+    .replace(/[\s_/\\-]{2,}/g, ' ')
+    .replace(/^[\s_/\\-]+|[\s_/\\-]+$/g, '')
+    .trim();
+  return cleaned || name;
+}
+
 interface UseImportHandlersParams {
   planes: Plane[];
   addPlane: (plane: Plane, checklist: PlaneChecklist) => void;
@@ -79,6 +182,8 @@ export function useImportHandlers({
             sim: plane.sim || null,
             author: plane.author,
             author_weblink: plane.author_weblink,
+            ability_variant: plane.ability_variant ?? null,
+            addon_developer_variant: plane.addon_developer_variant ?? null,
           });
           const existingChecklists = await listAllSharedChecklists();
           const existingCl = existingChecklists.find(
@@ -101,6 +206,8 @@ export function useImportHandlers({
             sort_order: null,
             author: plane.author,
             author_weblink: plane.author_weblink,
+            ability_variant: plane.ability_variant ?? null,
+            addon_developer_variant: plane.addon_developer_variant ?? null,
           });
           if (planeResult) {
             console.log('[FlightCheck Import] Plane created, saving checklist...');
@@ -370,15 +477,35 @@ export function useImportHandlers({
             return null;
           };
 
-          const name = String(json.aircraft);
-          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const rawName = String(json.aircraft);
           const isChecklistReaderFormat = 'nickname' in json;
-          const plane = {
+          const nickname = isChecklistReaderFormat ? (json as { nickname?: unknown }).nickname : undefined;
+          // `nickname` is scanned for ability-variant keywords and addon-developer
+          // keywords. Matches become `ability_variant` / `addon_developer_variant`
+          // and contribute slug suffixes to plane_id so every (name × developer ×
+          // ability) combo gets its own shared_planes row instead of overwriting.
+          // Developer also falls back to the raw aircraft string (e.g. "Fenix A320"
+          // without a nickname).
+          const { variant: abilityVariant, slugSuffix: abilitySuffix } = deriveAbilityVariant(nickname);
+          const { developer: addonDeveloper, slugSuffix: devSuffix } = deriveAddonDeveloper(nickname, rawName);
+          // Strip the matched developer / ability keywords from the displayed
+          // name so all variants of the same airframe collapse to the same
+          // `name` and Home.tsx groups them into one PlaneCard. Without this,
+          // `aircraft: "FlyByWire A320neo"` and `aircraft: "iniBuilds A320neo"`
+          // would render as two separate cards.
+          const name = stripVariantKeywordFromName(
+            stripVariantKeywordFromName(rawName, addonDeveloper),
+            abilityVariant,
+          );
+          const planeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-') + devSuffix + abilitySuffix;
+          const plane: Plane = {
             id: planeId,
             name,
             manufacturer: '',
             image: '',
-            type: 'GA' as const,
+            type: 'GA',
+            ability_variant: abilityVariant,
+            addon_developer_variant: addonDeveloper,
             ...(isChecklistReaderFormat ? {
               author: 'Checklist based on SimFlightChris Checklist Reader format',
               author_weblink: 'https://flightsim.to/addon/96054/checklist-reader-voice-controlled-checklist-tool-beta-v1-0-0',

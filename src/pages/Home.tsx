@@ -88,6 +88,35 @@ export function Home() {
     exportPlaneAsChecklistJson(plane, checklists);
   }, [planes, checklists]);
 
+  const handleDownloadCsv = useCallback((planeId: string) => {
+    const plane = planes.find(p => p.id === planeId);
+    const checklist = checklists[planeId];
+    if (!plane || !checklist) return;
+
+    const quote = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const header = 'name,category,phase,item,expectedState,reference';
+    const rows = checklist.phases.flatMap(phase =>
+      phase.items.map(item =>
+        [
+          quote(plane.name),
+          quote(''),
+          quote(phase.title),
+          quote(item.label),
+          quote(item.expectedState ?? ''),
+          quote(item.reference ?? ''),
+        ].join(',')
+      )
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${plane.id}-checklist.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [planes, checklists]);
+
   const handleSaveReferenceTable = useCallback(async (updatedChecklist: PlaneChecklist) => {
     if (!addTablePlaneId) return;
     if (isAdmin) {
@@ -218,6 +247,24 @@ listAllSharedChecklists()]);
     return result;
   }, [planes, searchQuery, filterType, sortBy, favoriteIds]);
 
+  // Group filtered planes by `name` so multiple ability variants (same name,
+  // different id) collapse into a single card. The first plane in each group
+  // is used as the card's representative; the full group is passed as
+  // `variants` so a left-click can offer the user a choice when there are 2+.
+  const groupedPlanes = useMemo(() => {
+    const groups = new Map<string, typeof filteredPlanes>();
+    for (const p of filteredPlanes) {
+      const key = p.name;
+      const bucket = groups.get(key) ?? [];
+      bucket.push(p);
+      groups.set(key, bucket);
+    }
+    return Array.from(groups.values()).map(variants => ({
+      representative: variants[0],
+      variants,
+    }));
+  }, [filteredPlanes]);
+
   const sampleCsv = null; void sampleCsv;
 
 
@@ -289,6 +336,7 @@ listAllSharedChecklists()]);
                   onEditImage={handleEditImage}
                   onDownloadJson={handleDownloadJson}
                   onDownloadChecklistJson={handleDownloadChecklistJson}
+                  onDownloadCsv={handleDownloadCsv}
                   onDownloadHtml={handleDownloadHtml}
                 />
               );
@@ -318,12 +366,13 @@ listAllSharedChecklists()]);
 
       {filteredPlanes.length > 0 ? (
         <div className={styles.grid}>
-          {filteredPlanes.map(plane => (
+          {groupedPlanes.map(({ representative, variants }) => (
             <PlaneCard
-              key={plane.id}
-              plane={plane}
-              progress={getPlaneProgress(plane.id)}
-              isFavorite={favoriteIds.includes(plane.id)}
+              key={representative.id}
+              plane={representative}
+              variants={variants.length > 1 ? variants : undefined}
+              progress={getPlaneProgress(representative.id)}
+              isFavorite={favoriteIds.includes(representative.id)}
               onToggleFavorite={toggleFavorite}
               onHide={handleHidePlane}
               onDelete={handleDeletePlane}
@@ -331,6 +380,7 @@ listAllSharedChecklists()]);
               onAddReferenceTable={isAdmin ? handleAddReferenceTable : undefined}
               onDownloadJson={handleDownloadJson}
               onDownloadChecklistJson={handleDownloadChecklistJson}
+              onDownloadCsv={handleDownloadCsv}
               onDownloadHtml={handleDownloadHtml}
             />
           ))}

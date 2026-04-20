@@ -152,6 +152,16 @@ a.author:hover {
   to { opacity: 1; transform: scale(1); }
 }
 
+.contextMenuHeader {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
 .contextMenuItem {
   display: block;
   width: 100%;

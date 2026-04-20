@@ -57,9 +57,12 @@ export const planes: Plane[] = ${json};
 function buildChecklistsFile(records) {
   const checklists = {};
   for (const r of records) {
-    const key = r.variant_name && r.variant_name !== 'Standard'
-      ? `${r.plane_id}::${r.variant_name}`
-      : r.plane_id;
+    // The variant_name column was dropped. Non-normal categories (Emergency,
+    // Abnormal, Reference tables) still need a disambiguated key so multiple
+    // checklists per plane_id don't collide in the static-data map.
+    const category = typeof r.category === 'string' ? r.category : '';
+    const isNormal = !category || category.toLowerCase() === 'normal';
+    const key = isNormal ? r.plane_id : `${r.plane_id}::${category}`;
     checklists[key] = {
       planeId: r.plane_id,
       phases: JSON.parse(r.phases),
