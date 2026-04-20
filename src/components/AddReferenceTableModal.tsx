@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { PlaneChecklist, ChecklistItem } from '../data/types';
 import styles from './AddReferenceTableModal.module.css';
 
@@ -30,7 +30,7 @@ export function AddReferenceTableModal({
   onSave,
   onCancel,
 }: AddReferenceTableModalProps) {
-  const phases = existingChecklist?.phases ?? [];
+  const phases = useMemo(() => existingChecklist?.phases ?? [], [existingChecklist?.phases]);
 
   const [phaseSelection, setPhaseSelection] = useState<string>(
     phases.length > 0 ? phases[0].id : '__new__',

@@ -27,10 +27,10 @@ export function useFleet() {
   const { data, loading, updateKey, resetAll } = useDatabase();
   const { sharedPlanes, sharedChecklists, sharedLoading, refreshSharedPlanes } = useSharedPlanes();
 
-  const customPlanes = data?.custom_planes ?? [];
-  const customChecklists = data?.custom_checklists ?? {};
-  const deletedStaticIds = data?.deleted_static_planes ?? [];
-  const favoriteIds = data?.favorite_planes ?? [];
+  const customPlanes = useMemo(() => data?.custom_planes ?? [], [data?.custom_planes]);
+  const customChecklists = useMemo(() => data?.custom_checklists ?? {}, [data?.custom_checklists]);
+  const deletedStaticIds = useMemo(() => data?.deleted_static_planes ?? [], [data?.deleted_static_planes]);
+  const favoriteIds = useMemo(() => data?.favorite_planes ?? [], [data?.favorite_planes]);
   const recentlyUsed = data?.recently_used ?? [];
   const itemNotes = data?.item_notes ?? {};
   const timerData = data?.timer_data ?? {};
