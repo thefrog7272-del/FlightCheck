@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { listSharedPlanes, listAllSharedChecklists, type SharedPlaneRecord, type SharedChecklistRecord } from '../api/sharedPlanes';
 import { planes as staticPlanes } from '../data/planes';
 import { checklists as staticChecklists } from '../data/checklists';
+import { getOfflinePlanes, getOfflineChecklists, hasOfflineData } from '../lib/addon-offline-data';
 import type { Plane, PlaneChecklist } from '../data/types';
 
 const CACHE_KEY = 'shared_planes_cache';
@@ -75,6 +76,28 @@ export function useSharedPlanes() {
   });
 
   const fetchFromApi = useCallback(async () => {
+    // Try offline data first (MSFS addon mode)
+    if (hasOfflineData()) {
+      console.log('[FlightCheck SharedPlanes] Using offline addon data');
+      const offlinePlanes = getOfflinePlanes();
+      const offlineChecklists = getOfflineChecklists();
+
+      if (offlinePlanes && offlineChecklists && offlinePlanes.length > 0) {
+        const planes = offlinePlanes.map(mapToPlane);
+        const checklists: Record<string, PlaneChecklist> = {};
+        for (const record of offlineChecklists) {
+          try {
+            checklists[checklistKey(record)] = mapToChecklist(record);
+          } catch { /* skip invalid JSON */ }
+        }
+
+        setSharedPlanes(planes);
+        setSharedChecklists(checklists);
+        saveCache({ planes, checklists, timestamp: Date.now() });
+        return true;
+      }
+    }
+
     console.log('[FlightCheck SharedPlanes] Fetching from API...');
     try {
       const [planeRecords, checklistRecords] = await Promise.all([
