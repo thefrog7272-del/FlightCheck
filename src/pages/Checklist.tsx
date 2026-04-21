@@ -677,7 +677,29 @@ export function Checklist() {
                 </div>
               );
             })()}
-            <span className={styles.subtitle}>{plane.manufacturer}</span>
+            <div className={styles.subtitle}>
+              <span>{plane.manufacturer}</span>
+              {plane.author && (
+                <>
+                  {' · '}
+                  {plane.author_weblink ? (
+                    <a
+                      href={plane.author_weblink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.open(plane.author_weblink, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      {plane.author}
+                    </a>
+                  ) : (
+                    <span>{plane.author}</span>
+                  )}
+                </>
+              )}
+            </div>
             <CategorySelector
               planeId={planeId!}
               categories={categories}

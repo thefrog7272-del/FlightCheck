@@ -1,4 +1,4 @@
-import { Plane, Coffee, Sun, Moon, Lock, Shield } from 'lucide-react';
+import { Plane, Coffee, Sun, Moon, Shield } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useTheme } from '../hooks/useTheme';
@@ -99,12 +99,6 @@ export function Layout() {
           <GitHubIcon />
           <span>GitHub</span>
         </a>
-        {!isAdmin && (
-          <Link to="/admin" className={styles.footerLink}>
-            <Lock size={14} />
-            Admin
-          </Link>
-        )}
       </footer>
 
       {showScratchpad && <Scratchpad onClose={() => setShowScratchpad(false)} onEraseRef={eraseRef} onDictateRef={dictateRef} currentChecklistId={planeId} />}

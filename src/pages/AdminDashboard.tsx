@@ -35,6 +35,7 @@ export function AdminDashboard() {
   // Seed state
   const [seeding, setSeeding] = useState(false);
   const [seedProgress, setSeedProgress] = useState('');
+  const [replacing, setReplacing] = useState(false);
 
   const refreshData = useCallback(async () => {
     setLoading(true);
@@ -131,6 +132,73 @@ export function AdminDashboard() {
     }
     await deleteSharedPlane(plane.id);
     await refreshData();
+  };
+
+  const handleReplaceAllStatic = async () => {
+    const confirmed = await confirm(
+      'Replace All Static Planes',
+      `This will delete all ${planes.length} existing shared planes and replace them with the ${staticPlanes.length} built-in aircraft. This action cannot be undone.`,
+      { destructive: true, confirmLabel: 'Replace All' }
+    );
+    if (!confirmed) return;
+
+    setReplacing(true);
+    setSeedProgress('Deleting existing planes...');
+
+    try {
+      // Delete all existing planes and their checklists
+      const allChecklists = await listAllSharedChecklists();
+      for (const cl of allChecklists) {
+        await deleteSharedChecklist(cl.id);
+      }
+
+      for (const plane of planes) {
+        await deleteSharedPlane(plane.id);
+      }
+
+      setSeedProgress('Creating fresh copies from built-in aircraft...');
+
+      // Seed fresh copies
+      let created = 0;
+      let checklistsCreated = 0;
+
+      for (let i = 0; i < staticPlanes.length; i++) {
+        const plane = staticPlanes[i];
+        setSeedProgress(`Creating ${plane.name}... ${i + 1}/${staticPlanes.length}`);
+
+        await createSharedPlane({
+          plane_id: plane.id,
+          name: plane.name,
+          manufacturer: plane.manufacturer,
+          image: plane.image,
+          type: plane.type,
+          sim: plane.sim || null,
+          sort_order: i,
+        });
+        created++;
+
+        for (const [clKey, checklist] of Object.entries(staticChecklists)) {
+          if (!clKey.startsWith(plane.id)) continue;
+
+          const parts = clKey.split('::');
+          const categoryName = parts[1] || 'normal';
+
+          await createSharedChecklist({
+            plane_id: plane.id,
+            category: categoryName,
+            phases: JSON.stringify(checklist.phases),
+          });
+          checklistsCreated++;
+        }
+      }
+
+      setSeedProgress(`Done! Replaced all planes with ${created} built-in aircraft and ${checklistsCreated} checklists.`);
+      await refreshData();
+    } catch (err) {
+      setSeedProgress(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setReplacing(false);
+    }
   };
 
   const handleSeed = async () => {
@@ -337,6 +405,12 @@ export function AdminDashboard() {
               <button className={styles.seedLink} onClick={() => setView('seed')}>
                 <Database size={14} /> Seed Database
               </button>
+              {planes.length > 0 && (
+                <button className={styles.replaceLink} onClick={handleReplaceAllStatic} disabled={replacing}>
+                  {replacing ? <Loader size={14} className={styles.spinner} /> : <Database size={14} />}
+                  {replacing ? 'Replacing...' : 'Replace All with Static'}
+                </button>
+              )}
             </div>
             <AdminPlaneList
               planes={planes}
