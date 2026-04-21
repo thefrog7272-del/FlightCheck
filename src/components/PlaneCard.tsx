@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Plane } from '../data/types';
 import styles from './PlaneCard.module.css';
 import { Plane as PlaneIcon, Star } from 'lucide-react';
@@ -26,6 +27,7 @@ interface PlaneCardProps {
 }
 
 export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadChecklistJson, onDownloadCsv, onDownloadHtml, isFavorite, onToggleFavorite }: PlaneCardProps) {
+  const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   // Variant picker renders at the document root (position: fixed) to avoid the
@@ -173,7 +175,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
     e.preventDefault();
     e.stopPropagation();
     setVariantMenuPos(null);
-    window.location.href = `/checklist/${variantPlaneId}`;
+    navigate(`/checklist/${variantPlaneId}`);
   };
 
   // Sort ability variants within a single developer group by a canonical
@@ -198,7 +200,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
     if (group.planes.length === 1) {
       setVariantMenuPos(null);
       setSelectedDeveloper(null);
-      window.location.href = `/checklist/${group.planes[0].id}`;
+      navigate(`/checklist/${group.planes[0].id}`);
       return;
     }
     setSelectedDeveloper(group.key);
