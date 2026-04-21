@@ -41,21 +41,21 @@ function defaultPos() {
 }
 
 function getChecklistDefaultPos() {
-  // Position in upper right, below header and aligned with timer/search bar right edge
+  // Position in upper right, below header and aligned with checklist phases right edge
   const header = document.querySelector('header');
-  const timerOrSearch = document.querySelector('[class*="timer"]') || document.querySelector('[class*="search"]');
+  const phases = document.querySelector('[class*="phases"]');
 
   if (!header) return defaultPos();
 
   const headerRect = header.getBoundingClientRect();
   const headerBottom = headerRect.bottom;
 
-  // Align with the right side of the timer/search area, or use right edge with padding
+  // Align with the right side of the phases container
   let x = window.innerWidth - 360 - 16; // Right aligned with 16px padding from edge
 
-  if (timerOrSearch) {
-    const timerRect = timerOrSearch.getBoundingClientRect();
-    x = timerRect.right - 360 + 16; // Align right edge of notepad with right edge of timer area
+  if (phases) {
+    const phasesRect = phases.getBoundingClientRect();
+    x = phasesRect.right - 360 ; // Position to right of phases with gap
   }
 
   const y = headerBottom + 8; // 8px below header
