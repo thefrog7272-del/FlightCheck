@@ -166,8 +166,8 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
   const handleCardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     const rect = cardRef.current?.getBoundingClientRect();
-    const x = rect ? rect.left + rect.width / 2 : e.clientX;
-    const y = rect ? rect.top + rect.height / 2 : e.clientY;
+    const x = rect ? rect.left : e.clientX;
+    const y = rect ? rect.top : e.clientY;
     setVariantMenuPos({ x, y });
   };
 
@@ -216,8 +216,8 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       const rect = cardRef.current?.getBoundingClientRect();
-      const x = rect ? rect.left + rect.width / 2 : 0;
-      const y = rect ? rect.top + rect.height / 2 : 0;
+      const x = rect ? rect.left : 0;
+      const y = rect ? rect.top : 0;
       setVariantMenuPos({ x, y });
     }
   };
@@ -304,7 +304,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
             <div
               ref={variantPopupRef}
               className={styles.contextMenu}
-              style={{ top: variantMenuPos.y, left: variantMenuPos.x, transform: 'translate(-50%, -50%)' }}
+              style={{ top: variantMenuPos.y, left: variantMenuPos.x }}
               role="menu"
               aria-label={`Open ${plane.name} checklist`}
               onClick={e => e.stopPropagation()}
