@@ -144,12 +144,14 @@ a.author:hover {
 .contextMenu {
   position: fixed;
   z-index: 1000;
-  min-width: 160px;
+  min-width: 140px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   padding: 0.25rem 0;
+  margin-left: 0.5rem;
+  margin-top: 0.5rem;
   animation: menuFadeIn 0.1s ease-out;
 }
 
@@ -159,8 +161,8 @@ a.author:hover {
 }
 
 .contextMenuHeader {
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -169,20 +171,25 @@ a.author:hover {
 }
 
 .contextMenuItem {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
-  padding: 0.5rem 1rem;
-  background: none;
-  border: none;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  background-color: transparent;
+  border-radius: var(--radius);
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .contextMenuItem:hover {
-  background: var(--bg-tertiary);
+  background-color: var(--bg-tertiary);
+  border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .contextMenuItemDanger {

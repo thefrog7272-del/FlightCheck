@@ -197,11 +197,45 @@ export function useVoiceChecklist({
     setIsVoiceMode(prev => !prev);
   }, []);
 
-  // When scratchpad dictation starts, turn off checklist voice mode so both
-  // don't compete for the microphone.
+  // Track isVoiceMode in a ref for synchronous reads in event handlers
+  const isVoiceModeRef = useRef(isVoiceMode);
+  useEffect(() => { isVoiceModeRef.current = isVoiceMode; }, [isVoiceMode]);
+
+  // Suspend/resume state when scratchpad dictation takes the mic
+  const suspendedForScratchpadRef = useRef(false);
+  const suppressVoiceStopRef = useRef(false);
+
+  // Broadcast voice-start / voice-stop so the scratchpad can suspend/resume
+  const prevVoiceModeRef = useRef(false);
+  useEffect(() => {
+    const prev = prevVoiceModeRef.current;
+    prevVoiceModeRef.current = isVoiceMode;
+    if (isVoiceMode && !prev) {
+      dispatchScratchpadEvent('voice-start');
+    } else if (!isVoiceMode && prev) {
+      if (suppressVoiceStopRef.current) {
+        suppressVoiceStopRef.current = false;
+      } else {
+        dispatchScratchpadEvent('voice-stop');
+      }
+    }
+  }, [isVoiceMode]);
+
+  // When scratchpad dictation starts, suspend (not kill) checklist voice mode.
+  // Resume when scratchpad dictation ends.
   useEffect(() => {
     return subscribeScratchpadEvents(action => {
-      if (action === 'stop-voice') setIsVoiceMode(false);
+      if (action === 'stop-voice') {
+        if (isVoiceModeRef.current) {
+          suspendedForScratchpadRef.current = true;
+          suppressVoiceStopRef.current = true;
+        }
+        setIsVoiceMode(false);
+      }
+      if (action === 'dictate-stop' && suspendedForScratchpadRef.current) {
+        suspendedForScratchpadRef.current = false;
+        setIsVoiceMode(true);
+      }
     });
   }, []);
 
@@ -439,8 +473,9 @@ export function useVoiceChecklist({
       if (shouldListen && !speaking) setTimeout(startRec, 200);
     };
     rec.onerror = (e: WSAErrorEvent) => {
+      if (e.error === 'aborted' || e.error === 'no-speech') return;
       setRecognitionError(e.error);
-      if (e.error !== 'no-speech') console.warn('[Voice] recognition error:', e.error);
+      console.warn('[Voice] recognition error:', e.error);
     };
     // All command keywords in one flat list for quick lookup
     // NOTE: multi-word phrases must appear BEFORE their single-word substrings

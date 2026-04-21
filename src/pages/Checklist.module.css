@@ -74,17 +74,17 @@
 }
 
 .variantButton {
-  padding: 0.5rem 0.875rem;
+  padding: 0.3rem 0.875rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
   background-color: transparent;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   font-weight: 500;
+  font-size: 0.8125rem;
 }
 
 .variantButtonActive {
-  font-size: 1rem;
   color: var(--accent);
   border-color: var(--accent);
   background-color: rgba(var(--accent-rgb), 0.1);
@@ -92,10 +92,10 @@
 
 .variantButtonActive:hover {
   background-color: rgba(var(--accent-rgb), 0.15);
+  border-color: var(--accent);
 }
 
 .variantButtonInactive {
-  font-size: 0.875rem;
   color: var(--text-tertiary, var(--text-secondary));
   border-color: var(--border);
   background-color: transparent;
@@ -104,6 +104,7 @@
 .variantButtonInactive:hover {
   background-color: var(--bg-tertiary);
   color: var(--text-secondary);
+  border-color: var(--accent);
 }
 
 .subtitle {
@@ -119,19 +120,22 @@
 .resetButton {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--bg-tertiary);
+  gap: 0.35rem;
+  padding: 0.3rem 0.875rem;
+  background-color: transparent;
   color: var(--text-primary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .resetButton:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-tertiary);
   border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .resetIcon {
