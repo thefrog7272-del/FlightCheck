@@ -603,9 +603,77 @@ export function Checklist() {
         </Link>
         <div className={styles.headerContent}>
           <div>
-            <h1 className={styles.title}>
-              {plane.name} {activeCategory !== 'Standard' ? `— ${activeCategory}` : 'Checklist'}
-            </h1>
+            {(() => {
+              // Find all developer variants for this plane (same name, potentially different addon_developer_variant)
+              const developerVariants = planes
+                .filter(p => p.name === plane.name && p.addon_developer_variant)
+                .reduce((unique, p) => {
+                  // Get a representative plane for each unique developer variant
+                  if (!unique.find(u => u.addon_developer_variant === p.addon_developer_variant)) {
+                    unique.push(p);
+                  }
+                  return unique;
+                }, [] as typeof planes)
+                .sort((a, b) => (a.addon_developer_variant ?? '').localeCompare(b.addon_developer_variant ?? ''));
+
+              // Find all ability variants for this plane (same name, potentially different ability_variant)
+              const abilityVariants = planes
+                .filter(p => p.name === plane.name && p.ability_variant)
+                .sort((a, b) => {
+                  const order = ['Beginner', 'Assist', 'Easy', 'Basic', 'Essential', 'Intermediate', 'Paper', 'Original Plus', 'Original', 'Normal', 'Standard', 'Advanced', 'Extended', 'Expert', 'Professional'];
+                  const aIdx = order.indexOf(a.ability_variant ?? 'Standard');
+                  const bIdx = order.indexOf(b.ability_variant ?? 'Standard');
+                  if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+                  if (aIdx !== -1) return -1;
+                  if (bIdx !== -1) return 1;
+                  return 0;
+                });
+
+              return (
+                <div className={styles.titleRow}>
+                  <h1 className={styles.title}>
+                    {plane.name}
+                    {activeCategory !== 'Standard' && ` — ${activeCategory}`}
+                  </h1>
+                  {developerVariants.length > 0 && (
+                    <div className={styles.variantButtons}>
+                      {developerVariants.map(variant => (
+                        <button
+                          key={`dev-${variant.addon_developer_variant}`}
+                          className={`${styles.variantButton} ${variant.addon_developer_variant === plane.addon_developer_variant ? styles.variantButtonActive : styles.variantButtonInactive}`}
+                          onClick={() => {
+                            // Find a plane with same ability but different developer variant
+                            const targetPlane = planes.find(p =>
+                              p.name === plane.name &&
+                              p.addon_developer_variant === variant.addon_developer_variant &&
+                              p.ability_variant === plane.ability_variant
+                            ) || variant;
+                            navigate(`/checklist/${targetPlane.id}${activeCategory !== 'Standard' ? `/${encodeURIComponent(activeCategory)}` : ''}`);
+                          }}
+                          title={`Switch to ${variant.addon_developer_variant} variant`}
+                        >
+                          {variant.addon_developer_variant}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {abilityVariants.length > 0 && (
+                    <div className={styles.variantButtons}>
+                      {abilityVariants.map(variant => (
+                        <button
+                          key={variant.id}
+                          className={`${styles.variantButton} ${variant.id === plane.id ? styles.variantButtonActive : styles.variantButtonInactive}`}
+                          onClick={() => navigate(`/checklist/${variant.id}${activeCategory !== 'Standard' ? `/${encodeURIComponent(activeCategory)}` : ''}`)}
+                          title={`Switch to ${variant.ability_variant} variant`}
+                        >
+                          {variant.ability_variant}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <span className={styles.subtitle}>{plane.manufacturer}</span>
             <CategorySelector
               planeId={planeId!}

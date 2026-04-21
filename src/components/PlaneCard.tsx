@@ -64,7 +64,14 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setMenuPos({ x: e.clientX, y: e.clientY });
+    // Close variant menu if open
+    setVariantMenuPos(null);
+    setSelectedDeveloper(null);
+
+    const rect = cardRef.current?.getBoundingClientRect();
+    const x = rect ? rect.right : e.clientX;
+    const y = rect ? rect.top : e.clientY;
+    setMenuPos({ x, y });
   };
 
   // Close context menu on outside mousedown or scroll
@@ -218,6 +225,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
       <div
         ref={cardRef}
         className={styles.card}
+        data-plane-id={plane.id}
         style={{ cursor: 'pointer', zIndex: 1 }}
         onContextMenu={handleContextMenu}
         onClick={handleCardClick}
@@ -326,7 +334,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
           <div
             ref={variantPopupRef}
             className={styles.contextMenu}
-            style={{ top: variantMenuPos.y, left: variantMenuPos.x, transform: 'translate(-50%, -50%)' }}
+            style={{ top: variantMenuPos.y, left: variantMenuPos.x }}
             role="menu"
             aria-label={
               showingDevList
@@ -384,7 +392,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
         <div
           ref={menuRef}
           className={styles.contextMenu}
-          style={{ top: menuPos.y, left: menuPos.x }}
+          style={{ top: menuPos.y, right: window.innerWidth - menuPos.x }}
           role="menu"
         >
           {onEditImage && (
