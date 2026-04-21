@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Plane } from '../data/types';
 import styles from './PlaneCard.module.css';
 import { Plane as PlaneIcon, Star } from 'lucide-react';
@@ -26,6 +27,7 @@ interface PlaneCardProps {
 }
 
 export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadChecklistJson, onDownloadCsv, onDownloadHtml, isFavorite, onToggleFavorite }: PlaneCardProps) {
+  const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   // Variant picker renders at the document root (position: fixed) to avoid the
@@ -37,6 +39,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
   // = null developer). Null means "showing developer list / or single group".
   const [selectedDeveloper, setSelectedDeveloper] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const variantPopupRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const hasMultipleVariants = (variants?.length ?? 0) > 1;
 
@@ -73,54 +76,35 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
     setMenuPos({ x, y });
   };
 
-  // Close menu on click outside or scroll
+  // Close context menu on outside mousedown or scroll
   useEffect(() => {
     if (!menuPos) return;
-    const close = (e: Event) => {
-      const target = e.target as HTMLElement;
-      // Find the clicked card (if any)
-      const clickedCard = target.closest('[data-plane-id]');
-
-      // Don't close if clicking on this same card
-      if (clickedCard === cardRef.current) {
-        return;
-      }
-
-      // Close if clicking outside or on a different card
-      setMenuPos(null);
+    const close = () => setMenuPos(null);
+    const onMouseDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) close();
     };
-    window.addEventListener('click', close);
+    document.addEventListener('mousedown', onMouseDown);
     window.addEventListener('scroll', close, true);
     return () => {
-      window.removeEventListener('click', close);
+      document.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('scroll', close, true);
     };
-  }, [menuPos, plane.id]);
+  }, [menuPos]);
 
-  // Close variant picker on outside click or scroll
+  // Close variant picker on outside mousedown or scroll
   useEffect(() => {
     if (!variantMenuPos) return;
-    const close = (e: Event) => {
-      const target = e.target as HTMLElement;
-      // Find the clicked card (if any)
-      const clickedCard = target.closest('[data-plane-id]');
-
-      // Don't close if clicking on this same card
-      if (clickedCard === cardRef.current) {
-        return;
-      }
-
-      // Close if clicking outside or on a different card
-      setVariantMenuPos(null);
-      setSelectedDeveloper(null);
+    const close = () => { setVariantMenuPos(null); setSelectedDeveloper(null); };
+    const onMouseDown = (e: MouseEvent) => {
+      if (variantPopupRef.current && !variantPopupRef.current.contains(e.target as Node)) close();
     };
-    window.addEventListener('click', close);
+    document.addEventListener('mousedown', onMouseDown);
     window.addEventListener('scroll', close, true);
     return () => {
-      window.removeEventListener('click', close);
+      document.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('scroll', close, true);
     };
-  }, [variantMenuPos, plane.id]);
+  }, [variantMenuPos]);
 
   const handleHide = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -180,30 +164,18 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Close any open context menu when clicking the card
-    setMenuPos(null);
-
-    if (hasMultipleVariants) {
-      // Open the variant picker instead of navigating. Anchor it to the top-left
-      // of the card in viewport coords so the document-root popover lines up.
-      // stopPropagation so the document-level "close" listener doesn't
-      // immediately dismiss it.
-      e.stopPropagation();
-      const rect = cardRef.current?.getBoundingClientRect();
-      const x = rect ? rect.left : e.clientX;
-      const y = rect ? rect.top : e.clientY;
-      setVariantMenuPos({ x, y });
-      return;
-    }
-    console.log('>>>> CLICK fired for:', plane.id);
-    window.location.href = `/checklist/${plane.id}`;
+    e.stopPropagation();
+    const rect = cardRef.current?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 : e.clientX;
+    const y = rect ? rect.top + rect.height / 2 : e.clientY;
+    setVariantMenuPos({ x, y });
   };
 
   const handleVariantSelect = (e: React.MouseEvent, variantPlaneId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setVariantMenuPos(null);
-    window.location.href = `/checklist/${variantPlaneId}`;
+    navigate(`/checklist/${variantPlaneId}`);
   };
 
   // Sort ability variants within a single developer group by a canonical
@@ -228,7 +200,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
     if (group.planes.length === 1) {
       setVariantMenuPos(null);
       setSelectedDeveloper(null);
-      window.location.href = `/checklist/${group.planes[0].id}`;
+      navigate(`/checklist/${group.planes[0].id}`);
       return;
     }
     setSelectedDeveloper(group.key);
@@ -242,16 +214,11 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
-      if (hasMultipleVariants) {
-        e.preventDefault();
-        const rect = cardRef.current?.getBoundingClientRect();
-        const x = rect ? rect.left : 0;
-        const y = rect ? rect.top : 0;
-        setVariantMenuPos({ x, y });
-        return;
-      }
-      console.log('>>>> handleKeyDown fired for:', plane.id);
-      window.location.href = `/checklist/${plane.id}`;
+      e.preventDefault();
+      const rect = cardRef.current?.getBoundingClientRect();
+      const x = rect ? rect.left + rect.width / 2 : 0;
+      const y = rect ? rect.top + rect.height / 2 : 0;
+      setVariantMenuPos({ x, y });
     }
   };
 
@@ -267,8 +234,8 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
         onKeyDown={handleKeyDown}
         role="button"
         tabIndex={0}
-        aria-haspopup={hasMultipleVariants ? 'menu' : undefined}
-        aria-expanded={hasMultipleVariants ? variantMenuPos !== null : undefined}
+        aria-haspopup="menu"
+        aria-expanded={variantMenuPos !== null}
         aria-label={
           hasMultipleVariants
             ? `Choose ability variant for ${plane.name} (${variants?.length ?? 0} available)`
@@ -330,7 +297,30 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
         )}
       </div>
 
-      {hasMultipleVariants && variantMenuPos && (() => {
+      {variantMenuPos && (() => {
+        // No variants: show single "Open Checklist" entry for this plane.
+        if (!variants || variants.length === 0) {
+          return (
+            <div
+              ref={variantPopupRef}
+              className={styles.contextMenu}
+              style={{ top: variantMenuPos.y, left: variantMenuPos.x, transform: 'translate(-50%, -50%)' }}
+              role="menu"
+              aria-label={`Open ${plane.name} checklist`}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.contextMenuHeader}>{plane.name}</div>
+              <button
+                className={styles.contextMenuItem}
+                onClick={e => handleVariantSelect(e, plane.id)}
+                role="menuitem"
+              >
+                Open Checklist
+              </button>
+            </div>
+          );
+        }
+
         // Decide what layer to show:
         //   1. Single developer group → skip developer picker, show ability list.
         //   2. Multiple dev groups, none chosen → show developer list.
@@ -344,6 +334,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
 
         return (
           <div
+            ref={variantPopupRef}
             className={styles.contextMenu}
             style={{ top: variantMenuPos.y, left: variantMenuPos.x }}
             role="menu"
