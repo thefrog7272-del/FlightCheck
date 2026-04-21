@@ -203,7 +203,7 @@ export function AdminDashboard() {
         }
       }
 
-      setSeedProgress(`Done! Replaced ${staticPlanes.length} static planes with shared versions (${updated} updated, ${created} created). Total shared planes: ${planes.length}.`);
+      setSeedProgress(`Done! Replaced ${staticPlanes.length} static planes with shared versions (${updated} updated, ${created} created, ${checklistsUpdated} checklists synced). Total shared planes: ${planes.length}.`);
       await refreshData();
     } catch (err) {
       setSeedProgress(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
