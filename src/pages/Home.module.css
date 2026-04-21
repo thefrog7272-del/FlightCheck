@@ -30,10 +30,11 @@
 }
 
 .title {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   margin: 0;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .addButton, .resetButton {
@@ -107,19 +108,20 @@
 
 .searchInput {
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 3rem;
-  background-color: var(--bg-secondary);
+  padding: 0.3rem 0.875rem 0.3rem 2.5rem;
+  background-color: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
   color: var(--text-primary);
-  font-size: 1rem;
-  transition: all 0.2s ease;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
 }
 
 .searchInput:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  background-color: var(--bg-tertiary);
 }
 
 .sortWrapper {
