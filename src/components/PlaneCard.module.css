@@ -171,7 +171,8 @@ a.author:hover {
 }
 
 .contextMenuItem {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
   padding: 0.5rem 1rem;
   background: none;
@@ -180,11 +181,13 @@ a.author:hover {
   font-size: 0.875rem;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .contextMenuItem:hover {
   background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .contextMenuItemDanger {
