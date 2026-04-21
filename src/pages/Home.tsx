@@ -381,7 +381,7 @@ listAllSharedChecklists()]);
 
       {filteredPlanes.length > 0 ? (
         <div className={styles.grid}>
-          {groupedPlanes.map(({ representative, variants }) => (
+          {groupedPlanes.map(({ representative }) => (
             <PlaneCard
               key={representative.id}
               plane={representative}
