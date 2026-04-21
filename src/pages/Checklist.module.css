@@ -120,19 +120,22 @@
 .resetButton {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--bg-tertiary);
+  gap: 0.35rem;
+  padding: 0.3rem 0.875rem;
+  background-color: transparent;
   color: var(--text-primary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .resetButton:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-tertiary);
   border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .resetIcon {
