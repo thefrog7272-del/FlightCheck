@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { PlaneCard } from '../components/PlaneCard';
 import { ImageEditModal } from '../components/ImageEditModal';
 import { FileImportModal } from '../components/FileImportModal';
@@ -299,16 +300,6 @@ listAllSharedChecklists()]);
           </div>
         </div>
         <div className={styles.searchRow}>
-          <div className={styles.searchWrapper}>
-            <Search className={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="Search by model or manufacturer..."
-              className={styles.searchInput}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
           <div className={styles.sortWrapper}>
             <select
               className={styles.sortSelect}
@@ -322,6 +313,21 @@ listAllSharedChecklists()]);
             </select>
             <ChevronDown className={styles.sortIcon} size={16} />
           </div>
+          <div className={styles.searchWrapper}>
+            <Search className={styles.searchIcon} />
+            <input
+              type="text"
+              placeholder="Search..."
+              className={styles.searchInput}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {!isAdmin && (
+            <Link to="/admin/login" className={styles.loginButton}>
+              Login
+            </Link>
+          )}
         </div>
       </div>
 
@@ -375,11 +381,10 @@ listAllSharedChecklists()]);
 
       {filteredPlanes.length > 0 ? (
         <div className={styles.grid}>
-          {groupedPlanes.map(({ representative, variants }) => (
+          {groupedPlanes.map(({ representative }) => (
             <PlaneCard
               key={representative.id}
               plane={representative}
-              variants={variants.length > 1 ? variants : undefined}
               progress={getPlaneProgress(representative.id)}
               isFavorite={favoriteIds.includes(representative.id)}
               onToggleFavorite={toggleFavorite}

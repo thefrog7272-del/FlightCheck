@@ -6,13 +6,6 @@ import { Plane as PlaneIcon, Star } from 'lucide-react';
 
 interface PlaneCardProps {
   plane: Plane;
-  /**
-   * Ability variants that share this plane's `name`. When more than one is
-   * supplied, a left-click on the card opens a small popover listing one link
-   * per variant instead of navigating straight to the checklist. When omitted
-   * or length <= 1, behaviour is unchanged (direct navigation).
-   */
-  variants?: Plane[];
   progress?: number;
   onHide?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -26,49 +19,17 @@ interface PlaneCardProps {
   onToggleFavorite?: (id: string) => void;
 }
 
-export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadChecklistJson, onDownloadCsv, onDownloadHtml, isFavorite, onToggleFavorite }: PlaneCardProps) {
+export function PlaneCard({ plane, progress, onHide, onDelete, onEditImage, onAddReferenceTable, onDownloadJson, onDownloadChecklistJson, onDownloadCsv, onDownloadHtml, isFavorite, onToggleFavorite }: PlaneCardProps) {
   const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
-  // Variant picker renders at the document root (position: fixed) to avoid the
-  // card's overflow:hidden clipping it. Null = closed; object = open at coords.
-  const [variantMenuPos, setVariantMenuPos] = useState<{ x: number; y: number } | null>(null);
-  // When multiple addon-developer groups exist, the picker starts on the
-  // developer list; clicking a developer with >1 ability variant drills down by
-  // setting this to that developer's key (string dev name, or '' for "Default"
-  // = null developer). Null means "showing developer list / or single group".
-  const [selectedDeveloper, setSelectedDeveloper] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const variantPopupRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-  const hasMultipleVariants = (variants?.length ?? 0) > 1;
 
-  // Group variants by addon_developer_variant (null → "Default"). Key is the
-  // raw developer string or '' for the null/default bucket. Groups are ordered
-  // by first appearance in `variants`, which preserves any sort_order sorting
-  // upstream.
-  const developerGroups = (() => {
-    const map = new Map<string, Plane[]>();
-    for (const v of variants ?? []) {
-      const key = v.addon_developer_variant ?? '';
-      const bucket = map.get(key) ?? [];
-      bucket.push(v);
-      map.set(key, bucket);
-    }
-    return Array.from(map.entries()).map(([key, planes]) => ({
-      key,
-      label: key === '' ? 'Default' : key,
-      planes,
-    }));
-  })();
-  const hasMultipleDeveloperGroups = developerGroups.length > 1;
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Close variant menu if open
-    setVariantMenuPos(null);
-    setSelectedDeveloper(null);
 
     const rect = cardRef.current?.getBoundingClientRect();
     const x = rect ? rect.right : e.clientX;
@@ -91,20 +52,6 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
     };
   }, [menuPos]);
 
-  // Close variant picker on outside mousedown or scroll
-  useEffect(() => {
-    if (!variantMenuPos) return;
-    const close = () => { setVariantMenuPos(null); setSelectedDeveloper(null); };
-    const onMouseDown = (e: MouseEvent) => {
-      if (variantPopupRef.current && !variantPopupRef.current.contains(e.target as Node)) close();
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('scroll', close, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('scroll', close, true);
-    };
-  }, [variantMenuPos]);
 
   const handleHide = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -165,68 +112,14 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!hasMultipleVariants) {
-      navigate(`/checklist/${plane.id}`);
-      return;
-    }
-    const rect = cardRef.current?.getBoundingClientRect();
-    const x = rect ? rect.left : e.clientX;
-    const y = rect ? rect.top : e.clientY;
-    setVariantMenuPos({ x, y });
+    navigate(`/checklist/${plane.id}`);
   };
 
-  const handleVariantSelect = (e: React.MouseEvent, variantPlaneId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setVariantMenuPos(null);
-    navigate(`/checklist/${variantPlaneId}`);
-  };
-
-  // Sort ability variants within a single developer group by a canonical
-  // difficulty order; anything not in the list keeps its original position.
-  const sortByAbility = (list: Plane[]): Plane[] => {
-    const order = ['Beginner', 'Assist', 'Easy', 'Basic', 'Essential', 'Intermediate', 'Paper', 'Original Plus', 'Original', 'Normal', 'Standard',  'Advanced', 'Extended', 'Expert', 'Professional'];
-    return [...list].sort((a, b) => {
-      const aIdx = order.indexOf(a.ability_variant ?? 'Standard');
-      const bIdx = order.indexOf(b.ability_variant ?? 'Standard');
-      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-      if (aIdx !== -1) return -1;
-      if (bIdx !== -1) return 1;
-      return 0;
-    });
-  };
-
-  const handleDeveloperPick = (e: React.MouseEvent, group: { key: string; planes: Plane[] }) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // If the developer has only one ability variant, skip the second step and
-    // navigate straight to it.
-    if (group.planes.length === 1) {
-      setVariantMenuPos(null);
-      setSelectedDeveloper(null);
-      navigate(`/checklist/${group.planes[0].id}`);
-      return;
-    }
-    setSelectedDeveloper(group.key);
-  };
-
-  const handleBackToDevelopers = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setSelectedDeveloper(null);
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (!hasMultipleVariants) {
-        navigate(`/checklist/${plane.id}`);
-        return;
-      }
-      const rect = cardRef.current?.getBoundingClientRect();
-      const x = rect ? rect.left : 0;
-      const y = rect ? rect.top : 0;
-      setVariantMenuPos({ x, y });
+      navigate(`/checklist/${plane.id}`);
     }
   };
 
@@ -242,13 +135,7 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
         onKeyDown={handleKeyDown}
         role="button"
         tabIndex={0}
-        aria-haspopup="menu"
-        aria-expanded={variantMenuPos !== null}
-        aria-label={
-          hasMultipleVariants
-            ? `Choose ability variant for ${plane.name} (${variants?.length ?? 0} available)`
-            : `Open ${plane.name} checklist`
-        }
+        aria-label={`Open ${plane.name} checklist`}
       >
         <div className={styles.imageWrapper}>
           {imgError || !plane.image ? (
@@ -277,126 +164,14 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
         <div className={styles.content}>
           <span className={styles.manufacturer}>{plane.manufacturer}</span>
           <h3 className={styles.name}>{plane.name}</h3>
-          {plane.author && (
-            plane.author_weblink ? (
-              <a
-                href={plane.author_weblink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.author}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  window.open(plane.author_weblink, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                {plane.author}
-              </a>
-            ) : (
-              <span className={styles.author}>{plane.author}</span>
-            )
-          )}
           <span className={styles.type}>{plane.type}</span>
-                </div>
+        </div>
         {typeof progress === 'number' && progress > 0 && (
           <div className={styles.progressBar}>
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
           </div>
         )}
       </div>
-
-      {variantMenuPos && (() => {
-        // No variants: show single "Open Checklist" entry for this plane.
-        if (!variants || variants.length === 0) {
-          return (
-            <div
-              ref={variantPopupRef}
-              className={styles.contextMenu}
-              style={{ top: variantMenuPos.y, left: variantMenuPos.x }}
-              role="menu"
-              aria-label={`Open ${plane.name} checklist`}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className={styles.contextMenuHeader}>{plane.name}</div>
-              <button
-                className={styles.contextMenuItem}
-                onClick={e => handleVariantSelect(e, plane.id)}
-                role="menuitem"
-              >
-                Open Checklist
-              </button>
-            </div>
-          );
-        }
-
-        // Decide what layer to show:
-        //   1. Single developer group → skip developer picker, show ability list.
-        //   2. Multiple dev groups, none chosen → show developer list.
-        //   3. Multiple dev groups, one chosen → show that dev's ability list.
-        const showingDevList = hasMultipleDeveloperGroups && selectedDeveloper === null;
-        const activeGroup = !showingDevList
-          ? (hasMultipleDeveloperGroups
-              ? developerGroups.find(g => g.key === selectedDeveloper)
-              : developerGroups[0])
-          : null;
-
-        return (
-          <div
-            ref={variantPopupRef}
-            className={styles.contextMenu}
-            style={{ top: variantMenuPos.y, left: variantMenuPos.x }}
-            role="menu"
-            aria-label={
-              showingDevList
-                ? `Addon developer variants for ${plane.name}`
-                : `Ability variants for ${plane.name}${activeGroup && hasMultipleDeveloperGroups ? ` (${activeGroup.label})` : ''}`
-            }
-            onClick={e => e.stopPropagation()}
-          >
-            <div className={styles.contextMenuHeader}>
-              {showingDevList
-                ? 'Addon Developer'
-                : hasMultipleDeveloperGroups && activeGroup
-                  ? `${activeGroup.label} — Checklist Variant`
-                  : 'Checklist Variant'}
-            </div>
-
-            {showingDevList && developerGroups.map(group => (
-              <button
-                key={group.key || '__default__'}
-                className={styles.contextMenuItem}
-                onClick={e => handleDeveloperPick(e, group)}
-                role="menuitem"
-              >
-                {group.label}
-                {group.planes.length > 1 ? ` (${group.planes.length})` : ''}
-              </button>
-            ))}
-
-            {!showingDevList && activeGroup && sortByAbility(activeGroup.planes).map(v => (
-              <button
-                key={v.id}
-                className={styles.contextMenuItem}
-                onClick={e => handleVariantSelect(e, v.id)}
-                role="menuitem"
-              >
-                {v.ability_variant ?? 'Standard'}
-              </button>
-            ))}
-
-            {!showingDevList && hasMultipleDeveloperGroups && (
-              <button
-                className={styles.contextMenuItem}
-                onClick={handleBackToDevelopers}
-                role="menuitem"
-                style={{ opacity: 0.75 }}
-              >
-                ← Back
-              </button>
-            )}
-          </div>
-        );
-      })()}
 
       {menuPos && (
         <div

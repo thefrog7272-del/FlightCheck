@@ -52,7 +52,7 @@ interface UseVoiceChecklistProps {
   onCheckItem: (itemId: string) => void;
   /** Called with all unchecked item IDs in the current phase when the user says "next phase". */
   onCompletePhase?: (itemIds: string[]) => void;
-  /** Called with a category name ('Standard', 'Abnormal', 'Emergency', 'Reference Tables') when user says a navigation command. */
+  /** Called with a category name ('Standard', 'Normal', 'Abnormal', 'Emergency', 'Reference Tables') when user says a navigation command. */
   onNavigateCategory?: (category: string) => void;
 }
 
@@ -85,7 +85,7 @@ function getRecognitionClass(): WSARecognitionCtor | null {
  *
  * TTS reads each item aloud; speech recognition responds to:
  *   "check" / "yes" / "confirmed" / "roger"  → check current item + advance
- *   "next"  / "skip" / "pass"                → advance without checking
+ *   "skip" / "pass"                → advance without checking
  *   "back"  / "previous"                     → go to previous item
  *   "repeat" / "again"                       → re-read current item
  *   "stop"  / "exit" / "cancel"              → exit voice mode
@@ -481,21 +481,21 @@ export function useVoiceChecklist({
     // NOTE: multi-word phrases must appear BEFORE their single-word substrings
     // so the debounce captures the full phrase before the shorter one fires.
     const COMMAND_WORDS = [
-      'stop', 'exit', 'quit', 'cancel', 'voice off',
-      'repeat', 'again', 'say again', 'what',
+      'stop', 'exit', 'quit', 'cancel', 
+      'repeat', 'again',  'what',
       'check', 'yes', 'confirmed', 'confirm', 'roger', 'affirmative',
       'done', 'complete', 'correct', 'checked', 'good',
-      'next section', 'next phase', 'complete phase', 'finish phase', 'phase complete', 'jump',
-      'next', 'skip', 'pass', 'continue', 'move on',
-      'back', 'previous', 'go back',
+      'section', 'finish', 'jump',
+      'next', 'skip', 'pass', 'continue',
+      'back', 'previous', 'last',
       // Category navigation — no "checklist" suffix (contains "check" substring, would match check handler)
       // Multi-word phrases listed before bare words so debounce captures full phrase first
       'go normal', 'open normal', 'normal',
       'go abnormal', 'open abnormal', 'abnormal',
       'go emergency', 'open emergency', 'emergency',
       'reference tables', 'go reference', 'open reference', 'reference',
-      'open notepad', 'notepad', 'note pad', 'scratchpad', 'scratch pad',
-      'clear notes', 'erase notes', 'erase',
+      'notepad', 'note pad', 'scratchpad', 'scratch pad',
+      'clear', 'erase',
       'dictate',
     ];
 
@@ -507,15 +507,15 @@ export function useVoiceChecklist({
       const cmd = raw.toLowerCase().trim();
       const cur = currentItemIdRef.current;
 
-      if (['stop', 'exit', 'quit', 'cancel', 'voice off'].some(w => cmd.includes(w))) {
+      if (['stop', 'exit', 'quit', 'cancel' ].some(w => cmd.includes(w))) {
         shouldListen = false;
         setIsVoiceMode(false);
 
-      } else if (['repeat', 'again', 'say again', 'what'].some(w => cmd.includes(w))) {
+      } else if (['repeat', 'again',  'what'].some(w => cmd.includes(w))) {
         const item = allItemsRef.current.find(i => i.id === cur);
         if (item) speakText(itemText(item));
 
-      } else if (['next section', 'next phase', 'complete phase', 'finish phase', 'phase complete', 'jump'].some(w => cmd.includes(w))) {
+      } else if (['section', 'finish', 'jump'].some(w => cmd.includes(w))) {
         jumpToNextPhase();
 
       // Category navigation — checked before 'check'/'go back' to avoid substring matches.
@@ -539,17 +539,17 @@ export function useVoiceChecklist({
         }
         navigateTo(getNext());
 
-      } else if (['next', 'skip', 'pass', 'continue', 'move on'].some(w => cmd.includes(w))) {
+      } else if (['next', 'skip', 'pass', 'continue'].some(w => cmd.includes(w))) {
         navigateTo(getNext());
 
-      } else if (['back', 'previous', 'go back'].some(w => cmd.includes(w))) {
+      } else if (['back', 'previous', 'last'].some(w => cmd.includes(w))) {
         const p = getPrev();
         if (p) navigateTo(p);
 
-      } else if (['open notepad', 'notepad', 'note pad', 'scratchpad', 'scratch pad'].some(w => cmd.includes(w))) {
+      } else if ([ 'notepad', 'note pad', 'scratchpad', 'scratch pad'].some(w => cmd.includes(w))) {
         dispatchScratchpadEvent('toggle');
 
-      } else if (['clear notes', 'erase notes', 'erase'].some(w => cmd.includes(w))) {
+      } else if (['clear', 'erase'].some(w => cmd.includes(w))) {
         dispatchScratchpadEvent('erase');
 
       } else if (cmd.includes('dictate')) {

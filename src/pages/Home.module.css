@@ -90,12 +90,12 @@
   gap: 0.5rem;
   width: 100%;
   max-width: none;
-  flex: 1;
+  align-items: center;
 }
 
 .searchWrapper {
   position: relative;
-  flex: 1;
+  flex: 0 1 300px;
   min-width: 0;
 }
 
@@ -139,7 +139,7 @@
   background-color: transparent;
   border: 1px solid var(--border);
   border-radius: 999px;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
@@ -147,10 +147,17 @@
   white-space: nowrap;
 }
 
+.sortSelect:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
 .sortSelect:focus {
   outline: none;
   border-color: var(--accent);
   background-color: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .sortIcon {
@@ -160,6 +167,29 @@
   transform: translateY(-50%);
   color: var(--text-secondary);
   pointer-events: none;
+}
+
+.loginButton {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.875rem;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.loginButton:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent);
 }
 
 .simTabs {

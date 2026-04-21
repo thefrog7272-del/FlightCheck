@@ -110,6 +110,22 @@
 .subtitle {
   color: var(--text-secondary);
   font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.subtitle a {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.subtitle a:hover {
+  opacity: 0.8;
+  text-decoration: underline;
 }
 
 .headerActions {
