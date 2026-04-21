@@ -136,63 +136,74 @@ export function AdminDashboard() {
 
   const handleReplaceAllStatic = async () => {
     const confirmed = await confirm(
-      'Replace All Static Planes',
-      `This will delete all ${planes.length} existing shared planes and replace them with the ${staticPlanes.length} built-in aircraft. This action cannot be undone.`,
-      { destructive: true, confirmLabel: 'Replace All' }
+      'Replace Static with Shared',
+      `This will replace the ${staticPlanes.length} built-in aircraft with their shared database versions. You currently have ${planes.length} shared planes and will keep all ${planes.length} after this operation.`,
+      { destructive: true, confirmLabel: 'Replace' }
     );
     if (!confirmed) return;
 
     setReplacing(true);
-    setSeedProgress('Deleting existing planes...');
+    setSeedProgress('Replacing static planes with shared versions...');
 
     try {
-      // Delete all existing planes and their checklists
-      const allChecklists = await listAllSharedChecklists();
-      for (const cl of allChecklists) {
-        await deleteSharedChecklist(cl.id);
-      }
-
-      for (const plane of planes) {
-        await deleteSharedPlane(plane.id);
-      }
-
-      setSeedProgress('Creating fresh copies from built-in aircraft...');
-
-      // Seed fresh copies
+      let updated = 0;
       let created = 0;
-      let checklistsCreated = 0;
+      let checklistsUpdated = 0;
 
       for (let i = 0; i < staticPlanes.length; i++) {
         const plane = staticPlanes[i];
-        setSeedProgress(`Creating ${plane.name}... ${i + 1}/${staticPlanes.length}`);
+        setSeedProgress(`Syncing ${plane.name}... ${i + 1}/${staticPlanes.length}`);
 
-        await createSharedPlane({
-          plane_id: plane.id,
-          name: plane.name,
-          manufacturer: plane.manufacturer,
-          image: plane.image,
-          type: plane.type,
-          sim: plane.sim || null,
-          sort_order: i,
-        });
-        created++;
+        // Check if plane exists in shared DB
+        const existing = planes.find(p => p.plane_id === plane.id);
 
+        if (existing) {
+          // Update existing shared plane with fresh copy from static
+          await updateSharedPlane(existing.id, {
+            plane_id: plane.id,
+            name: plane.name,
+            manufacturer: plane.manufacturer,
+            image: plane.image,
+            type: plane.type,
+            sim: plane.sim || null,
+          });
+          updated++;
+        } else {
+          // Create new shared plane from static
+          await createSharedPlane({
+            plane_id: plane.id,
+            name: plane.name,
+            manufacturer: plane.manufacturer,
+            image: plane.image,
+            type: plane.type,
+            sim: plane.sim || null,
+            sort_order: i,
+          });
+          created++;
+        }
+
+        // Sync checklists
         for (const [clKey, checklist] of Object.entries(staticChecklists)) {
           if (!clKey.startsWith(plane.id)) continue;
 
           const parts = clKey.split('::');
           const categoryName = parts[1] || 'normal';
 
-          await createSharedChecklist({
-            plane_id: plane.id,
-            category: categoryName,
-            phases: JSON.stringify(checklist.phases),
-          });
-          checklistsCreated++;
+          const existingCl = checklists.find(c => c.plane_id === plane.id && c.category === categoryName);
+          if (existingCl) {
+            await updateSharedChecklist(existingCl.id, JSON.stringify(checklist.phases));
+          } else {
+            await createSharedChecklist({
+              plane_id: plane.id,
+              category: categoryName,
+              phases: JSON.stringify(checklist.phases),
+            });
+          }
+          checklistsUpdated++;
         }
       }
 
-      setSeedProgress(`Done! Replaced all planes with ${created} built-in aircraft and ${checklistsCreated} checklists.`);
+      setSeedProgress(`Done! Replaced ${staticPlanes.length} static planes with shared versions (${updated} updated, ${created} created). Total shared planes: ${planes.length}.`);
       await refreshData();
     } catch (err) {
       setSeedProgress(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -408,7 +419,7 @@ export function AdminDashboard() {
               {planes.length > 0 && (
                 <button className={styles.replaceLink} onClick={handleReplaceAllStatic} disabled={replacing}>
                   {replacing ? <Loader size={14} className={styles.spinner} /> : <Database size={14} />}
-                  {replacing ? 'Replacing...' : 'Replace All with Static'}
+                  {replacing ? 'Replacing...' : 'Replace Static with Shared'}
                 </button>
               )}
             </div>
