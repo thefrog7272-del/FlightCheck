@@ -90,9 +90,12 @@ export function Checklist() {
 
   // Track scratchpad open state so the button can show active styling
   const [showScratchpad, setShowScratchpad] = useState(false);
+  const [isScratchpadDictating, setIsScratchpadDictating] = useState(false);
   useEffect(() => {
     return subscribeScratchpadEvents(action => {
       if (action === 'toggle') setShowScratchpad(s => !s);
+      if (action === 'dictate-start') setIsScratchpadDictating(true);
+      if (action === 'dictate-stop') setIsScratchpadDictating(false);
     });
   }, []);
   const [isEditing, setIsEditing] = useState(false);
@@ -697,8 +700,16 @@ export function Checklist() {
                 </button>
               )}
               <button
-                onClick={() => dispatchScratchpadEvent('toggle')}
-                className={showScratchpad ? styles.voiceTabActive : styles.voiceTab}
+                onClick={() => {
+                  if (isVoiceMode) {
+                    toggleVoiceMode();
+                    if (!showScratchpad) dispatchScratchpadEvent('toggle');
+                    setTimeout(() => dispatchScratchpadEvent('dictate'), 400);
+                  } else {
+                    dispatchScratchpadEvent('toggle');
+                  }
+                }}
+                className={isScratchpadDictating ? styles.voiceTabActive : styles.voiceTab}
                 title={showScratchpad ? 'Hide notepad' : 'Open notepad'}
                 data-testid="notepad-button"
               >
@@ -758,7 +769,7 @@ export function Checklist() {
           </div>
         </div>
 
-        {isVoiceMode && (
+        {isVoiceMode && !isScratchpadDictating && (
           <div className={styles.voiceBar}>
             <span className={isListening ? styles.listeningDot : styles.listeningDotIdle} />
             <span>{isListening ? 'Listening…' : 'Speaking…'}</span>

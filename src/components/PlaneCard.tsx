@@ -165,6 +165,10 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!hasMultipleVariants) {
+      navigate(`/checklist/${plane.id}`);
+      return;
+    }
     const rect = cardRef.current?.getBoundingClientRect();
     const x = rect ? rect.left : e.clientX;
     const y = rect ? rect.top : e.clientY;
@@ -215,6 +219,10 @@ export function PlaneCard({ plane, variants, progress, onHide, onDelete, onEditI
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
+      if (!hasMultipleVariants) {
+        navigate(`/checklist/${plane.id}`);
+        return;
+      }
       const rect = cardRef.current?.getBoundingClientRect();
       const x = rect ? rect.left : 0;
       const y = rect ? rect.top : 0;

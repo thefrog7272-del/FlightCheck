@@ -139,10 +139,14 @@
   cursor: default;
 }
 
+.dictateBtn {
+  background: transparent;
+}
+
 .micActive {
-  background: rgba(239, 68, 68, 0.12) !important;
+  background: #ef4444 !important;
   border-color: #ef4444 !important;
-  color: #ef4444 !important;
+  color: #fff !important;
   animation: micPulse 1.4s ease-in-out infinite;
 }
 

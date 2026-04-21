@@ -3,7 +3,7 @@ import type { MutableRefObject } from 'react';
 import { X, Minus, Mic, MicOff, NotebookPen, Trash2 } from 'lucide-react';
 import styles from './Scratchpad.module.css';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { dispatchScratchpadEvent } from '../hooks/useScratchpad';
+import { dispatchScratchpadEvent, subscribeScratchpadEvents } from '../hooks/useScratchpad';
 
 interface Props {
   onClose: () => void;
@@ -194,6 +194,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef, currentChecklist
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setIsListening(false);
+    dispatchScratchpadEvent('dictate-stop');
   }, []);
 
   // Keep a stable ref to the start function so onend can call it to create
@@ -290,6 +291,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef, currentChecklist
     committedBaseRef.current = textRef.current;
     // Stop checklist voice recognition — Chrome only allows one instance at a time
     dispatchScratchpadEvent('stop-voice');
+    dispatchScratchpadEvent('dictate-start');
     startSession();
   }, [stopListening, setText]);
 
@@ -298,6 +300,21 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef, currentChecklist
     if (onDictateRef) onDictateRef.current = toggleMic;
     return () => { if (onDictateRef) onDictateRef.current = null; };
   }, [onDictateRef, toggleMic]);
+
+  // Suspend/resume scratchpad dictation when checklist voice takes the mic
+  const suspendedForChecklistRef = useRef(false);
+  useEffect(() => {
+    return subscribeScratchpadEvents(action => {
+      if (action === 'voice-start' && isListeningRef.current) {
+        suspendedForChecklistRef.current = true;
+        stopListening();
+      }
+      if (action === 'voice-stop' && suspendedForChecklistRef.current) {
+        suspendedForChecklistRef.current = false;
+        toggleMic();
+      }
+    });
+  }, [stopListening, toggleMic]);
 
   // Stop mic on unmount
   useEffect(() => () => { recognitionRef.current?.stop(); }, []);
@@ -349,6 +366,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef, currentChecklist
             onChange={e => setText(e.target.value)}
             placeholder="Type notes here, or press the mic to dictate…"
             spellCheck
+            readOnly={isListening}
           />
           <div className={styles.footer}>
             {micError && <span className={styles.micError}>{micError}</span>}
@@ -362,7 +380,7 @@ export function Scratchpad({ onClose, onEraseRef, onDictateRef, currentChecklist
               <Trash2 size={14} />
             </button>
             <button
-              className={`${styles.footerBtn} ${isListening ? styles.micActive : ''}`}
+              className={`${styles.footerBtn} ${styles.dictateBtn} ${isListening ? styles.micActive : ''}`}
               onClick={toggleMic}
               title={isListening ? 'Stop dictating' : 'Dictate notes'}
             >

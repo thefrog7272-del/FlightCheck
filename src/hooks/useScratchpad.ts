@@ -8,7 +8,7 @@
  *   dispatchScratchpadEvent('erase')    — clear text
  */
 
-export type ScratchpadAction = 'toggle' | 'erase' | 'stop-voice' | 'dictate';
+export type ScratchpadAction = 'toggle' | 'erase' | 'stop-voice' | 'dictate' | 'dictate-start' | 'dictate-stop' | 'voice-start' | 'voice-stop';
 
 const EVENT_NAME = 'flightcheck:scratchpad';
 
