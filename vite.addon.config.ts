@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Addon-specific build: IIFE format for Coherent GT (MSFS browser) compatibility.
-// - No ES modules, no crossorigin, no modulepreload — all known to fail under coui://
-// - inlineDynamicImports bundles all chunks into one file
-// - pdfjs worker uses ?url static import (not affected by inlineDynamicImports)
+// Addon build: IIFE for direct <script src> loading under coui://.
+// - inlineDynamicImports → single self-contained bundle
+// - base:'./' + no modulepreload → coui:// path friendly
+// - HashRouter selected via __ADDON_BUILD__ define
+// Note: rolldown's minimum target is ES2015 — runtime helpers always emit
+// arrow fns / template literals. If MSFS Coherent rejects ES2015 we'd need
+// a Babel post-process step (plugin-legacy in Vite 8+rolldown is broken).
 export default defineConfig({
   plugins: [react()],
   base: './',

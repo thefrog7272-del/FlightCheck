@@ -107,6 +107,13 @@ async function exportAddonData() {
       process.exit(1);
     }
 
+    // Clear stale assets from previous build (legacy plugin renames entries)
+    if (fs.existsSync(addonAssetsDir)) {
+      for (const f of fs.readdirSync(addonAssetsDir)) {
+        fs.rmSync(path.join(addonAssetsDir, f), { recursive: true, force: true });
+      }
+    }
+
     if (fs.existsSync(assetsDir)) {
       copyDir(assetsDir, addonAssetsDir);
       console.log(`[FlightCheck] Copied assets to ${addonAssetsDir}`);
@@ -156,7 +163,9 @@ async function exportAddonData() {
     // Eliminates coui:// path resolution issues entirely. Shows visible status
     // before React mounts so grey-screen = JS error (we can see which script
     // loaded). Diagnostic messages remain until React replaces #root.
-    const cssContent = fs.readFileSync(path.join(addonAssetsDir, 'index.css'), 'utf-8');
+    // CSS may be inlined in JS bundle (Vite IIFE default) — skip if missing
+    const cssPath = path.join(addonAssetsDir, 'index.css');
+    const cssContent = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, 'utf-8') : '';
     const jsContent = fs.readFileSync(path.join(addonAssetsDir, 'index.js'), 'utf-8');
     const offlineDataContent = fs.readFileSync(offlineDataPath, 'utf-8');
 
@@ -179,6 +188,7 @@ ${cssContent}
   <div id="fc-boot">
     <div>FlightCheck loading...</div>
     <div id="fc-boot-err"></div>
+    <pre id="fc-boot-feat" style="font-family:monospace;font-size:10px;color:#94a3b8;text-align:left;max-width:90%;"></pre>
   </div>
   <div id="root"></div>
   <script>
@@ -186,6 +196,32 @@ ${cssContent}
       var el = document.getElementById('fc-boot-err');
       if (el) el.textContent = 'Error: ' + (e.message || 'unknown') + '\\n@ ' + (e.filename || '?') + ':' + (e.lineno || '?');
     });
+    // Feature detection — shows in overlay so we know what Coherent supports
+    var feats = [
+      ['arrow', 'return (function(){var f=new Function("return () => 1"); return f()()})()'],
+      ['template', 'return new Function("return \`x\`")()'],
+      ['let', 'return new Function("let a=1; return a")()'],
+      ['const', 'return new Function("const a=1; return a")()'],
+      ['default', 'return new Function("var f=function(a){if(a===undefined)a=1;return a}; return f()")()'],
+      ['spread', 'return new Function("return [].concat([1,2])")()'],
+      ['destructure', 'return new Function("var o={a:1}; var a=o.a; return a")()'],
+      ['class', 'return new Function("return class{}")()'],
+      ['async', 'return new Function("return (async function(){})")()'],
+      ['optchain', 'return new Function("var o={}; return o&&o.a")()'],
+      ['nullcoal', 'var x=null; return x===null||x===undefined?1:x'],
+      ['Promise', 'return typeof Promise'],
+      ['fetch', 'return typeof fetch'],
+      ['Symbol', 'return typeof Symbol'],
+    ];
+    try {
+      var lines = [];
+      for (var i=0; i<feats.length; i++) {
+        try { var r = new Function(feats[i][1])(); lines.push('OK  ' + feats[i][0] + ' (' + r + ')'); }
+        catch(e) { lines.push('ERR ' + feats[i][0] + ': ' + (e.message||e)); }
+      }
+      lines.push('UA: ' + navigator.userAgent);
+      document.getElementById('fc-boot-feat').textContent = lines.join('\\n');
+    } catch(e) {}
   </script>
   <script>
 ${offlineDataContent}
