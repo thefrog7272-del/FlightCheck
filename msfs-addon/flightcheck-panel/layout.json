@@ -58,12 +58,12 @@
     {
       "path": "html_ui/InstrumentsReact/FlightCheck/data/checklists.json",
       "size": 1111760,
-      "date": 134213409272441330
+      "date": 134213413519503360
     },
     {
       "path": "html_ui/InstrumentsReact/FlightCheck/data/planes.json",
       "size": 394032,
-      "date": 134213409272401310
+      "date": 134213413519463330
     },
     {
       "path": "html_ui/InstrumentsReact/FlightCheck/favicon.svg",
@@ -72,8 +72,8 @@
     },
     {
       "path": "html_ui/InstrumentsReact/FlightCheck/FlightCheck.html",
-      "size": 515,
-      "date": 134213409272556530
+      "size": 3579545,
+      "date": 134213413519728830
     },
     {
       "path": "html_ui/InstrumentsReact/FlightCheck/icons.svg",
@@ -83,12 +83,12 @@
     {
       "path": "html_ui/InstrumentsReact/FlightCheck/index.html",
       "size": 824,
-      "date": 134213409272556530
+      "date": 134213413519613570
     },
     {
       "path": "html_ui/InstrumentsReact/FlightCheck/offline-data.js",
       "size": 1496465,
-      "date": 134213409272551490
+      "date": 134213413519613570
     },
     {
       "path": "html_ui/Pages/ToolBar/ToolBar_FlightCheck/FC_Icon.svg",
@@ -108,7 +108,7 @@
     {
       "path": "layout.json",
       "size": 3480,
-      "date": 134213401868500720
+      "date": 134213409272571570
     },
     {
       "path": "manifest.json",

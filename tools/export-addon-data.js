@@ -152,9 +152,14 @@ async function exportAddonData() {
     fs.writeFileSync(path.join(fcDir, 'index.html'), indexHtml);
     console.log('[FlightCheck] Wrote patched index.html with offline-data.js injection');
 
-    // Write FlightCheck.html — direct mount entry point for MSFS htmlgauge.
-    // No iframe wrapper — iframe+coui:// unreliable in MSFS 2024 Coherent GT.
-    // React app mounts directly in the htmlgauge's own document.
+    // Write FlightCheck.html — single-file entry point with all assets inlined.
+    // Eliminates coui:// path resolution issues entirely. Shows visible status
+    // before React mounts so grey-screen = JS error (we can see which script
+    // loaded). Diagnostic messages remain until React replaces #root.
+    const cssContent = fs.readFileSync(path.join(addonAssetsDir, 'index.css'), 'utf-8');
+    const jsContent = fs.readFileSync(path.join(addonAssetsDir, 'index.js'), 'utf-8');
+    const offlineDataContent = fs.readFileSync(offlineDataPath, 'utf-8');
+
     const flightCheckHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -163,18 +168,36 @@ async function exportAddonData() {
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0f172a; color: #fff; font-family: sans-serif; }
     #root { width: 100%; height: 100%; overflow: auto; }
+    #fc-boot { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; font-size: 14px; color: #94a3b8; pointer-events: none; z-index: 0; }
+    #fc-boot-err { color: #ef4444; white-space: pre-wrap; text-align: left; max-width: 80%; font-family: monospace; font-size: 11px; }
   </style>
-  <link rel="stylesheet" href="./assets/index.css">
+  <style>
+${cssContent}
+  </style>
 </head>
 <body>
+  <div id="fc-boot">
+    <div>FlightCheck loading...</div>
+    <div id="fc-boot-err"></div>
+  </div>
   <div id="root"></div>
-  <script src="./offline-data.js"></script>
-  <script src="./assets/index.js"></script>
+  <script>
+    window.addEventListener('error', function(e) {
+      var el = document.getElementById('fc-boot-err');
+      if (el) el.textContent = 'Error: ' + (e.message || 'unknown') + '\\n@ ' + (e.filename || '?') + ':' + (e.lineno || '?');
+    });
+  </script>
+  <script>
+${offlineDataContent}
+  </script>
+  <script>
+${jsContent}
+  </script>
 </body>
 </html>
 `;
     fs.writeFileSync(path.join(fcDir, 'FlightCheck.html'), flightCheckHtml);
-    console.log('[FlightCheck] Wrote FlightCheck.html (direct-mount, no iframe)');
+    console.log('[FlightCheck] Wrote FlightCheck.html (single-file, all inline)');
 
     // Generate layout.json
     console.log('[FlightCheck] Generating layout.json...');
