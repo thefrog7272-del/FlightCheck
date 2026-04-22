@@ -134,8 +134,8 @@ async function exportAddonData() {
       console.warn('[FlightCheck] dist/assets not found');
     }
 
-    // Copy favicon and icons
-    const distFiles = ['favicon.svg', 'icons.svg'];
+    // Copy favicon and icons, and index.html
+    const distFiles = ['favicon.svg', 'icons.svg', 'index.html'];
     const fcDir = path.join(cwd, 'msfs-addon', 'flightcheck-panel', 'html_ui', 'InstrumentsReact', 'FlightCheck');
     for (const file of distFiles) {
       const srcPath = path.join(cwd, 'dist', file);
@@ -144,6 +144,35 @@ async function exportAddonData() {
         console.log(`[FlightCheck] Copied ${file}`);
       }
     }
+
+    // Generate layout.json
+    console.log('[FlightCheck] Generating layout.json...');
+    const addonDir = path.join(cwd, 'msfs-addon', 'flightcheck-panel');
+    const content = [];
+
+    function walkDir(dir, relativePrefix = '') {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        const fullPath = path.join(dir, file);
+        const stat = fs.statSync(fullPath);
+        const relativePath = path.join(relativePrefix, file).replace(/\\/g, '/');
+
+        if (stat.isDirectory()) {
+          walkDir(fullPath, relativePath);
+        } else {
+          content.push({
+            path: relativePath,
+            size: stat.size,
+            date: stat.mtimeMs * 10000 + 116444736000000000 // Convert to Windows FILETIME
+          });
+        }
+      }
+    }
+
+    walkDir(addonDir);
+    const layoutPath = path.join(addonDir, 'layout.json');
+    fs.writeFileSync(layoutPath, JSON.stringify({ content }, null, 2));
+    console.log(`[FlightCheck] Generated ${layoutPath} with ${content.length} files`);
 
     console.log('[FlightCheck] Addon export complete');
   } catch (err) {
