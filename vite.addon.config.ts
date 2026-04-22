@@ -8,6 +8,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: './',
+  define: {
+    __ADDON_BUILD__: 'true',
+  },
   build: {
     outDir: 'dist-addon',
     modulePreload: false,

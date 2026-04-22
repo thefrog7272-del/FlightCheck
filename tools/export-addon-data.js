@@ -152,6 +152,30 @@ async function exportAddonData() {
     fs.writeFileSync(path.join(fcDir, 'index.html'), indexHtml);
     console.log('[FlightCheck] Wrote patched index.html with offline-data.js injection');
 
+    // Write FlightCheck.html — direct mount entry point for MSFS htmlgauge.
+    // No iframe wrapper — iframe+coui:// unreliable in MSFS 2024 Coherent GT.
+    // React app mounts directly in the htmlgauge's own document.
+    const flightCheckHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FlightCheck</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0f172a; color: #fff; font-family: sans-serif; }
+    #root { width: 100%; height: 100%; overflow: auto; }
+  </style>
+  <link rel="stylesheet" href="./assets/index.css">
+</head>
+<body>
+  <div id="root"></div>
+  <script src="./offline-data.js"></script>
+  <script src="./assets/index.js"></script>
+</body>
+</html>
+`;
+    fs.writeFileSync(path.join(fcDir, 'FlightCheck.html'), flightCheckHtml);
+    console.log('[FlightCheck] Wrote FlightCheck.html (direct-mount, no iframe)');
+
     // Generate layout.json
     console.log('[FlightCheck] Generating layout.json...');
     const addonDir = path.join(cwd, 'msfs-addon', 'flightcheck-panel');
