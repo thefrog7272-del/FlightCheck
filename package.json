@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:addon": "npm run build && node tools/export-addon-data.js",
+    "build:addon": "tsc -b && vite build --config vite.addon.config.ts && node tools/export-addon-data.js",
     "lint": "eslint .",
     "test": "vitest",
     "preview": "npm run build && wrangler dev",

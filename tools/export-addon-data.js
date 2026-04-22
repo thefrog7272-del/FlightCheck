@@ -95,55 +95,62 @@ async function exportAddonData() {
     fs.writeFileSync(checklistsFile, JSON.stringify(checklists, null, 2));
     console.log(`[FlightCheck] Wrote ${checklistsFile}`);
 
-    // Copy built assets to addon
+    // Copy built assets to addon (from dist-addon/, built with base: './')
     console.log('[FlightCheck] Copying bundled assets to addon...');
-    const assetsDir = path.join(cwd, 'dist', 'assets');
-    const addonAssetsDir = path.join(cwd, 'msfs-addon', 'flightcheck-panel', 'html_ui', 'InstrumentsReact', 'FlightCheck', 'assets');
+    const distAddon = path.join(cwd, 'dist-addon');
+    const assetsDir = path.join(distAddon, 'assets');
+    const fcDir = path.join(cwd, 'msfs-addon', 'flightcheck-panel', 'html_ui', 'InstrumentsReact', 'FlightCheck');
+    const addonAssetsDir = path.join(fcDir, 'assets');
+
+    if (!fs.existsSync(distAddon)) {
+      console.error('[FlightCheck] dist-addon/ not found — run: vite build --config vite.addon.config.ts');
+      process.exit(1);
+    }
 
     if (fs.existsSync(assetsDir)) {
       copyDir(assetsDir, addonAssetsDir);
       console.log(`[FlightCheck] Copied assets to ${addonAssetsDir}`);
-
-      // Rename hashed bundle files to fixed names for offline use
-      const files = fs.readdirSync(addonAssetsDir);
-      const indexJsMatch = files.find(f => f.match(/^index-[\w]+\.js$/));
-      const indexCssMatch = files.find(f => f.match(/^index-[\w]+\.css$/));
-      const libJsMatch = files.find(f => f.match(/^lib-[\w]+\.js$/));
-
-      if (indexJsMatch) {
-        const oldPath = path.join(addonAssetsDir, indexJsMatch);
-        const newPath = path.join(addonAssetsDir, 'index.js');
-        fs.renameSync(oldPath, newPath);
-        console.log(`[FlightCheck] Renamed ${indexJsMatch} to index.js`);
-      }
-
-      if (indexCssMatch) {
-        const oldPath = path.join(addonAssetsDir, indexCssMatch);
-        const newPath = path.join(addonAssetsDir, 'index.css');
-        fs.renameSync(oldPath, newPath);
-        console.log(`[FlightCheck] Renamed ${indexCssMatch} to index.css`);
-      }
-
-      if (libJsMatch) {
-        const oldPath = path.join(addonAssetsDir, libJsMatch);
-        const newPath = path.join(addonAssetsDir, 'lib.js');
-        fs.renameSync(oldPath, newPath);
-        console.log(`[FlightCheck] Renamed ${libJsMatch} to lib.js`);
-      }
     } else {
-      console.warn('[FlightCheck] dist/assets not found');
+      console.warn('[FlightCheck] dist-addon/assets not found');
     }
 
-    // Copy favicon and icons, and index.html
-    const distFiles = ['favicon.svg', 'icons.svg', 'index.html'];
-    const fcDir = path.join(cwd, 'msfs-addon', 'flightcheck-panel', 'html_ui', 'InstrumentsReact', 'FlightCheck');
-    for (const file of distFiles) {
-      const srcPath = path.join(cwd, 'dist', file);
+    // Copy static root files
+    for (const file of ['favicon.svg', 'icons.svg']) {
+      const srcPath = path.join(distAddon, file);
       if (fs.existsSync(srcPath)) {
         fs.copyFileSync(srcPath, path.join(fcDir, file));
         console.log(`[FlightCheck] Copied ${file}`);
       }
     }
+
+    // Generate offline-data.js — sets window.__ADDON_OFFLINE_DATA__ before app boots
+    const offlineDataPath = path.join(fcDir, 'offline-data.js');
+    fs.writeFileSync(
+      offlineDataPath,
+      `window.__ADDON_OFFLINE_DATA__ = ${JSON.stringify({ planes, checklists })};\n`
+    );
+    console.log(`[FlightCheck] Wrote offline-data.js (${planes.length} planes, ${checklists.length} checklists)`);
+
+    // Copy index.html and inject offline-data.js script before app scripts
+    const srcIndexHtml = path.join(distAddon, 'index.html');
+    if (!fs.existsSync(srcIndexHtml)) {
+      console.error('[FlightCheck] dist-addon/index.html not found');
+      process.exit(1);
+    }
+    let indexHtml = fs.readFileSync(srcIndexHtml, 'utf-8');
+    // Strip crossorigin — coui:// has no CORS headers, silent load failure
+    indexHtml = indexHtml.replace(/\s+crossorigin(?:="[^"]*")?/g, '');
+    // Remove modulepreload links — unsupported in Coherent GT
+    indexHtml = indexHtml.replace(/<link[^>]+rel="modulepreload"[^>]*>\n?/g, '');
+    // Strip type="module" — IIFE output loads fine as plain <script src>
+    indexHtml = indexHtml.replace(/\s+type="module"/g, '');
+    // Inject offline-data.js before first <script — ensures data set before React bootstraps
+    indexHtml = indexHtml.replace(
+      /(<script\b)/,
+      '<script src="./offline-data.js"></script>\n  $1'
+    );
+    fs.writeFileSync(path.join(fcDir, 'index.html'), indexHtml);
+    console.log('[FlightCheck] Wrote patched index.html with offline-data.js injection');
 
     // Generate layout.json
     console.log('[FlightCheck] Generating layout.json...');
