@@ -15,6 +15,8 @@ import type { PlaneChecklist } from '../data/types';
 import { exportPlaneAsJson, exportPlaneAsHtml, exportPlaneAsChecklistJson } from '../utils/exportPlane';
 import { deduplicateChecklistWithCategories } from '../utils/checklistDedup';
 
+declare const __ADDON_BUILD__: boolean;
+
 type SortOption = 'name-asc' | 'name-desc' | 'manufacturer' | 'type';
 
 export function Home() {
@@ -323,7 +325,7 @@ listAllSharedChecklists()]);
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          {!isAdmin && (
+          {!isAdmin && !(typeof __ADDON_BUILD__ !== 'undefined' && __ADDON_BUILD__) && (
             <Link to="/admin/login" className={styles.loginButton}>
               Login
             </Link>

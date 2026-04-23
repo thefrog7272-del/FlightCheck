@@ -8,6 +8,8 @@ import { Scratchpad } from './Scratchpad';
 import { subscribeScratchpadEvents } from '../hooks/useScratchpad';
 import styles from './Layout.module.css';
 
+declare const __ADDON_BUILD__: boolean;
+
 function GitHubIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -46,8 +48,12 @@ export function Layout() {
     });
   }, []);
 
+  const containerClass = typeof __ADDON_BUILD__ !== 'undefined' && __ADDON_BUILD__
+    ? `${styles.container} ${styles.addonContainer}`
+    : styles.container;
+
   return (
-    <div className={styles.container}>
+    <div className={containerClass}>
       <OfflineIndicator />
       <a href="#main-content" className={styles.skipLink}>Skip to content</a>
       <header className={styles.header}>
@@ -71,16 +77,18 @@ export function Layout() {
                 Admin
               </Link>
             )}
-            <a
-              href="https://buymeacoffee.com/thefrog7272"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.coffeeLink}
-              title="Buy me a coffee"
-            >
-              <Coffee size={18} />
-              <span>Buy me a coffee</span>
-            </a>
+            {!(typeof __ADDON_BUILD__ !== 'undefined' && __ADDON_BUILD__) && (
+              <a
+                href="https://buymeacoffee.com/thefrog7272"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.coffeeLink}
+                title="Buy me a coffee"
+              >
+                <Coffee size={18} />
+                <span>Buy me a coffee</span>
+              </a>
+            )}
 
           </nav>
         </div>
@@ -88,18 +96,20 @@ export function Layout() {
       <main className={styles.main} id="main-content">
         <Outlet />
       </main>
-      <footer className={styles.footer}>
-        <span>FlightCheck — Interactive Flight Simulator Checklists</span>
-        <a
-          href="https://github.com/thefrog7272-del/FlightCheck"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.footerLink}
-        >
-          <GitHubIcon />
-          <span>GitHub</span>
-        </a>
-      </footer>
+      {!(typeof __ADDON_BUILD__ !== 'undefined' && __ADDON_BUILD__) && (
+        <footer className={styles.footer}>
+          <span>FlightCheck — Interactive Flight Simulator Checklists</span>
+          <a
+            href="https://github.com/thefrog7272-del/FlightCheck"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.footerLink}
+          >
+            <GitHubIcon />
+            <span>GitHub</span>
+          </a>
+        </footer>
+      )}
 
       {showScratchpad && <Scratchpad onClose={() => setShowScratchpad(false)} onEraseRef={eraseRef} onDictateRef={dictateRef} currentChecklistId={planeId} />}
     </div>

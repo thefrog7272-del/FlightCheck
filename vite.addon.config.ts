@@ -15,6 +15,7 @@ export default defineConfig({
     __ADDON_BUILD__: 'true',
   },
   build: {
+    target: 'es2015',
     outDir: 'dist-addon',
     modulePreload: false,
     rollupOptions: {

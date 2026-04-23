@@ -175,8 +175,26 @@ async function exportAddonData() {
   <meta charset="UTF-8" />
   <title>FlightCheck</title>
   <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0f172a; color: #fff; font-family: sans-serif; }
-    #root { width: 100%; height: 100%; overflow: auto; }
+    /* CSS variables pre-defined so they're available before JS injects bundle styles */
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --border: #334155;
+      --radius: 0.5rem;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --header-height: 64px;
+      --transition-speed: 0.2s;
+    }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #0f172a !important; color: #f1f5f9; font-family: sans-serif; overflow: hidden; }
+    body { display: flex; flex-direction: column; }
+    /* position:fixed fills the Coherent viewport regardless of iframe intrinsic height */
+    #root { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #0f172a; display: flex; flex-direction: column; overflow: hidden; }
     #fc-boot { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; font-size: 14px; color: #94a3b8; pointer-events: none; z-index: 0; }
     #fc-boot-err { color: #ef4444; white-space: pre-wrap; text-align: left; max-width: 80%; font-family: monospace; font-size: 11px; }
   </style>
@@ -224,10 +242,69 @@ ${cssContent}
     } catch(e) {}
   </script>
   <script>
+    if (typeof globalThis === 'undefined') {
+      globalThis = typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : this;
+    }
+    if (!Array.prototype.flatMap) {
+      Array.prototype.flatMap = function(callback, thisArg) {
+        var result = [];
+        for (var i = 0; i < this.length; i++) {
+          var item = callback.call(thisArg, this[i], i, this);
+          if (Array.isArray(item)) {
+            for (var j = 0; j < item.length; j++) {
+              result.push(item[j]);
+            }
+          } else {
+            result.push(item);
+          }
+        }
+        return result;
+      };
+    }
+    if (!Array.prototype.includes) {
+      Array.prototype.includes = function(searchElement) {
+        for (var i = 0; i < this.length; i++) {
+          if (this[i] === searchElement) return true;
+        }
+        return false;
+      };
+    }
+    if (!Object.assign) {
+      Object.assign = function(target) {
+        for (var i = 1; i < arguments.length; i++) {
+          var src = arguments[i];
+          for (var key in src) {
+            if (src.hasOwnProperty(key)) {
+              target[key] = src[key];
+            }
+          }
+        }
+        return target;
+      };
+    }
+    if (!Object.entries) {
+      Object.entries = function(obj) {
+        var result = [];
+        for (var key in obj) {
+          if (obj.hasOwnProperty(key)) {
+            result.push([key, obj[key]]);
+          }
+        }
+        return result;
+      };
+    }
+  </script>
+  <script>
 ${offlineDataContent}
   </script>
   <script>
 ${jsContent}
+  </script>
+  <script>
+    setTimeout(function() {
+      var boot = document.getElementById('fc-boot');
+      if (boot) boot.style.display = 'none';
+    }, 500);
   </script>
 </body>
 </html>

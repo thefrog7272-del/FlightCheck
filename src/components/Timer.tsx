@@ -1,6 +1,8 @@
 import { Play, Pause, RotateCcw, Clock } from 'lucide-react';
 import styles from './Timer.module.css';
 
+declare const __ADDON_BUILD__: boolean;
+
 interface TimerProps {
   elapsed: number;
   isRunning: boolean;
@@ -18,21 +20,25 @@ function formatTime(ms: number): string {
 }
 
 export function Timer({ elapsed, isRunning, onStart, onPause, onReset, bestTime }: TimerProps) {
+  const isAddon = typeof __ADDON_BUILD__ !== 'undefined' && __ADDON_BUILD__;
+  const iconSize = isAddon ? 18 : 14;
+  const clockSize = isAddon ? 20 : 16;
+
   return (
     <div className={styles.timer}>
-      <Clock size={16} className={styles.icon} />
+      <Clock size={clockSize} className={styles.icon} />
       <span className={styles.time}>{formatTime(elapsed)}</span>
       {isRunning ? (
         <button className={styles.button} onClick={onPause} title="Pause">
-          <Pause size={14} />
+          <Pause size={iconSize} />
         </button>
       ) : (
         <button className={styles.button} onClick={onStart} title="Start">
-          <Play size={14} />
+          <Play size={iconSize} />
         </button>
       )}
       <button className={styles.button} onClick={onReset} title="Reset timer">
-        <RotateCcw size={14} />
+        <RotateCcw size={iconSize} />
       </button>
       {bestTime && bestTime > 0 && (
         <span className={styles.best} title="Personal best">
