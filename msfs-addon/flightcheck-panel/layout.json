@@ -1,54 +1,104 @@
 {
   "content": [
     {
-      "path": "manifest.json",
-      "size": 620,
-      "date": 134210218790000000
-    },
-    {
       "path": "html_ui/icons/toolbar/get-tod-rod.svg",
       "size": 303,
-      "date": 134210218690000000
+      "date": 134216971701647300
     },
     {
       "path": "html_ui/InGamePanels/CustomPanel/GetToDRoD.html",
-      "size": 1251,
-      "date": 134210228780000000
+      "size": 2077,
+      "date": 134217079587144450
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/.gitignore",
+      "size": 116,
+      "date": 134217070356560880
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/assets/index.js",
+      "size": 2069923,
+      "date": 134216263295055400
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/assets/pdf.worker.min.mjs",
+      "size": 1239047,
+      "date": 134216263295055400
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/data/checklists.json",
+      "size": 1111760,
+      "date": 134217079597867860
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/data/planes.json",
+      "size": 394032,
+      "date": 134217079597822660
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/favicon.svg",
+      "size": 852,
+      "date": 134212812230402850
     },
     {
       "path": "html_ui/InstrumentsReact/FlightCheck/FlightCheck.html",
-      "size": 2099,
-      "date": 134210124270000000
+      "size": 3571578,
+      "date": 134217079598082020
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/icons.svg",
+      "size": 5055,
+      "date": 134212812230402850
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/index.html",
+      "size": 824,
+      "date": 134217079597944480
+    },
+    {
+      "path": "html_ui/InstrumentsReact/FlightCheck/offline-data.js",
+      "size": 1496465,
+      "date": 134217079597944480
     },
     {
       "path": "html_ui/Pages/ToolBar/ToolBar_FlightCheck/FC_Icon.svg",
       "size": 312,
-      "date": 134210163460000000
+      "date": 134216967060528600
     },
     {
       "path": "html_ui/Pages/ToolBar/ToolBar_FlightCheck/ToolBar_FlightCheck.html",
       "size": 1401,
-      "date": 134210202250000000
+      "date": 134216967060528600
     },
     {
       "path": "InGamePanels/get-tod-rod.spb",
       "size": 657,
-      "date": 133925873430000000
+      "date": 134216971701546820
+    },
+    {
+      "path": "layout.json",
+      "size": 2720,
+      "date": 134217079587150800
+    },
+    {
+      "path": "manifest.json",
+      "size": 620,
+      "date": 134216971701657330
     },
     {
       "path": "SimObjects/Misc/flightcheck_obj/aircraft.cfg",
       "size": 414,
-      "date": 134210206020000000
+      "date": 134216967060468620
     },
     {
       "path": "SimObjects/Misc/flightcheck_obj/model/model.cfg",
       "size": 19,
-      "date": 134210124270000000
+      "date": 134216967060468620
     },
     {
       "path": "SimObjects/Misc/flightcheck_obj/panel/panel.cfg",
       "size": 246,
-      "date": 134210163640000000
+      "date": 134216967060468620
     }
   ]
 }

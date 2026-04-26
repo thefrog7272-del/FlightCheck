@@ -22,6 +22,8 @@ import { Toast } from '../components/Toast';
 import { encodeChecklist } from '../utils/shareCodec';
 import type { PlaneChecklist } from '../data/types';
 
+declare const __ADDON_BUILD__: boolean;
+
 export function Checklist() {
   console.log('>>>> CHECKLIST COMPONENT MOUNTED, planeId from params:', typeof window !== 'undefined' ? window.location.pathname : 'unknown');
   const { planeId, categoryName: rawCategoryName } = useParams();
@@ -731,14 +733,18 @@ export function Checklist() {
                     dispatchScratchpadEvent('toggle');
                   }
                 }}
-                className={isScratchpadDictating ? styles.voiceTabActive : styles.voiceTab}
+                className={
+                  typeof __ADDON_BUILD__ !== 'undefined' && __ADDON_BUILD__
+                    ? showScratchpad ? styles.notepadButtonAddonOpen : styles.voiceTab
+                    : isScratchpadDictating ? styles.voiceTabActive : styles.voiceTab
+                }
                 title={showScratchpad ? 'Hide notepad' : 'Open notepad'}
                 data-testid="notepad-button"
               >
                 <NotebookPen size={12} />
                 Notepad
               </button>
-              {!isReferenceCategory && (
+              {!isReferenceCategory && !(typeof __ADDON_BUILD__ !== 'undefined' && __ADDON_BUILD__) && (
                 <button
                   onClick={toggleMute}
                   className={styles.voiceTab}

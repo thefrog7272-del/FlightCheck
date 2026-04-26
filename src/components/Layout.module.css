@@ -19,7 +19,12 @@
   flex-direction: column;
 }
 
+.addonContainer {
+  height: 100%;
+}
+
 .header {
+  flex-shrink: 0;
   height: var(--header-height);
   border-bottom: 1px solid var(--border);
   background-color: var(--bg-secondary);
@@ -167,9 +172,16 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1rem;
+  overflow-y: auto;
+  background: var(--bg-primary, #0f172a);
+}
+
+.addonContainer .main {
+  padding-top: 1rem;
 }
 
 .footer {
+  flex-shrink: 0;
   border-top: 1px solid var(--border);
   padding: 1rem;
   display: flex;

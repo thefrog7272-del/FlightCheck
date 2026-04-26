@@ -1,0 +1,8 @@
+# Generated at build time
+/assets/
+/data/
+favicon.svg
+icons.svg
+index.html
+offline-data.js
+FlightCheck.html

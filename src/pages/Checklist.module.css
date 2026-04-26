@@ -803,6 +803,28 @@
   opacity: 0.9;
 }
 
+/* Notepad button — addon-only style: light blue when open */
+.notepadButtonAddonOpen {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.875rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.notepadButtonAddonOpen:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
 /* ── Voice mode ──────────────────────────────────────────────────────────── */
 
 .micButton {
